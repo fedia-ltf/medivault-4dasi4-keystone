@@ -76,12 +76,12 @@ L'application est composée de **sept microservices métier** et de composants d
 | Microservice | Responsabilité | Base de données | Responsable |
 |---|---|---|---|
 | `user-service` (commun) | Comptes et rôles (Keycloak), profils des professionnels, notifications temps réel | MongoDB | Toute l'équipe |
-| `dossier-service` | Dossier médical, consultations, accès au dossier | MySQL | Yazid |
+| `dossier-service` | Dossier médical, consultations, accès au dossier | MySQL | Eya |
 | `ordonnance-service` | Ordonnances et vérifications avant validation | MySQL | Amine |
-| `medicament-service` | Catalogue des médicaments et interactions | H2 | Aziz |
-| `pharmacie-service` | Délivrance des ordonnances | H2 | Fedia |
-| `analyse-service` | Demandes d'analyses et résultats | H2 | Eya |
-| `rendezvous-service` | Créneaux et rendez-vous | H2 | Taha |
+| `medicament-service` | Catalogue des médicaments et interactions | H2 | Fedia |
+| `pharmacie-service` | Délivrance des ordonnances | H2 | Aziz |
+| `analyse-service` | Demandes d'analyses et résultats | H2 | Taha |
+| `rendezvous-service` | Créneaux et rendez-vous | H2 | Yazid |
 
 ### Infrastructure
 
@@ -176,11 +176,11 @@ docker-compose up -d
 
 | Membre | Gestion | Microservice |
 |---|---|---|
-| Yazid | Dossier médical | `dossier-service` |
+| Eya | Dossier médical | `dossier-service` |
 | Amine | Ordonnances | `ordonnance-service` |
-| Aziz | Médicaments | `medicament-service` |
-| Fedia | Pharmacie | `pharmacie-service` |
-| Eya | Analyses | `analyse-service` |
-| Taha | Rendez-vous | `rendezvous-service` |
+| Fedia | Médicaments | `medicament-service` |
+| Aziz | Pharmacie | `pharmacie-service` |
+| Taha | Analyses | `analyse-service` |
+| Yazid | Rendez-vous | `rendezvous-service` |
 
 Chaque membre réalise la partie back-end et front-end de sa gestion.

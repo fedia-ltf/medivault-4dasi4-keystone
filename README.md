@@ -21,7 +21,8 @@ Projet réalisé dans le cadre du module **Applications Web Distribuées** à ES
 5. [Technologies](#technologies)
 6. [Structure du dépôt](#structure-du-dépôt)
 7. [Lancement du projet](#lancement-du-projet)
-8. [Équipe](#équipe)
+8. [Documentation](#documentation)
+9. [Équipe](#équipe)
 
 ---
 
@@ -71,6 +72,8 @@ Le nom vient de *medi* (médical) et *vault* (coffre-fort) : MediVault est le co
 
 ## Architecture
 
+![Architecture de MediVault](Documentation/Diagrams/architecture-detaillee.png)
+
 L'application est composée de **sept microservices métier** et de composants d'infrastructure. Chaque microservice possède sa propre base de données et est développé par un membre de l'équipe ; le microservice `user-service` est commun à toute l'équipe.
 
 | Microservice | Responsabilité | Base de données | Responsable |
@@ -91,7 +94,7 @@ L'application est composée de **sept microservices métier** et de composants d
 | Eureka Server | Découverte des services |
 | Config Server | Configuration centralisée |
 | Keycloak | Authentification et gestion des rôles (OAuth2 / JWT) |
-| RabbitMQ | Échange d'événements entre microservices |
+| Apache Kafka | Broker d'événements entre microservices (un topic par événement) |
 
 ---
 
@@ -100,7 +103,7 @@ L'application est composée de **sept microservices métier** et de composants d
 Chaque microservice dispose d'au moins une communication **synchrone** et d'une communication **asynchrone** (publication et consommation d'un événement).
 
 - **Synchrone :** OpenFeign, avec disjoncteur et méthode de repli (Resilience4j)
-- **Asynchrone :** RabbitMQ, via l'échange `medivault.events`
+- **Asynchrone :** Apache Kafka, un topic par événement (ex. `medivault.ordonnance-delivree`), chaque service consommateur avec son propre `groupId`
 
 | Microservice | Appel synchrone (OpenFeign) | Publie | Consomme |
 |---|---|---|---|
@@ -112,7 +115,7 @@ Chaque microservice dispose d'au moins une communication **synchrone** et d'une 
 | `analyse-service` | `dossier-service` : laboratoire autorisé | `ResultatDisponible` | `ConsultationAjoutee`, `RendezVousConfirme` |
 | `rendezvous-service` | `user-service` : jours et heures de travail du professionnel | `RendezVousConfirme` | `ConsultationAjoutee` |
 
-En cas d'indisponibilité d'un service appelé, un disjoncteur et une méthode de repli prennent le relais. Les événements restent stockés dans RabbitMQ et sont consommés au redémarrage du service.
+En cas d'indisponibilité d'un service appelé, un disjoncteur et une méthode de repli prennent le relais. Les événements restent stockés dans Kafka : un service redémarré reprend la lecture à son dernier offset, et l'historique des événements médicaux est conservé (traçabilité).
 
 Les références entre microservices se font uniquement par identifiant (par exemple `patient_id`, `ordonnance_id`), sans relation directe entre les bases de données.
 
@@ -124,7 +127,7 @@ Les références entre microservices se font uniquement par identifiant (par exe
 |---|---|
 | Back-end | Java 17, Spring Boot 3, Spring Data JPA, Spring Data MongoDB |
 | Spring Cloud | Gateway, Eureka, Config Server, OpenFeign |
-| Messagerie | RabbitMQ |
+| Messagerie | Apache Kafka |
 | Résilience | Resilience4j |
 | Sécurité | Keycloak (OAuth2 / JWT) |
 | Front-end | Angular |
@@ -167,6 +170,16 @@ git clone https://github.com/fedia-ltf/medivault-4dasi4-keystone.git
 cd medivault-4dasi4-keystone
 docker-compose up -d
 ```
+
+---
+
+## Documentation
+
+- [Architecture détaillée](Documentation/Diagrams/architecture-detaillee.png)
+- [Architecture globale](Documentation/Diagrams/architecture.png)
+- [Diagramme de cas d'utilisation](Documentation/Diagrams/cas-utilisation.png)
+- [Diagramme de classes](Documentation/Diagrams/diagramme-classes.png)
+- [Diagramme de communication](Documentation/Diagrams/diagramme-communication.png)
 
 ---
 

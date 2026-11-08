@@ -9,6 +9,7 @@ Projet réalisé dans le cadre du module **Applications Web Distribuées** à ES
 | **Équipe** | Keystone |
 | **Classe** | 4DAS_I4 |
 | **Encadrant** | M. Abdessalem Ghodbeni |
+| **Gestion de projet** | [Tableau Trello MediVault](https://trello.com/b/6af04aa055f59c1eb9a74e01) |
 
 ---
 

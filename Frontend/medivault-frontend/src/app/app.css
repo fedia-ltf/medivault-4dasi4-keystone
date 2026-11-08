@@ -1,0 +1,9 @@
+:host { display: block; font-family: system-ui, sans-serif; color: #0b2540; }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 16px 32px; background: #0d9488; color: #fff; }
+.logo { font-size: 22px; }
+.brand { font-weight: 800; font-size: 22px; }
+.tag { opacity: .85; font-size: 14px; }
+.content { max-width: 900px; margin: 32px auto; padding: 0 24px; line-height: 1.6; }
+.modules { padding-left: 20px; }
+.modules b { display: inline-block; min-width: 150px; color: #0d9488; }
+code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; }

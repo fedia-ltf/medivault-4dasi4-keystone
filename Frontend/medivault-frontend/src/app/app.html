@@ -1,0 +1,25 @@
+<header class="topbar">
+  <span class="logo">✚</span>
+  <span class="brand">MediVault</span>
+  <span class="tag">Votre santé, en sécurité, dans un seul dossier</span>
+</header>
+
+<main class="content">
+  <h1>Socle Angular — Équipe Keystone</h1>
+  <p>
+    Application front-end de MediVault. Elle consomme les API des microservices via
+    l'API Gateway (<code>http://localhost:8080/api/**</code>) avec un jeton JWT Keycloak.
+  </p>
+
+  <ul class="modules">
+    <li><b>Utilisateurs</b> inscription, connexion, profil, notifications (commun)</li>
+    <li><b>Dossier médical</b> dossier patient, consultations, accès (Eya)</li>
+    <li><b>Ordonnances</b> rédaction avec alertes, liste (Amine)</li>
+    <li><b>Médicaments</b> catalogue, interactions, retrait (Fedia)</li>
+    <li><b>Pharmacie</b> recherche par code, délivrance, historique (Aziz)</li>
+    <li><b>Analyses</b> analyses à traiter, saisie, mes résultats (Taha)</li>
+    <li><b>Rendez-vous</b> agenda, prise de rendez-vous (Yazid)</li>
+  </ul>
+
+  <router-outlet />
+</main>

@@ -9,7 +9,7 @@ Projet réalisé dans le cadre du module **Applications Web Distribuées** à ES
 | **Équipe** | Keystone |
 | **Classe** | 4DAS_I4 |
 | **Encadrant** | M. Abdessalem Ghodbeni |
-| **Gestion de projet** | [Tableau Trello MediVault](https://trello.com/b/6af04aa055f59c1eb9a74e01) |
+| **Gestion de projet** | [Tableau Trello](https://trello.com/b/6af04aa055f59c1eb9a74e01) |
 
 ---
 
@@ -121,20 +121,35 @@ Chaque microservice dispose d'au moins une communication **synchrone** et d'une 
 
 ### Événements métier
 
-| Événement | Clé de routage | Producteur | Consommateurs |
-|---|---|---|---|
-| `UtilisateurCree` | `utilisateur.cree` | user | dossier |
-| `AccesAccorde` | `acces.accorde` | dossier | user |
-| `ConsultationAjoutee` | `consultation.ajoutee` | dossier | rendezvous, analyse |
-| `OrdonnanceCreee` | `ordonnance.creee` | ordonnance | user |
-| `OrdonnanceDelivree` | `ordonnance.delivree` | pharmacie | ordonnance, dossier, medicament |
-| `MedicamentRetire` | `medicament.retire` | medicament | pharmacie |
-| `ResultatDisponible` | `resultat.disponible` | analyse | dossier, user |
-| `RendezVousConfirme` | `rendezvous.confirme` | rendezvous | user, analyse |
+| Événement | Clé de routage | Producteur | Consommateurs | Contenu |
+|---|---|---|---|---|
+| `UtilisateurCree` | `utilisateur.cree` | user | dossier | utilisateurId, role, nom |
+| `AccesAccorde` | `acces.accorde` | dossier | user | dossierId, patientId, professionnelId |
+| `ConsultationAjoutee` | `consultation.ajoutee` | dossier | rendezvous, analyse | consultationId, patientId, medecinId, analysesDemandees |
+| `OrdonnanceCreee` | `ordonnance.creee` | ordonnance | user | ordonnanceId, code, patientId |
+| `OrdonnanceDelivree` | `ordonnance.delivree` | pharmacie | ordonnance, dossier, medicament | ordonnanceId, patientId, lignesDelivrees, type |
+| `MedicamentRetire` | `medicament.retire` | medicament | pharmacie | medicamentId, motif, date |
+| `ResultatDisponible` | `resultat.disponible` | analyse | dossier, user | analyseId, patientId, laboratoireId, typeAnalyse |
+| `RendezVousConfirme` | `rendezvous.confirme` | rendezvous | user, analyse | rendezVousId, patientId, professionnelId, typeProfessionnel, date |
+
+**Données locales alimentées par les événements :**
+- `pharmacie-service` enregistre chaque médicament retiré dans `MedicamentBloque` (événement `MedicamentRetire`) : la délivrance est bloquée sans rappeler `medicament-service`.
+- `medicament-service` incrémente `nb_delivrances` du médicament à chaque `OrdonnanceDelivree` (statistiques de consommation).
+- `analyse-service` renseigne `laboratoire_id` à la réception de `RendezVousConfirme` (rendez-vous au laboratoire) : seul ce laboratoire peut saisir le résultat, après vérification de son accès au dossier.
 
 ### En cas de panne
 
-- **Appel synchrone :** le disjoncteur s'ouvre et une méthode de repli prend le relais (par exemple : accès refusé avec 503 pour les données médicales, ordonnance enregistrée « EN_ATTENTE_VERIFICATION » si la vérification est impossible).
+Appels synchrones : un disjoncteur et une méthode de repli (Resilience4j) prennent le relais.
+
+| Appel synchrone | Si le service appelé est indisponible |
+|---|---|
+| dossier → user | Accès refusé (503) : aucune donnée médicale sans vérification |
+| ordonnance → dossier / medicament | Ordonnance enregistrée « EN_ATTENTE_VERIFICATION », non délivrable |
+| medicament → ordonnance | Retrait publié quand même ; liste des ordonnances recalculée plus tard |
+| pharmacie → ordonnance | Délivrance refusée (503), nouvel essai proposé |
+| analyse → dossier | Saisie du résultat refusée (503) |
+| rendezvous → user | Créneaux non générés, message « réessayer plus tard » |
+
 - **Événement :** les messages sont persistants et restent dans la file du service consommateur ; un service arrêté les traite à son redémarrage (acquittement après traitement).
 
 Les références entre microservices se font uniquement par identifiant (par exemple `patient_id`, `ordonnance_id`), sans relation directe entre les bases de données.
@@ -214,7 +229,7 @@ medivault-4dasi4-keystone/
 ├── Documentation/
 │   ├── Presentation/        # support de présentation
 │   ├── Diagrams/            # cas d'utilisation, classes, architecture, communication
-│   └── MediVault_Dossier_Technique.pdf
+│   └── MediVault_Dossier_Technique.docx
 ├── .gitignore
 └── README.md
 ```
@@ -232,11 +247,28 @@ medivault-4dasi4-keystone/
 - Node.js et Angular CLI
 - Docker et Docker Compose
 
-### Démarrage (à venir)
+### Lancer un microservice (exemple : `medicament-service`)
 
 ```bash
 git clone https://github.com/fedia-ltf/medivault-4dasi4-keystone.git
-cd medivault-4dasi4-keystone
+cd medivault-4dasi4-keystone/Backend/medicament-service
+mvn spring-boot:run
+```
+
+- API : http://localhost:8084/api/medicaments
+- Swagger : http://localhost:8084/swagger-ui.html
+- Console H2 : http://localhost:8084/h2-console (JDBC `jdbc:h2:mem:medicament_db`, utilisateur `sa`)
+- Collection Postman : `Backend/medicament-service/postman/`
+
+Eureka (8761), Config Server (8888) et RabbitMQ (5672) sont optionnels pour démarrer un service seul :
+
+```bash
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+```
+
+### Démarrage global (à venir)
+
+```bash
 docker-compose up -d
 ```
 
@@ -244,7 +276,8 @@ docker-compose up -d
 
 ## Documentation
 
-- [Dossier de conception](Documentation/MediVault_Dossier_Technique.pdf)
+- [Dossier technique (Word)](Documentation/MediVault_Dossier_Technique.docx)
+- [Présentation — Validation 1](Documentation/Presentation/)
 - [Architecture détaillée](Documentation/Diagrams/architecture-detaillee.png)
 - [Diagramme de cas d'utilisation](Documentation/Diagrams/cas-utilisation.png)
 - [Diagramme de classes](Documentation/Diagrams/diagramme-classes.png)
@@ -265,4 +298,4 @@ docker-compose up -d
 | Taha | Analyses | `analyse-service` | Socle Angular, Docker Compose, notifications temps réel |
 | Yazid | Rendez-vous | `rendezvous-service` | Présentation et suivi des tâches |
 
-Chaque membre réalise la partie back-end et front-end de sa gestion et effectue des commits réguliers dans son propre microservice. Le suivi des tâches se fait sur un tableau Trello (une carte par tâche, un responsable, une échéance).
+Chaque membre réalise la partie back-end et front-end de sa gestion et effectue des commits réguliers dans son propre microservice. Le suivi des tâches se fait sur le [tableau Trello](https://trello.com/b/6af04aa055f59c1eb9a74e01) (une carte par tâche, un responsable, une échéance).

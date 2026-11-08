@@ -231,11 +231,28 @@ medivault-4dasi4-keystone/
 - Node.js et Angular CLI
 - Docker et Docker Compose
 
-### Démarrage (à venir)
+### Lancer un microservice (exemple : `medicament-service`)
 
 ```bash
 git clone https://github.com/fedia-ltf/medivault-4dasi4-keystone.git
-cd medivault-4dasi4-keystone
+cd medivault-4dasi4-keystone/Backend/medicament-service
+mvn spring-boot:run
+```
+
+- API : http://localhost:8084/api/medicaments
+- Swagger : http://localhost:8084/swagger-ui.html
+- Console H2 : http://localhost:8084/h2-console (JDBC `jdbc:h2:mem:medicament_db`, utilisateur `sa`)
+- Collection Postman : `Backend/medicament-service/postman/`
+
+Eureka (8761), Config Server (8888) et RabbitMQ (5672) sont optionnels pour démarrer un service seul :
+
+```bash
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+```
+
+### Démarrage global (à venir)
+
+```bash
 docker-compose up -d
 ```
 

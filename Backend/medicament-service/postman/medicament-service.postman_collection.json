@@ -1,0 +1,109 @@
+{
+  "info": {
+    "name": "MediVault - medicament-service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8084" },
+    { "key": "gatewayUrl", "value": "http://localhost:8080" },
+    { "key": "medicamentId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Catalogue",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('200 OK', () => pm.response.to.have.status(200));",
+        "pm.test('31 médicaments', () => pm.expect(pm.response.json().length).to.be.at.least(1));"
+      ]}}],
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/medicaments" }
+    },
+    {
+      "name": "2. Ajouter un médicament (201)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('201 Created', () => pm.response.to.have.status(201));",
+        "pm.collectionVariables.set('medicamentId', pm.response.json().id);"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/medicaments",
+        "body": { "mode": "raw", "raw": "{\n  \"nom_commercial\": \"Spasfon\",\n  \"dci\": \"Phloroglucinol\",\n  \"classe_therapeutique\": \"Antispasmodique\",\n  \"forme\": \"COMPRIME\",\n  \"dosage\": \"80 mg\"\n}" }
+      }
+    },
+    {
+      "name": "3. Ajouter un médicament invalide (400)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/medicaments",
+        "body": { "mode": "raw", "raw": "{\n  \"nom_commercial\": \"\",\n  \"dci\": \"Test\",\n  \"forme\": \"CAPSULE\"\n}" }
+      }
+    },
+    {
+      "name": "4. Compatibilité - compatible",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/medicaments/compatibilite",
+        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [1, 21],\n  \"allergies\": [\"Pénicilline\"]\n}" }
+      }
+    },
+    {
+      "name": "5. Compatibilité - allergie (RG4)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/medicaments/compatibilite",
+        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [7, 1],\n  \"allergies\": [\"Penicilline\"]\n}" }
+      }
+    },
+    {
+      "name": "6. Compatibilité - interaction contre-indiquée (RG4)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/medicaments/compatibilite",
+        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [28, 29],\n  \"allergies\": []\n}" }
+      }
+    },
+    {
+      "name": "7. Compatibilité - interaction grave (alerte non bloquante)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/medicaments/compatibilite",
+        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [11, 3, 15],\n  \"allergies\": []\n}" }
+      }
+    },
+    {
+      "name": "8. Retirer le médicament créé (204)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+      ]}}],
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/api/medicaments/{{medicamentId}}?motif=Rappel de lot" }
+    },
+    {
+      "name": "9. Retirer à nouveau (404)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+      ]}}],
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/api/medicaments/{{medicamentId}}" }
+    },
+    {
+      "name": "10. Compatibilité un médicament retiré (RG6)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/medicaments/compatibilite",
+        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [{{medicamentId}}],\n  \"allergies\": []\n}" }
+      }
+    },
+    {
+      "name": "11. Catalogue via API Gateway",
+      "request": { "method": "GET", "url": "{{gatewayUrl}}/api/medicaments" }
+    }
+  ]
+}

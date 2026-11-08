@@ -282,7 +282,7 @@ docker-compose up -d
 - [Diagramme de cas d'utilisation](Documentation/Diagrams/cas-utilisation.png)
 - [Diagramme de classes](Documentation/Diagrams/diagramme-classes.png)
 - [Diagramme de communication](Documentation/Diagrams/diagramme-communication.png)
-- Suivi des tâches du `medicament-service` : [tableau Trello](https://trello.com/b/JhqqBKbt/medivault-medicament-service-fedia) ([capture](Documentation/Diagrams/trello-medicament-service.jpg))
+- Suivi des tâches du `medicament-service` : [tableau Trello](https://trello.com/invite/b/6af09c9d4ad53053d4a7099f/ATTIffcc29e2492b3902ac012ac4fe605578E75BCE33/medivault-medicament-service-fedia) ([capture](Documentation/Diagrams/trello-medicament-service.jpg))
 
 ---
 

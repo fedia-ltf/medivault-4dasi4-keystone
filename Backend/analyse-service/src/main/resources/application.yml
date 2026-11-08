@@ -1,0 +1,59 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: analyse-service
+  # Config Server facultatif tant qu'il n'est pas lancé
+  config:
+    import: "optional:configserver:http://localhost:8888"
+
+  datasource:
+    url: jdbc:h2:mem:analyse_db
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # RabbitMQ (exchange topic medivault.events)
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+  # Circuit breaker (Resilience4j) sur l'appel OpenFeign vers dossier-service
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    prefer-ip-address: true
+
+medivault:
+  rabbitmq:
+    exchange: medivault.events
+    queues:
+      consultation-ajoutee: analyse.consultation-ajoutee
+      rendezvous-confirme: analyse.rendezvous-confirme
+    routing-keys:
+      consultation-ajoutee: consultation.ajoutee
+      rendezvous-confirme: rendezvous.confirme
+      resultat-disponible: resultat.disponible
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

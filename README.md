@@ -8,7 +8,7 @@ Projet réalisé dans le cadre du module **Applications Web Distribuées** à ES
 |---|---|
 | **Équipe** | Keystone |
 | **Classe** | 4DAS_I4 |
-| **Encadrant** | M. Abdessalem Ghodbani |
+| **Encadrant** | M. Abdessalem Ghodbeni |
 
 ---
 

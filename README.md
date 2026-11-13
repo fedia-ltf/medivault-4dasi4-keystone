@@ -9,7 +9,7 @@ Projet réalisé dans le cadre du module **Applications Web Distribuées** à ES
 | **Équipe** | Keystone |
 | **Classe** | 4DAS_I4 |
 | **Encadrant** | M. Abdessalem Ghodbeni |
-| **Gestion de projet** | [Tableau Trello](https://trello.com/b/6af04aa055f59c1eb9a74e01) |
+| **Gestion de projet** | [Tableau Trello](https://trello.com/b/F1iDFLDE/medivault) |
 
 ---
 
@@ -282,6 +282,7 @@ docker-compose up -d
 - [Diagramme de cas d'utilisation](Documentation/Diagrams/cas-utilisation.png)
 - [Diagramme de classes](Documentation/Diagrams/diagramme-classes.png)
 - [Diagramme de communication](Documentation/Diagrams/diagramme-communication.png)
+- Suivi des tâches du `medicament-service` : [tableau Trello](https://trello.com/invite/b/6af09c9d4ad53053d4a7099f/ATTIffcc29e2492b3902ac012ac4fe605578E75BCE33/medivault-medicament-service-fedia) ([capture](Documentation/Diagrams/trello-medicament-service.jpg))
 
 ---
 
@@ -298,4 +299,4 @@ docker-compose up -d
 | Taha | Analyses | `analyse-service` | Socle Angular, Docker Compose, notifications temps réel |
 | Yazid | Rendez-vous | `rendezvous-service` | Présentation et suivi des tâches |
 
-Chaque membre réalise la partie back-end et front-end de sa gestion et effectue des commits réguliers dans son propre microservice. Le suivi des tâches se fait sur le [tableau Trello](https://trello.com/b/6af04aa055f59c1eb9a74e01) (une carte par tâche, un responsable, une échéance).
+Chaque membre réalise la partie back-end et front-end de sa gestion et effectue des commits réguliers dans son propre microservice. Le suivi des tâches se fait sur le [tableau Trello](https://trello.com/b/F1iDFLDE/medivault) (une carte par tâche, un responsable, une échéance).

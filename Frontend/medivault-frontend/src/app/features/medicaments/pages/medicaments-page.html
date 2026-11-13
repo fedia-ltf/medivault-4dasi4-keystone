@@ -1,0 +1,184 @@
+<!-- ================= Bandeau (même gabarit que les autres modules) ================= -->
+<section class="enter relative overflow-hidden rounded-[2rem] aurora-dark grain p-8 text-white sm:p-12">
+  <div class="absolute inset-0 grid-lines"></div>
+  <mv-pills class="absolute inset-y-0 right-0 hidden w-[55%] md:block" [count]="12" />
+  <div class="relative max-w-xl">
+    <div class="grid h-14 w-14 place-items-center rounded-2xl bg-aqua-400 text-ink-950">
+      <mv-icon name="pill" [size]="26" />
+    </div>
+    <p class="mt-6 font-mono text-xs text-aqua-300">medicament-service</p>
+    <h2 class="mt-2 font-display text-6xl leading-none">Médicaments</h2>
+    <p class="mt-4 text-lg text-white/60">Le catalogue des médicaments de la plateforme : recherche, ajout, modification et suppression.</p>
+    <div class="mt-8 flex flex-wrap items-center gap-3">
+      <button (click)="ouvrirAjout()" class="btn btn-primary shine px-6 py-3 text-sm">
+        <mv-icon name="plus" [size]="17" /> Ajouter un médicament
+      </button>
+      <button (click)="charger()" class="btn btn-ghost-dark px-4 py-3 text-sm" title="Recharger">
+        <mv-icon name="refresh" [size]="17" [class.animate-spin]="chargement()" /> Actualiser
+      </button>
+      @if (api.enLigne() === true) {
+        <span class="chip bg-emerald-400/15 px-3 py-1.5 text-emerald-300"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> API en ligne</span>
+      } @else if (api.enLigne() === false) {
+        <span class="chip bg-amber-400/15 px-3 py-1.5 text-amber-300"><span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span> Données de démonstration</span>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- ================= Chiffres ================= -->
+<section class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  @for (s of stats(); track s.label; let i = $index) {
+    <article class="card card-hover enter flex items-center gap-4 p-5" [style.animation-delay.ms]="100 + i * 70">
+      <div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-aqua-50 text-aqua-600"><mv-icon [name]="s.icon" [size]="22" /></div>
+      <div>
+        <p class="font-display text-4xl leading-none text-ink-900" [mvCountUp]="s.valeur"></p>
+        <p class="mt-1 text-sm text-ink-500">{{ s.label }}</p>
+      </div>
+    </article>
+  }
+</section>
+
+<!-- ================= Tableau ================= -->
+<section class="card enter mt-4 overflow-hidden [animation-delay:300ms]">
+  <div class="flex flex-col gap-4 border-b border-ink-100 p-5 lg:flex-row lg:items-center">
+    <div class="mr-auto">
+      <h3 class="text-lg font-bold text-ink-900">Catalogue</h3>
+      <p class="text-sm text-ink-400">{{ filtres().length }} sur {{ liste().length }} médicaments</p>
+    </div>
+    <div class="flex flex-wrap gap-1.5 rounded-full bg-ink-50 p-1">
+      <button (click)="formeFiltre.set(null)" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ !formeFiltre() ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">Toutes</button>
+      @for (f of formes; track f) {
+        <button (click)="formeFiltre.set(f)" class="rounded-full px-3.5 py-1.5 text-xs font-bold capitalize transition {{ formeFiltre() === f ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">{{ f.toLowerCase() }}</button>
+      }
+    </div>
+    <label class="relative w-full lg:w-80">
+      <mv-icon name="search" [size]="17" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
+      <input class="field py-2.5 pl-11" placeholder="Nom, DCI ou classe…" [ngModel]="recherche()" (ngModelChange)="recherche.set($event)" />
+    </label>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full min-w-[760px] text-sm">
+      <thead>
+        <tr class="bg-ink-50/70 text-left text-[11px] uppercase tracking-wider text-ink-400">
+          <th class="py-3.5 pl-6 font-bold">Médicament</th>
+          <th class="py-3.5 font-bold">Classe thérapeutique</th>
+          <th class="py-3.5 font-bold">Forme</th>
+          <th class="py-3.5 font-bold">Dosage</th>
+          <th class="py-3.5 font-bold">Délivrances</th>
+          <th class="py-3.5 pr-6 text-right font-bold">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (chargement()) {
+          @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+            <tr class="border-t border-ink-100/80">
+              <td colspan="6" class="px-6 py-4">
+                <div class="h-9 rounded-xl bg-[linear-gradient(90deg,#eef3f9_0%,#f8fafd_50%,#eef3f9_100%)] bg-[length:200%_100%] animate-shimmer"></div>
+              </td>
+            </tr>
+          }
+        } @else {
+          @for (m of filtres(); track m.id) {
+            <tr class="group border-t border-ink-100/80 transition-colors hover:bg-aqua-50/50">
+              <td class="py-4 pl-6">
+                <div class="flex items-center gap-3.5">
+                  <span class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-aqua-100 to-white text-aqua-600 ring-1 ring-aqua-100">
+                    <mv-icon name="pill" [size]="19" />
+                  </span>
+                  <div>
+                    <p class="text-[15px] font-bold text-ink-900">{{ m.nom_commercial }}</p>
+                    <p class="text-xs text-ink-400">{{ m.dci }}</p>
+                  </div>
+                </div>
+              </td>
+              <td class="py-4 text-ink-700">{{ m.classe_therapeutique }}</td>
+              <td class="py-4"><span class="chip capitalize {{ tonForme(m.forme) }}">{{ m.forme.toLowerCase() }}</span></td>
+              <td class="py-4 font-mono text-[13px] text-ink-700">{{ m.dosage }}</td>
+              <td class="py-4 font-semibold text-ink-700">{{ m.nb_delivrances ?? 0 }}</td>
+              <td class="py-4 pr-6">
+                <div class="flex justify-end gap-2">
+                  <button (click)="ouvrirModification(m)" title="Modifier" aria-label="Modifier"
+                          class="grid h-9 w-9 place-items-center rounded-xl border border-ink-100 bg-white text-ink-500 transition hover:border-aqua-300 hover:bg-aqua-50 hover:text-aqua-600">
+                    <mv-icon name="edit" [size]="16" />
+                  </button>
+                  <button (click)="aRetirer.set(m)" title="Supprimer" aria-label="Supprimer"
+                          class="grid h-9 w-9 place-items-center rounded-xl border border-ink-100 bg-white text-ink-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
+                    <mv-icon name="trash" [size]="16" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6" class="py-16 text-center text-ink-400">Aucun médicament ne correspond à la recherche.</td></tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================= Formulaire : ajout ou modification ================= -->
+@if (formulaireOuvert()) {
+  <div class="fixed inset-0 z-[60] bg-[#0b2545]/30 backdrop-blur-sm" (click)="formulaireOuvert.set(false)"></div>
+  <div class="enter fixed inset-y-3 right-3 z-[61] flex w-[calc(100%-1.5rem)] max-w-md flex-col rounded-[1.75rem] bg-white p-7 shadow-2xl">
+    <div class="flex items-center justify-between">
+      <h3 class="font-display text-4xl text-ink-900">{{ enEdition() === null ? 'Nouveau médicament' : 'Modifier le médicament' }}</h3>
+      <button (click)="formulaireOuvert.set(false)" class="rounded-xl p-2 text-ink-400 hover:bg-ink-50" aria-label="Fermer"><mv-icon name="x" /></button>
+    </div>
+    <p class="mt-1 text-sm text-ink-500">{{ enEdition() === null ? 'Renseignez les informations du médicament.' : 'Corrigez les informations puis enregistrez.' }}</p>
+    <form class="mt-7 flex-1 space-y-4" (ngSubmit)="enregistrer()">
+      <label class="block"><span class="mb-1.5 block text-sm font-semibold text-ink-700">Nom commercial</span>
+        <input class="field" name="nom" [(ngModel)]="saisie.nom_commercial" placeholder="Spasfon" /></label>
+      <label class="block"><span class="mb-1.5 block text-sm font-semibold text-ink-700">DCI</span>
+        <input class="field" name="dci" [(ngModel)]="saisie.dci" placeholder="Phloroglucinol" /></label>
+      <label class="block"><span class="mb-1.5 block text-sm font-semibold text-ink-700">Classe thérapeutique</span>
+        <input class="field" name="classe" [(ngModel)]="saisie.classe_therapeutique" placeholder="Antispasmodique" /></label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block"><span class="mb-1.5 block text-sm font-semibold text-ink-700">Forme</span>
+          <select class="field" name="forme" [(ngModel)]="saisie.forme">
+            @for (f of formes; track f) { <option [value]="f">{{ f }}</option> }
+          </select></label>
+        <label class="block"><span class="mb-1.5 block text-sm font-semibold text-ink-700">Dosage</span>
+          <input class="field" name="dosage" [(ngModel)]="saisie.dosage" placeholder="80 mg" /></label>
+      </div>
+      @if (erreur()) {
+        <p class="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{{ erreur() }}</p>
+      }
+      <div class="flex gap-3 pt-2">
+        <button type="button" (click)="formulaireOuvert.set(false)" class="btn btn-soft flex-1 py-3.5 text-sm">Annuler</button>
+        <button type="submit" class="btn btn-ink shine flex-1 py-3.5 text-sm">
+          <mv-icon name="check" [size]="17" /> {{ enEdition() === null ? 'Ajouter' : 'Enregistrer' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}
+
+<!-- ================= Confirmation de suppression ================= -->
+@if (aRetirer(); as m) {
+  <div class="fixed inset-0 z-[60] grid place-items-center bg-[#0b2545]/30 p-4 backdrop-blur-sm">
+    <div class="enter w-full max-w-md rounded-[1.75rem] bg-white p-7 shadow-2xl">
+      <div class="grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-rose-600"><mv-icon name="trash" [size]="22" /></div>
+      <h3 class="mt-5 font-display text-4xl text-ink-900">Supprimer {{ m.nom_commercial }} ?</h3>
+      <p class="mt-2 text-sm text-ink-500">Le médicament sera retiré du catalogue. Cette action est définitive.</p>
+      <label class="mt-5 block"><span class="mb-1.5 block text-sm font-semibold text-ink-700">Motif</span>
+        <input class="field" [(ngModel)]="motif" /></label>
+      <div class="mt-6 flex gap-3">
+        <button (click)="aRetirer.set(null)" class="btn btn-soft flex-1 py-3 text-sm">Annuler</button>
+        <button (click)="confirmerRetrait()" class="btn flex-1 bg-rose-600 py-3 text-sm text-white hover:bg-rose-700">
+          <mv-icon name="trash" [size]="16" /> Supprimer
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast()) {
+  <div class="pointer-events-none fixed inset-x-0 bottom-6 z-[70] flex justify-center px-4">
+    <div class="enter flex items-center gap-3 rounded-full bg-[#0b2545] px-5 py-3 text-sm text-white shadow-2xl">
+      <span class="grid h-6 w-6 place-items-center rounded-full bg-aqua-400 text-white"><mv-icon name="check" [size]="14" [stroke]="3" /></span>
+      {{ toast() }}
+    </div>
+  </div>
+}

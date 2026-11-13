@@ -1,0 +1,229 @@
+<!-- ================= En-tête ================= -->
+<section class="enter flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+  <div>
+    <p class="text-sm font-semibold text-aqua-600 first-letter:uppercase">{{ aujourdhui | date: 'EEEE d MMMM y' : '' : 'fr' }}</p>
+    <h2 class="mt-1 font-display text-5xl leading-none text-ink-900 sm:text-6xl">
+      {{ salutation() }}<span class="text-aqua-500">.</span>
+    </h2>
+    <p class="mt-3 max-w-xl text-ink-500">
+      Voici l'activité de la plateforme aujourd'hui : prescriptions, alertes et rendez-vous à venir.
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-3">
+    <a routerLink="/app/ordonnances" class="btn btn-ink shine px-5 py-3 text-sm">
+      <mv-icon name="plus" [size]="17" /> Nouvelle ordonnance
+    </a>
+  </div>
+</section>
+
+<!-- ================= Indicateurs ================= -->
+<section class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  @for (k of kpis(); track k.label; let i = $index) {
+    <article class="card card-hover enter overflow-hidden p-5" [style.animation-delay.ms]="80 + i * 70">
+      <div class="flex items-start justify-between">
+        <div class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br text-white shadow-lg {{ k.ton }}">
+          <mv-icon [name]="k.icon" [size]="20" />
+        </div>
+        <span class="chip {{ k.delta.startsWith('−') ? 'bg-emerald-50 text-emerald-700' : 'bg-aqua-50 text-aqua-700' }}">{{ k.delta }}</span>
+      </div>
+      <p class="mt-5 font-display text-5xl leading-none text-ink-900" [mvCountUp]="k.valeur"></p>
+      <div class="mt-2 flex items-end justify-between gap-3">
+        <p class="text-sm text-ink-500">{{ k.label }}</p>
+        <svg viewBox="0 0 100 30" class="h-8 w-24 overflow-visible" preserveAspectRatio="none">
+          <path [attr.d]="sparkline(k.points)" fill="none" stroke="currentColor" stroke-width="2"
+                vector-effect="non-scaling-stroke" class="draw-once text-aqua-500" stroke-linecap="round" />
+        </svg>
+      </div>
+    </article>
+  }
+</section>
+
+<!-- ================= Graphique + état du système ================= -->
+<section class="mt-4 grid gap-4 xl:grid-cols-12">
+  <article class="card enter p-6 xl:col-span-8 [animation-delay:250ms]">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h3 class="text-lg font-bold text-ink-900">Activité des prescriptions</h3>
+        <div class="mt-1 flex items-center gap-5 text-sm text-ink-500">
+          <span class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-aqua-500"></span> Prescrites</span>
+          <span class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-iris-500"></span> Délivrées</span>
+        </div>
+      </div>
+      <div class="relative grid grid-cols-2 rounded-xl bg-ink-50 p-1 text-sm font-semibold">
+        <div class="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-lg bg-white shadow transition-transform duration-500 ease-out-expo"
+             [style.transform]="'translateX(' + serieIndex() * 100 + '%)'"></div>
+        @for (s of series; track s.label; let i = $index) {
+          <button (click)="serieIndex.set(i)" class="relative z-10 px-4 py-1.5 transition-colors"
+                  [class.text-ink-900]="serieIndex() === i" [class.text-ink-400]="serieIndex() !== i">{{ s.label }}</button>
+        }
+      </div>
+    </div>
+
+    <div class="relative mt-6 h-64" (mouseleave)="survol.set(null)">
+      <svg viewBox="0 0 640 220" preserveAspectRatio="none" class="absolute inset-0 h-full w-full overflow-visible">
+        <defs>
+          <linearGradient id="gA" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#3b6fe6" stop-opacity=".28" />
+            <stop offset="1" stop-color="#3b6fe6" stop-opacity="0" />
+          </linearGradient>
+          <linearGradient id="gB" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#12a594" stop-opacity=".18" />
+            <stop offset="1" stop-color="#12a594" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        @for (y of [0, 55, 110, 165, 220]; track y) {
+          <line x1="0" x2="640" [attr.y1]="y" [attr.y2]="y" stroke="#e6edf3" stroke-dasharray="4 6" vector-effect="non-scaling-stroke" />
+        }
+        @for (k of [serieIndex()]; track k) {
+          <path [attr.d]="graph().aireB" fill="url(#gB)" class="enter" />
+          <path [attr.d]="graph().aireA" fill="url(#gA)" class="enter" />
+          <path [attr.d]="graph().ligneB" fill="none" stroke="#12a594" stroke-width="2.2" vector-effect="non-scaling-stroke" class="draw-once" stroke-dasharray="6 6" />
+          <path [attr.d]="graph().ligneA" fill="none" stroke="#3b6fe6" stroke-width="3" vector-effect="non-scaling-stroke" class="draw-once" />
+        }
+        @if (survol() !== null) {
+          <line [attr.x1]="graph().points[survol()!].x" [attr.x2]="graph().points[survol()!].x" y1="0" y2="220"
+                stroke="#0a1a2a" stroke-opacity=".12" vector-effect="non-scaling-stroke" />
+        }
+      </svg>
+
+      <!-- zones de survol -->
+      <div class="absolute inset-0 flex">
+        @for (p of graph().points; track $index; let i = $index) {
+          <div class="h-full flex-1" (mouseenter)="survol.set(i)"></div>
+        }
+      </div>
+
+      @if (survol() !== null) {
+        <div class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-xl bg-ink-950 px-3.5 py-2.5 text-xs text-white shadow-xl"
+             [style.left.%]="graph().points[survol()!].x / 6.4"
+             [style.top.%]="graph().points[survol()!].y / 2.2 - 4">
+          <p class="font-semibold text-white/60">{{ serie().mois[survol()!] }}</p>
+          <p class="mt-1 flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-aqua-400"></span> {{ serie().prescrites[survol()!] }} prescrites</p>
+          <p class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-iris-400"></span> {{ serie().delivrees[survol()!] }} délivrées</p>
+        </div>
+        <span class="pointer-events-none absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-aqua-500 shadow"
+              [style.left.%]="graph().points[survol()!].x / 6.4" [style.top.%]="graph().points[survol()!].y / 2.2"></span>
+      }
+    </div>
+    <div class="mt-3 flex justify-between text-xs font-medium text-ink-400">
+      @for (m of serie().mois; track m) { <span>{{ m }}</span> }
+    </div>
+  </article>
+
+  <!-- État du système -->
+  <article class="enter relative overflow-hidden rounded-[1.5rem] aurora-dark grain p-6 text-white xl:col-span-4 [animation-delay:320ms]">
+    <div class="absolute inset-0 grid-lines opacity-60"></div>
+    <div class="relative">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold">État du système</h3>
+        <span class="chip bg-white/10 text-white/70"><mv-icon name="server" [size]="13" /> 7 services</span>
+      </div>
+      <svg viewBox="0 0 300 70" class="mt-5 h-16 w-full">
+        <path d="M0 40 H300" stroke="rgb(11 37 69 / .08)" />
+        <path class="ecg-draw" d="M0 40 H50 L60 40 L68 14 L78 62 L88 26 L96 40 H150 L160 40 L168 10 L178 66 L188 24 L196 40 H300"
+              fill="none" stroke="#3b6fe6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <ul class="mt-4 space-y-2.5">
+        @for (s of services(); track s.nom) {
+          <li class="flex items-center justify-between rounded-xl border border-white/[0.07] bg-white/[0.04] px-3.5 py-2.5 text-sm">
+            <span class="font-mono text-[13px] text-white/80">{{ s.nom }}-service</span>
+            @if (s.etat === true) {
+              <span class="flex items-center gap-2 text-xs font-semibold text-emerald-300">
+                <span class="relative flex h-2 w-2"><span class="absolute h-full w-full rounded-full bg-emerald-400 animate-ping-soft"></span><span class="relative h-2 w-2 rounded-full bg-emerald-400"></span></span>
+                En ligne
+              </span>
+            } @else if (s.etat === false) {
+              <span class="flex items-center gap-2 text-xs font-semibold text-amber-300"><span class="h-2 w-2 rounded-full bg-amber-400"></span> Démo</span>
+            } @else if (s.nom === 'medicament') {
+              <span class="text-xs text-white/40">Vérification…</span>
+            } @else {
+              <span class="text-xs text-white/35">À venir</span>
+            }
+          </li>
+        }
+      </ul>
+    </div>
+  </article>
+</section>
+
+<!-- ================= Ordonnances + alertes ================= -->
+<section class="mt-4 grid gap-4 xl:grid-cols-12">
+  <article class="card enter p-6 xl:col-span-7 [animation-delay:380ms]">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-bold text-ink-900">Ordonnances récentes</h3>
+      <a routerLink="/app/ordonnances" class="flex items-center gap-1 text-sm font-semibold text-aqua-600 hover:text-aqua-700">
+        Tout voir <mv-icon name="arrow-right" [size]="15" />
+      </a>
+    </div>
+    <div class="mt-4 overflow-x-auto">
+      <table class="w-full min-w-[520px] text-sm">
+        <thead>
+          <tr class="text-left text-xs uppercase tracking-wider text-ink-400">
+            <th class="pb-3 font-semibold">Code</th>
+            <th class="pb-3 font-semibold">Patient</th>
+            <th class="pb-3 font-semibold">Date</th>
+            <th class="pb-3 font-semibold">Lignes</th>
+            <th class="pb-3 text-right font-semibold">Statut</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (o of ordonnances; track o.code) {
+            <tr class="border-t border-ink-100/80 transition-colors hover:bg-white/80">
+              <td class="py-3.5 font-mono text-[13px] font-medium text-ink-700">{{ o.code }}</td>
+              <td class="py-3.5">
+                <div class="flex items-center gap-3">
+                  <span class="grid h-8 w-8 place-items-center rounded-full bg-ink-100 text-[11px] font-bold text-ink-600">{{ o.patient.split(' ')[0][0] }}{{ o.patient.split(' ')[1][0] }}</span>
+                  <span class="font-semibold text-ink-900">{{ o.patient }}</span>
+                </div>
+              </td>
+              <td class="py-3.5 text-ink-500">{{ o.date }}</td>
+              <td class="py-3.5 text-ink-500">{{ o.lignes }} médicament{{ o.lignes > 1 ? 's' : '' }}</td>
+              <td class="py-3.5 text-right"><span class="chip {{ o.ton }}">{{ o.statut }}</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="card enter p-6 xl:col-span-5 [animation-delay:440ms]">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-bold text-ink-900">Alertes de sécurité</h3>
+      <span class="chip bg-rose-50 text-rose-700">{{ alertes.length }} actives</span>
+    </div>
+    <ul class="mt-4 space-y-2.5">
+      @for (a of alertes; track a.texte) {
+        <li class="flex items-start gap-3 rounded-2xl border p-3.5 {{ a.ton }}">
+          <mv-icon [name]="a.icon" [size]="18" class="mt-0.5" />
+          <div class="min-w-0">
+            <p class="text-[11px] font-extrabold tracking-wider">{{ a.niveau }}</p>
+            <p class="font-semibold text-ink-900">{{ a.texte }}</p>
+            <p class="text-xs text-ink-500">{{ a.detail }}</p>
+          </div>
+        </li>
+      }
+    </ul>
+  </article>
+</section>
+
+<!-- ================= Agenda ================= -->
+<section class="card enter mt-4 p-6 [animation-delay:500ms]">
+  <div class="flex items-center justify-between">
+    <h3 class="text-lg font-bold text-ink-900">Agenda du jour</h3>
+    <a routerLink="/app/rendez-vous" class="flex items-center gap-1 text-sm font-semibold text-aqua-600 hover:text-aqua-700">
+      Calendrier <mv-icon name="arrow-right" [size]="15" />
+    </a>
+  </div>
+  <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    @for (r of agenda; track r.heure) {
+      <div class="group rounded-2xl border border-ink-100 bg-white/70 p-4 transition-all duration-500 hover:-translate-y-1 hover:border-aqua-200 hover:shadow-[0_20px_40px_-28px_rgba(10,26,42,.45)]">
+        <div class="flex items-center justify-between">
+          <span class="font-display text-3xl text-ink-900">{{ r.heure }}</span>
+          <span class="chip {{ r.ton }}">{{ r.statut }}</span>
+        </div>
+        <p class="mt-3 font-semibold text-ink-900">{{ r.patient }}</p>
+        <p class="text-sm text-ink-500">{{ r.motif }}</p>
+      </div>
+    }
+  </div>
+</section>

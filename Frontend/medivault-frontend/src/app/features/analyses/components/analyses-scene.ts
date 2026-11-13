@@ -2,15 +2,15 @@ import {
   AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, NgZone, OnDestroy, inject, input, viewChild
 } from '@angular/core';
 
-// Double hélice d'ADN en particules lumineuses, dessinée en 3D sur un canvas.
+// Animation du module Analyses. Double hélice d'ADN en particules lumineuses, dessinée en 3D sur un canvas.
 // La souris incline l'hélice ; l'animation tourne hors d'Angular pour rester fluide.
 @Component({
-  selector: 'mv-helix',
+  selector: 'mv-analyses-scene',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
   template: `<canvas #cv class="h-full w-full"></canvas>`
 })
-export class Helix implements AfterViewInit, OnDestroy {
+export class AnalysesScene implements AfterViewInit, OnDestroy {
   /** Nombre de barreaux de l'hélice */
   rungs = input(34);
   /** Intensité (0 à 1) */

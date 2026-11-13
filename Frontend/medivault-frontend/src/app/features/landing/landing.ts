@@ -4,7 +4,6 @@ import {
 import { RouterLink } from '@angular/router';
 import { Icon } from '../../shared/icon';
 import { Logo } from '../../shared/logo';
-import { Helix } from '../../shared/helix';
 import { Hologram } from '../../shared/hologram';
 import { Reveal } from '../../shared/reveal';
 import { CountUp } from '../../shared/count-up';
@@ -13,7 +12,7 @@ import { AuthService } from '../../core/auth.service';
 @Component({
   selector: 'mv-landing',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Icon, Logo, Helix, Hologram, Reveal, CountUp],
+  imports: [RouterLink, Icon, Logo, Hologram, Reveal, CountUp],
   templateUrl: './landing.html'
 })
 export class LandingPage implements OnInit, OnDestroy {

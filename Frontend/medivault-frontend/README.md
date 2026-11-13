@@ -15,8 +15,8 @@ Chaque membre travaille **uniquement dans le dossier de son module**, avec les m
 
 ```
 src/app/
-├── core/          COMMUN  auth.service, auth.guard, modules.ts (liste des modules)
-├── shared/        COMMUN  icônes, logo, animations, module-banner (bandeau)
+├── core/          COMMUN  auth.service, auth.guard, modules.ts (titre et icône du menu)
+├── shared/        COMMUN  icônes, logo, compteur animé, apparition au défilement, hologramme de l'accueil
 ├── layout/        COMMUN  shell + sidebar/ (menu latéral) + topbar/ (en-tête)
 ├── app.routes.ts  routes principales (ne pas modifier)
 └── features/
@@ -33,13 +33,16 @@ src/app/
 
 ```
 features/<module>/
-├── pages/                  les écrans (un composant par page)
+├── pages/                  les écrans (un composant par page, avec son bandeau)
+├── components/             les composants du module (ex. l'animation du bandeau)
 ├── services/               les appels HTTP vers le microservice
 ├── models/                 les types des données (interfaces)
 └── <module>.routes.ts      les routes du module
 ```
 
-Les modules `dossiers`, `ordonnances`, `pharmacie`, `analyses` et `rendez-vous` contiennent pour l'instant une page d'attente (le bandeau animé). Chacun la remplace par ses vrais écrans.
+**Seuls le menu latéral et l'en-tête sont communs.** Tout le reste d'un module (page, bandeau, animation, écrans, appels API) est dans son propre dossier.
+
+Les modules `dossiers`, `ordonnances`, `pharmacie`, `analyses` et `rendez-vous` contiennent pour l'instant une page d'attente : un bandeau avec l'animation du module (dans `components/`) et la liste des fonctions prévues. Chacun la remplace par ses vrais écrans.
 
 ## Règles de nommage
 
@@ -54,7 +57,7 @@ Les modules `dossiers`, `ordonnances`, `pharmacie`, `analyses` et `rendez-vous` 
 
 ## Ajouter une page à son module
 
-1. Créer le composant dans `features/<module>/pages/` (voir `medicaments-page.ts` comme modèle).
+1. Créer le composant dans `features/<module>/pages/` (voir `medicaments-page.ts` comme modèle). Les composants propres au module vont dans `features/<module>/components/`.
 2. L'ajouter dans `<module>.routes.ts` :
 
 ```ts
@@ -80,7 +83,8 @@ liste() { return this.http.get<Ordonnance[]>('/api/ordonnances'); }
 ## Design commun
 
 - Les couleurs, les boutons (`btn`), les cartes (`card`), les champs (`field`) et les animations sont dans `src/styles.css` : les utiliser tels quels pour garder le même style partout.
-- Le bandeau d'un module : `<mv-module-banner cle="pharmacie" />` (titre, icône et description dans `core/modules.ts`).
+- Le bandeau d'un module : voir la page d'un module existant (`pharmacie-page.ts`) : même gabarit, avec l'animation du module dans `components/`.
+- Le titre et l'icône affichés dans le menu latéral : `core/modules.ts`.
 - Les icônes : `<mv-icon name="pill" />` (liste dans `shared/icon.ts`).
 
 ## Pages

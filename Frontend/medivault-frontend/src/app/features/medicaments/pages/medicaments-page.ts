@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Icon } from '../../../shared/icon';
-import { Pills } from '../../../shared/pills';
+import { MedicamentsScene } from '../components/medicaments-scene';
 import { CountUp } from '../../../shared/count-up';
 import { FORMES, Forme, Medicament } from '../models/medicament.model';
 import { MedicamentService } from '../services/medicament.service';
@@ -9,7 +9,7 @@ import { MedicamentService } from '../services/medicament.service';
 @Component({
   selector: 'mv-medicaments',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, Icon, Pills, CountUp],
+  imports: [FormsModule, Icon, MedicamentsScene, CountUp],
   templateUrl: './medicaments-page.html'
 })
 export class MedicamentsPage {

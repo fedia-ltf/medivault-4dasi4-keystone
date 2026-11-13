@@ -4,15 +4,15 @@ import {
 
 type V3 = [number, number, number];
 
-// Enseigne de pharmacie : une croix en 3D qui tourne, avec ses faces éclairées,
+// Animation du module Pharmacie. Enseigne de pharmacie : une croix en 3D qui tourne, avec ses faces éclairées,
 // des ondes lumineuses, des gélules en orbite et de petits « + » qui s'élèvent.
 @Component({
-  selector: 'mv-pharma',
+  selector: 'mv-pharmacie-scene',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block pointer-events-none' },
   template: `<canvas #cv class="h-full w-full"></canvas>`
 })
-export class Pharma implements AfterViewInit, OnDestroy {
+export class PharmacieScene implements AfterViewInit, OnDestroy {
   private canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('cv');
   private zone = inject(NgZone);
   private frame = 0;

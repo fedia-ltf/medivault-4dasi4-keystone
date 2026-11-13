@@ -2,16 +2,16 @@ import {
   AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, NgZone, OnDestroy, inject, viewChild
 } from '@angular/core';
 
-// Scène des rendez-vous : un calendrier en verre incliné dont les jours s'allument,
+// Animation du module Rendez-vous. Scène des rendez-vous : un calendrier en verre incliné dont les jours s'allument,
 // une horloge dont les aiguilles tournent, des rendez-vous en orbite autour d'elle
 // et une bulle « confirmé » qui flotte.
 @Component({
-  selector: 'mv-orbit',
+  selector: 'mv-rendez-vous-scene',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block pointer-events-none' },
   template: `<canvas #cv class="h-full w-full"></canvas>`
 })
-export class Orbit implements AfterViewInit, OnDestroy {
+export class RendezVousScene implements AfterViewInit, OnDestroy {
   private canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('cv');
   private zone = inject(NgZone);
   private frame = 0;

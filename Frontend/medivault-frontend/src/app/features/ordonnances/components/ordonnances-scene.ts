@@ -11,107 +11,6 @@ function toile(w: number, h: number): [Sprite, CanvasRenderingContext2D] {
   return [c, c.getContext('2d')!];
 }
 
-// ---------- Dessin des médicaments (brillants, avec ombre portée) ----------
-function gelule(a: string, b: string): Sprite {
-  const [c, g] = toile(260, 150);
-  const x = 40, y = 30, L = 180, R = 36;
-  const forme = () => { g.beginPath(); g.roundRect(x, y, L, R * 2, R); };
-
-  g.save();
-  g.shadowColor = 'rgba(30,64,140,.30)';
-  g.shadowBlur = 22;
-  g.shadowOffsetY = 16;
-  forme();
-  g.fillStyle = a;
-  g.fill();
-  g.restore();
-
-  g.save();
-  forme();
-  g.clip();
-  g.fillStyle = a;
-  g.fillRect(x, y, L / 2, R * 2);
-  g.fillStyle = b;
-  g.fillRect(x + L / 2, y, L / 2, R * 2);
-  const ombre = g.createLinearGradient(0, y, 0, y + R * 2);
-  ombre.addColorStop(0, 'rgba(255,255,255,.55)');
-  ombre.addColorStop(0.38, 'rgba(255,255,255,0)');
-  ombre.addColorStop(0.68, 'rgba(11,37,69,0)');
-  ombre.addColorStop(1, 'rgba(11,37,69,.30)');
-  g.fillStyle = ombre;
-  g.fillRect(x, y, L, R * 2);
-  g.fillStyle = 'rgba(11,37,69,.14)';
-  g.fillRect(x + L / 2 - 1, y, 2, R * 2);
-  g.restore();
-
-  g.fillStyle = 'rgba(255,255,255,.8)';
-  g.beginPath();
-  g.roundRect(x + 24, y + 9, L - 64, 8, 4);
-  g.fill();
-  return c;
-}
-
-function comprime(couleur: string): Sprite {
-  const [c, g] = toile(150, 160);
-  const cx = 75, cy = 66, r = 46;
-  g.save();
-  g.shadowColor = 'rgba(30,64,140,.28)';
-  g.shadowBlur = 20;
-  g.shadowOffsetY = 14;
-  g.beginPath();
-  g.arc(cx, cy, r, 0, Math.PI * 2);
-  g.fillStyle = couleur;
-  g.fill();
-  g.restore();
-  const d = g.createRadialGradient(cx - 16, cy - 18, 4, cx, cy, r);
-  d.addColorStop(0, '#ffffff');
-  d.addColorStop(0.7, couleur);
-  d.addColorStop(1, 'rgba(11,37,69,.16)');
-  g.beginPath();
-  g.arc(cx, cy, r, 0, Math.PI * 2);
-  g.fillStyle = d;
-  g.fill();
-  g.strokeStyle = 'rgba(11,37,69,.08)';
-  g.lineWidth = 2;
-  g.beginPath();
-  g.arc(cx, cy, r - 9, 0, Math.PI * 2);
-  g.stroke();
-  g.strokeStyle = 'rgba(11,37,69,.16)';
-  g.lineWidth = 3;
-  g.lineCap = 'round';
-  g.beginPath();
-  g.moveTo(cx - r + 14, cy);
-  g.lineTo(cx + r - 14, cy);
-  g.stroke();
-  return c;
-}
-
-function capsuleMolle(clair: string, fonce: string): Sprite {
-  const [c, g] = toile(210, 140);
-  const cx = 105, cy = 58, rx = 68, ry = 38;
-  const forme = () => { g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); };
-  g.save();
-  g.shadowColor = 'rgba(18,120,140,.30)';
-  g.shadowBlur = 22;
-  g.shadowOffsetY = 14;
-  forme();
-  g.fillStyle = fonce;
-  g.fill();
-  g.restore();
-  const d = g.createRadialGradient(cx - 22, cy - 16, 4, cx, cy, rx);
-  d.addColorStop(0, '#ffffff');
-  d.addColorStop(0.35, clair);
-  d.addColorStop(1, fonce);
-  forme();
-  g.fillStyle = d;
-  g.fill();
-  g.fillStyle = 'rgba(255,255,255,.75)';
-  g.beginPath();
-  g.ellipse(cx - 20, cy - 18, 26, 7, -0.2, 0, Math.PI * 2);
-  g.fill();
-  return c;
-}
-
 // Feuille d'ordonnance : en-tête, lignes de texte et tampon de validation
 function feuille(accent: string): Sprite {
   const [c, g] = toile(190, 240);
@@ -179,19 +78,17 @@ function flou(src: Sprite, px: number): Sprite {
   return c;
 }
 
-// Médicaments en 3D qui flottent lentement, sur trois plans de profondeur :
+// Animation du module Ordonnances : feuilles d'ordonnance qui flottent lentement, sur trois plans de profondeur :
 // lointains (petits et flous), intermédiaires (nets) et premier plan (grands, flous).
 // Ils dérivent, tournent, suivent la souris en parallaxe et s'écartent du curseur.
 @Component({
-  selector: 'mv-pills',
+  selector: 'mv-ordonnances-scene',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block pointer-events-none' },
   template: `<canvas #cv class="h-full w-full"></canvas>`
 })
-export class Pills implements AfterViewInit, OnDestroy {
+export class OrdonnancesScene implements AfterViewInit, OnDestroy {
   count = input(22);
-  /** 'pills' : médicaments ; 'docs' : feuilles d'ordonnance */
-  kind = input<'pills' | 'docs'>('pills');
   /** Garde la moitié gauche discrète (zone du texte) */
   avoidLeft = input(false);
 
@@ -213,11 +110,7 @@ export class Pills implements AfterViewInit, OnDestroy {
     const ctx = cv.getContext('2d');
     if (!ctx) return;
 
-    const bases = this.kind() === 'docs' ? [feuille('#2957cc'), feuille('#12a594'), feuille('#5b8df5')] : [
-      gelule('#2957cc', '#ffffff'), gelule('#12a594', '#f4f8ff'), gelule('#0b2545', '#8fb4ff'),
-      gelule('#ffffff', '#5b8df5'), comprime('#e6eefc'), comprime('#d9f3ef'),
-      capsuleMolle('#9af0e4', '#12a594'), capsuleMolle('#bcd3ff', '#3b6fe6')
-    ];
+    const bases = [feuille('#2957cc'), feuille('#12a594'), feuille('#5b8df5')];
     const sprites = bases.map(b => [flou(b, 3), b, flou(b, 7)]);   // lointain, net, premier plan
 
     const rnd = Math.random;
@@ -227,8 +120,8 @@ export class Pills implements AfterViewInit, OnDestroy {
       if (this.avoidLeft() && x < 0.54) z = rnd() * 0.28;
       return {
         x, y: rnd() * 1.2 - 0.1, z, s: i % bases.length,
-        rot: this.kind() === 'docs' ? (rnd() - 0.5) * 0.9 : rnd() * Math.PI * 2,
-        vr: (rnd() - 0.5) * (this.kind() === 'docs' ? 0.08 : 0.35), phase: rnd() * 6.28,
+        rot: (rnd() - 0.5) * 0.9,
+        vr: (rnd() - 0.5) * 0.08, phase: rnd() * 6.28,
         ox: 0, oy: 0, vx: 0, vy: 0
       };
     }).sort((a, b) => a.z - b.z);

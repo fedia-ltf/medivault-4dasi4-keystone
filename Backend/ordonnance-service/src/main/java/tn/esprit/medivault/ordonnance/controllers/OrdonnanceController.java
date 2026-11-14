@@ -24,6 +24,18 @@ public class OrdonnanceController {
         return service.creer(request);
     }
 
+    @PutMapping("/{ordonnanceId}")
+    public OrdonnanceResponseDTO modifier(@PathVariable Long ordonnanceId,
+                                          @RequestBody OrdonnanceRequestDTO request) {
+        return service.modifier(ordonnanceId, request);
+    }
+
+    @DeleteMapping("/{ordonnanceId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void supprimer(@PathVariable Long ordonnanceId) {
+        service.supprimer(ordonnanceId);
+    }
+
     @GetMapping("/code/{code}")
     public OrdonnanceResponseDTO trouverParCode(@PathVariable String code) {
         return service.findByCode(code);

@@ -71,7 +71,7 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
         @if (erreur()) { <p class="mt-4 text-sm text-rose-600">{{ erreur() }}</p> }
         @if (succes()) { <p class="mt-4 text-sm text-emerald-600">{{ succes() }}</p> }
         <button class="btn btn-primary mt-6 w-full" type="submit" [disabled]="chargement()">
-          {{ chargement() ? 'Enregistrement...' : 'Créer l’ordonnance' }}
+          {{ chargement() ? 'Enregistrement...' : (ordonnanceEnEdition() ? 'Modifier l’ordonnance' : 'Créer l’ordonnance') }}
         </button>
       </form>
 
@@ -144,6 +144,41 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
             }
           </div>
           <button class="btn btn-primary mt-6 w-full" type="button" (click)="fermerDetails()">Fermer</button>
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <button class="btn btn-soft w-full px-4 py-2.5 text-sm" type="button" (click)="modifierDepuisDetails(ordonnance)">
+              Modifier
+            </button>
+            <button class="w-full rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+                    type="button" (click)="demanderSuppression(ordonnance)">
+              Supprimer
+            </button>
+          </div>
+        </article>
+      </div>
+    }
+
+    @if (ordonnanceASupprimer(); as ordonnance) {
+      <div class="fixed inset-0 z-[110] grid place-items-center bg-ink-950/60 p-4 backdrop-blur-sm"
+           role="presentation" (click)="annulerSuppression()">
+        <article class="card w-full max-w-md p-6 shadow-2xl"
+                 role="alertdialog" aria-modal="true" aria-labelledby="delete-title"
+                 (click)="$event.stopPropagation()">
+          <div class="grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-rose-600">
+            <mv-icon name="alert" [size]="24" />
+          </div>
+          <h3 id="delete-title" class="mt-5 font-display text-2xl text-ink-900">Supprimer l’ordonnance ?</h3>
+          <p class="mt-2 text-sm leading-6 text-ink-500">
+            L’ordonnance <strong class="text-ink-800">{{ ordonnance.code }}</strong> et ses médicaments seront définitivement supprimés.
+          </p>
+          <div class="mt-6 grid gap-3 sm:grid-cols-2">
+            <button class="btn btn-soft w-full px-4 py-2.5 text-sm" type="button" (click)="annulerSuppression()">
+              Annuler
+            </button>
+            <button class="w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
+                    type="button" [disabled]="chargement()" (click)="confirmerSuppression()">
+              {{ chargement() ? 'Suppression...' : 'Oui, supprimer' }}
+            </button>
+          </div>
         </article>
       </div>
     }
@@ -159,6 +194,8 @@ export class OrdonnancesPage {
   protected readonly erreur = signal('');
   protected readonly succes = signal('');
   protected readonly ordonnanceSelectionnee = signal<Ordonnance | null>(null);
+  protected readonly ordonnanceEnEdition = signal<number | null>(null);
+  protected readonly ordonnanceASupprimer = signal<Ordonnance | null>(null);
 
   constructor() {
     this.charger();
@@ -188,6 +225,49 @@ export class OrdonnancesPage {
     this.ordonnanceSelectionnee.set(null);
   }
 
+  protected modifierDepuisDetails(ordonnance: Ordonnance) {
+    this.ordonnanceEnEdition.set(ordonnance.id);
+    this.saisie.patientId = ordonnance.patientId;
+    this.saisie.medecinId = ordonnance.medecinId;
+    this.lignes.splice(0, this.lignes.length, ...ordonnance.lignes.map(ligne => ({
+      medicamentId: ligne.medicamentId,
+      nomMedicament: ligne.nomMedicament,
+      posologie: ligne.posologie,
+      dureeJours: ligne.dureeJours,
+      quantite: ligne.quantite
+    })));
+    this.fermerDetails();
+    this.succes.set('');
+    this.erreur.set('');
+  }
+
+  protected demanderSuppression(ordonnance: Ordonnance) {
+    this.ordonnanceASupprimer.set(ordonnance);
+  }
+
+  protected annulerSuppression() {
+    if (!this.chargement()) this.ordonnanceASupprimer.set(null);
+  }
+
+  protected confirmerSuppression() {
+    const ordonnance = this.ordonnanceASupprimer();
+    if (!ordonnance) return;
+    this.chargement.set(true);
+    this.api.supprimer(ordonnance.id).subscribe({
+      next: () => {
+        this.chargement.set(false);
+        this.ordonnanceASupprimer.set(null);
+        this.fermerDetails();
+        this.succes.set(`Ordonnance ${ordonnance.code} supprimée.`);
+        this.charger();
+      },
+      error: () => {
+        this.chargement.set(false);
+        this.erreur.set('La suppression a été refusée par le serveur.');
+      }
+    });
+  }
+
   protected creer() {
     this.erreur.set('');
     this.succes.set('');
@@ -203,10 +283,14 @@ export class OrdonnancesPage {
       return;
     }
     this.chargement.set(true);
-    this.api.creer({ ...this.saisie, lignes: this.lignes.map(ligne => ({ ...ligne })) }).subscribe({
+    const request = { ...this.saisie, lignes: this.lignes.map(ligne => ({ ...ligne })) };
+    const id = this.ordonnanceEnEdition();
+    const appel = id === null ? this.api.creer(request) : this.api.modifier(id, request);
+    appel.subscribe({
       next: ordonnance => {
         this.chargement.set(false);
-        this.succes.set(`Ordonnance ${ordonnance.code} créée avec succès.`);
+        this.ordonnanceEnEdition.set(null);
+        this.succes.set(`Ordonnance ${ordonnance.code} ${id === null ? 'créée' : 'modifiée'} avec succès.`);
         this.charger();
       },
       error: () => { this.chargement.set(false); this.erreur.set('La création a été refusée par le serveur.'); }

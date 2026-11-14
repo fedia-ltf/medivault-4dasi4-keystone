@@ -15,4 +15,12 @@ export class OrdonnanceService {
   creer(request: OrdonnanceRequest): Observable<Ordonnance> {
     return this.http.post<Ordonnance>(this.url, request);
   }
+
+  modifier(id: number, request: OrdonnanceRequest): Observable<Ordonnance> {
+    return this.http.put<Ordonnance>(`${this.url}/${id}`, request);
+  }
+
+  supprimer(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.url}/${id}`);
+  }
 }

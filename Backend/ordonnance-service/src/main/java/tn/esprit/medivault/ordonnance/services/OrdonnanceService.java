@@ -84,6 +84,28 @@ public class OrdonnanceService {
     }
 
     @Transactional
+    public OrdonnanceResponseDTO modifier(Long ordonnanceId, OrdonnanceRequestDTO request) {
+        Ordonnance ordonnance = repository.findById(ordonnanceId)
+                .orElseThrow(() -> new OrdonnanceNotFoundException(String.valueOf(ordonnanceId)));
+
+        ordonnance.setPatientId(request.getPatientId());
+        ordonnance.setMedecinId(request.getMedecinId());
+        ordonnance.setConsultationId(request.getConsultationId());
+        ordonnance.getLignes().clear();
+        ajouterLignes(ordonnance, request);
+
+        return toDto(repository.save(ordonnance));
+    }
+
+    @Transactional
+    public void supprimer(Long ordonnanceId) {
+        if (!repository.existsById(ordonnanceId)) {
+            throw new OrdonnanceNotFoundException(String.valueOf(ordonnanceId));
+        }
+        repository.deleteById(ordonnanceId);
+    }
+
+    @Transactional
     public void marquerDelivree(Long ordonnanceId) {
         repository.findById(ordonnanceId).ifPresent(o -> {
             o.setStatut(StatutOrdonnance.DELIVREE);
@@ -107,6 +129,11 @@ public class OrdonnanceService {
         o.setDateEmission(LocalDate.now());
         o.setDateExpiration(LocalDate.now().plusMonths(3));
 
+        ajouterLignes(o, request);
+        return o;
+    }
+
+    private void ajouterLignes(Ordonnance o, OrdonnanceRequestDTO request) {
         for (LigneOrdonnanceDTO l : request.getLignes()) {
             LigneOrdonnance ligne = new LigneOrdonnance();
             ligne.setMedicamentId(l.getMedicamentId());
@@ -118,7 +145,6 @@ public class OrdonnanceService {
             ligne.setOrdonnance(o);
             o.getLignes().add(ligne);
         }
-        return o;
     }
 
     // FIX 3: Explicitly map LigneOrdonnance (Entity) to LigneOrdonnanceResponseDTO

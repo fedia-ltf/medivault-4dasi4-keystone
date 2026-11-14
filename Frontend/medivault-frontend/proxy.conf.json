@@ -1,6 +1,11 @@
 {
-  "/api": {
-    "target": "http://localhost:8087/gestionlocation",
+  "/api/medicaments": {
+    "target": "http://localhost:8084",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/ordonnances": {
+    "target": "http://localhost:8085/gestionlocation",
     "secure": false,
     "changeOrigin": true
   }

@@ -71,7 +71,7 @@ Le titre affiché dans l'en-tête vient de `data.title`. Le menu latéral et `ap
 
 ## Appeler son microservice
 
-`proxy.conf.json` redirige `/api/**` vers `http://localhost:8084` (medicament-service). Quand l'API Gateway sera prête, remplacer la cible par `http://localhost:8080`.
+`proxy.conf.json` redirige `/api/medicaments` vers `http://localhost:8084` (medicament-service) et `/api/ordonnances` vers `http://localhost:8087/gestionlocation` (ordonnance-service). Quand l'API Gateway sera prête, remplacer ces cibles par `http://localhost:8080`.
 
 Dans `services/`, utiliser `HttpClient` avec une URL relative :
 

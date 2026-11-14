@@ -1,0 +1,14 @@
+<div class="min-h-[100svh] aurora-light">
+  <!-- Menu latéral commun -->
+  <mv-sidebar />
+
+  <div class="transition-all duration-500 ease-out-expo {{ layout.replie() ? 'lg:pl-[6.75rem]' : 'lg:pl-[18.5rem]' }}">
+    <!-- En-tête commun -->
+    <mv-topbar />
+
+    <!-- Ici s'affiche la page du module choisi -->
+    <main class="px-4 pb-10 pt-6 lg:px-6">
+      <router-outlet />
+    </main>
+  </div>
+</div>

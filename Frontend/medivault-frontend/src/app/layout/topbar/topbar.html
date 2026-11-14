@@ -1,0 +1,56 @@
+<header class="sticky top-0 z-30 px-4 pt-3 lg:px-6">
+  <div class="glass flex h-16 items-center gap-3 rounded-2xl px-4">
+    <button class="rounded-xl p-2 text-ink-600 hover:bg-white lg:hidden" (click)="layout.menuMobile.set(true)" aria-label="Ouvrir le menu">
+      <mv-icon name="menu" />
+    </button>
+    <div class="min-w-0">
+      <p class="hidden text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-400 sm:block">MediVault</p>
+      <h1 class="truncate text-lg font-bold leading-tight text-ink-900">{{ titre() }}</h1>
+    </div>
+
+    <label class="relative ml-auto hidden w-full max-w-sm md:block">
+      <mv-icon name="search" [size]="17" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300" />
+      <input class="w-full rounded-xl border border-ink-100 bg-white/70 py-2.5 pl-10 pr-14 text-sm outline-none transition focus:border-aqua-400 focus:bg-white focus:ring-4 focus:ring-aqua-400/15"
+             placeholder="Rechercher un patient, un médicament…" />
+      <kbd class="absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-ink-100 bg-ink-50 px-1.5 py-0.5 font-mono text-[10px] text-ink-400">Ctrl K</kbd>
+    </label>
+
+    <div class="ml-auto flex items-center gap-2 md:ml-2">
+      <div class="hidden items-center gap-2 rounded-xl bg-white/70 px-3 py-2 text-sm text-ink-500 xl:flex">
+        <mv-icon name="clock" [size]="16" class="text-aqua-600" />
+        {{ heure() | date: 'HH:mm' }}
+      </div>
+
+      <div class="relative">
+        <button (click)="notifOuvert.set(!notifOuvert())"
+                class="relative grid h-10 w-10 place-items-center rounded-xl bg-white/70 text-ink-600 transition hover:bg-white hover:text-ink-900"
+                aria-label="Notifications">
+          <mv-icon name="bell" [size]="19" />
+          <span class="absolute right-2 top-2 flex h-2.5 w-2.5">
+            <span class="absolute inline-flex h-full w-full rounded-full bg-rose-400 animate-ping-soft"></span>
+            <span class="relative inline-flex h-2.5 w-2.5 rounded-full border-2 border-white bg-rose-500"></span>
+          </span>
+        </button>
+        @if (notifOuvert()) {
+          <div class="glass enter absolute right-0 top-12 w-80 rounded-2xl p-2">
+            <p class="px-3 py-2 text-xs font-bold uppercase tracking-widest text-ink-400">Notifications</p>
+            @for (n of notifications; track n.titre) {
+              <div class="flex gap-3 rounded-xl p-3 transition hover:bg-white">
+                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-lg {{ n.ton }}"><mv-icon [name]="n.icon" [size]="17" /></span>
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-ink-900">{{ n.titre }}</p>
+                  <p class="truncate text-xs text-ink-500">{{ n.texte }}</p>
+                  <p class="mt-0.5 text-[11px] text-ink-300">{{ n.quand }}</p>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-aqua-600 to-iris-500 text-sm font-bold text-white">
+        {{ auth.initiales() }}
+      </div>
+    </div>
+  </div>
+</header>

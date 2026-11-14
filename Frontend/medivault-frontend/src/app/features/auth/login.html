@@ -1,0 +1,153 @@
+<div class="grid min-h-[100svh] lg:grid-cols-[1.05fr_1fr]">
+
+  <!-- ================= Panneau visuel ================= -->
+  <aside class="relative hidden overflow-hidden aurora-dark grain text-white lg:flex lg:flex-col lg:justify-between p-12">
+    <div class="absolute inset-0 grid-lines"></div>
+    <div class="absolute -right-32 top-10 h-[520px] w-[520px] rounded-full bg-aqua-500/25 blur-[120px] animate-drift"></div>
+    <div class="absolute -left-20 bottom-0 h-[420px] w-[420px] rounded-full bg-iris-500/20 blur-[110px] animate-drift [animation-delay:-10s]"></div>
+
+    <a routerLink="/" class="relative z-10 enter"><mv-logo [dark]="true" /></a>
+
+    <div class="absolute inset-y-0 right-[-16%] w-[60%]">
+      <mv-hologram class="h-full w-full" [capsule]="false" [count]="1500" />
+    </div>
+
+    <div class="relative z-10 max-w-md enter [animation-delay:150ms]">
+      <p class="text-xs font-bold uppercase tracking-[0.3em] text-aqua-300">Espace sécurisé</p>
+      <h1 class="mt-5 font-display text-6xl leading-[1]">
+        Chaque donnée,<br /><span class="italic text-gradient">au bon soignant.</span>
+      </h1>
+      <p class="mt-6 text-white/60 leading-relaxed">
+        Médecins, patients, pharmaciens, laborantins et administrateurs partagent un même coffre,
+        chacun avec ses propres droits.
+      </p>
+
+      <div class="mt-10 glass-dark rounded-2xl p-5 max-w-sm">
+        <div class="flex items-center gap-3">
+          <div class="grid h-10 w-10 place-items-center rounded-xl bg-aqua-400/15 text-aqua-300">
+            <mv-icon name="activity" [size]="18" />
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-semibold">Services en ligne</p>
+            <p class="text-xs text-white/50">Gateway · Eureka · Keycloak</p>
+          </div>
+          <span class="relative flex h-2.5 w-2.5">
+            <span class="absolute inline-flex h-full w-full rounded-full bg-emerald-400 animate-ping-soft"></span>
+            <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+          </span>
+        </div>
+        <svg viewBox="0 0 300 40" class="mt-3 h-8 w-full">
+          <path class="ecg-draw" d="M0 22 H60 L70 22 L78 6 L86 36 L94 12 L102 22 H170 L180 22 L188 4 L196 38 L204 14 L212 22 H300"
+                fill="none" stroke="#3b6fe6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+    </div>
+
+    <div class="relative z-10 flex items-center gap-6 text-xs text-white/45 enter [animation-delay:300ms]">
+      <span class="flex items-center gap-2"><mv-icon name="shield-check" [size]="15" class="text-aqua-300" /> OAuth2 · JWT</span>
+      <span class="flex items-center gap-2"><mv-icon name="lock" [size]="15" class="text-aqua-300" /> Données chiffrées</span>
+    </div>
+  </aside>
+
+  <!-- ================= Formulaire ================= -->
+  <main class="relative flex items-center justify-center overflow-hidden aurora-light px-6 py-12">
+    <div class="absolute right-[-10%] top-[-10%] h-80 w-80 rounded-full bg-aqua-300/30 blur-3xl"></div>
+
+    <div class="relative w-full max-w-md">
+      <a routerLink="/" class="mb-10 inline-flex lg:hidden"><mv-logo /></a>
+
+      <div class="enter">
+        <p class="text-sm font-semibold text-aqua-600">Bon retour parmi nous</p>
+        <h2 class="mt-2 font-display text-5xl leading-none text-ink-900">Connexion</h2>
+        <p class="mt-3 text-ink-500">Choisissez votre rôle, puis identifiez-vous.</p>
+      </div>
+
+      <!-- Sélecteur de rôle avec indicateur glissant -->
+      <div class="enter [animation-delay:100ms] relative mt-8 grid grid-cols-5 rounded-2xl border border-white bg-white/70 p-1.5 shadow-[0_10px_30px_-20px_rgba(10,26,42,.4)] backdrop-blur">
+        <div class="absolute inset-y-1.5 left-1.5 rounded-xl bg-ink-950 shadow-lg transition-transform duration-500 ease-out-expo"
+             style="width: calc((100% - 0.75rem) / 5)"
+             [style.transform]="'translateX(' + roleIndex() * 100 + '%)'"></div>
+        @for (r of roles; track r.value) {
+          <button type="button" (click)="role.set(r.value)"
+                  class="relative z-10 flex flex-col items-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-colors duration-300"
+                  [class.text-white]="role() === r.value" [class.text-ink-500]="role() !== r.value"
+                  [attr.aria-pressed]="role() === r.value">
+            <mv-icon [name]="r.icon" [size]="18" />
+            {{ r.label }}
+          </button>
+        }
+      </div>
+
+      <form class="enter [animation-delay:200ms] mt-6 space-y-4" [class.shake]="secoue()" (ngSubmit)="connexion()" novalidate>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-semibold text-ink-700">Adresse e-mail</span>
+          <span class="relative block">
+            <mv-icon name="mail" [size]="18" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
+            <input class="field pl-11" type="email" name="email" autocomplete="username"
+                   placeholder="prenom.nom&#64;medivault.tn" [(ngModel)]="email" />
+          </span>
+        </label>
+
+        <label class="block">
+          <span class="mb-1.5 flex items-center justify-between text-sm font-semibold text-ink-700">
+            Mot de passe
+            <a class="text-xs font-semibold text-aqua-600 hover:text-aqua-700 cursor-pointer">Mot de passe oublié ?</a>
+          </span>
+          <span class="relative block">
+            <mv-icon name="lock" [size]="18" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
+            <input class="field pl-11 pr-12" [type]="voirMotDePasse() ? 'text' : 'password'" name="password"
+                   autocomplete="current-password" placeholder="••••••••" [(ngModel)]="motDePasse" />
+            <button type="button" (click)="voirMotDePasse.set(!voirMotDePasse())"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-ink-400 hover:bg-ink-50 hover:text-ink-700"
+                    [attr.aria-label]="voirMotDePasse() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'">
+              <mv-icon [name]="voirMotDePasse() ? 'eye-off' : 'eye'" [size]="18" />
+            </button>
+          </span>
+        </label>
+
+        @if (erreur()) {
+          <p class="flex items-center gap-2 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 enter">
+            <mv-icon name="alert" [size]="16" /> {{ erreur() }}
+          </p>
+        }
+
+        <div class="flex items-center justify-between pt-1 text-sm">
+          <label class="flex cursor-pointer items-center gap-2 text-ink-500">
+            <input type="checkbox" class="h-4 w-4 rounded accent-aqua-500" checked /> Rester connecté
+          </label>
+          <button type="button" (click)="remplirDemo()" class="font-semibold text-ink-700 underline decoration-aqua-400 decoration-2 underline-offset-4 hover:text-ink-900">
+            Remplir un compte démo
+          </button>
+        </div>
+
+        <button type="submit" [disabled]="chargement() || succes()"
+                class="btn btn-ink shine relative mt-2 w-full overflow-hidden py-4 text-[15px] disabled:cursor-wait">
+          @if (succes()) {
+            <span class="grid h-6 w-6 place-items-center rounded-full bg-aqua-400 text-ink-950 enter">
+              <mv-icon name="check" [size]="15" [stroke]="3" />
+            </span>
+            Accès autorisé
+          } @else if (chargement()) {
+            <span class="h-5 w-5 animate-spin rounded-full border-2 border-white/25 border-t-aqua-300"></span>
+            Vérification de l'identité…
+          } @else {
+            Se connecter <mv-icon name="arrow-right" [size]="18" />
+          }
+        </button>
+
+        <div class="flex items-center gap-4 py-2 text-xs uppercase tracking-widest text-ink-300">
+          <span class="h-px flex-1 bg-ink-100"></span> ou <span class="h-px flex-1 bg-ink-100"></span>
+        </div>
+
+        <button type="button" (click)="remplirDemo(); connexion()"
+                class="btn btn-soft w-full py-3.5 text-sm">
+          <mv-icon name="key" [size]="17" class="text-aqua-600" /> Continuer avec Keycloak (SSO)
+        </button>
+      </form>
+
+      <p class="enter [animation-delay:300ms] mt-10 text-center text-xs text-ink-400">
+        Mode démonstration : la connexion réelle passera par Keycloak.
+      </p>
+    </div>
+  </main>
+</div>

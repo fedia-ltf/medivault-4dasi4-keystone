@@ -1,0 +1,339 @@
+<!-- ================= Écran d'ouverture : le coffre se déverrouille ================= -->
+@if (!loaderGone()) {
+  <div class="tone fixed inset-0 z-[100] pointer-events-none" aria-hidden="true">
+    <div class="absolute inset-x-0 top-0 h-1/2 bg-ink-950 transition-transform duration-[1300ms] ease-out-expo"
+         [style.transform]="ready() ? 'translateY(-100%)' : 'none'"></div>
+    <div class="absolute inset-x-0 bottom-0 h-1/2 bg-ink-950 transition-transform duration-[1300ms] ease-out-expo"
+         [style.transform]="ready() ? 'translateY(100%)' : 'none'"></div>
+    <div class="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-aqua-400 to-transparent transition-opacity duration-500"
+         [class.opacity-0]="ready()" [style.transform]="'scaleX(' + progress() / 100 + ')'"></div>
+
+    <div class="absolute inset-0 grid place-items-center transition-all duration-700"
+         [class.opacity-0]="ready()" [class.scale-90]="ready()">
+      <div class="relative grid place-items-center">
+        <svg width="220" height="220" viewBox="0 0 220 220" class="-rotate-90">
+          <circle cx="110" cy="110" r="100" fill="none" stroke="rgb(11 37 69 / .08)" stroke-width="1" />
+          <circle cx="110" cy="110" r="100" fill="none" stroke="#3b6fe6" stroke-width="1.5" stroke-linecap="round"
+                  stroke-dasharray="628.3" [attr.stroke-dashoffset]="628.3 - 6.283 * progress()" />
+          <circle cx="110" cy="110" r="86" fill="none" stroke="rgb(11 37 69 / .08)" stroke-width="1" stroke-dasharray="2 6" />
+        </svg>
+        <div class="absolute text-center">
+          <div class="font-display text-6xl text-white tabular-nums">{{ progress() }}</div>
+          <div class="mt-1 text-[10px] uppercase tracking-[0.35em] text-aqua-300/80">Déverrouillage</div>
+        </div>
+      </div>
+      <div class="absolute bottom-12 flex items-center gap-3 text-white/60 text-xs tracking-[0.3em] uppercase">
+        <mv-logo [size]="22" [withText]="false" /> Ouverture du coffre sécurisé
+      </div>
+    </div>
+  </div>
+}
+
+<div [class.is-ready]="ready()">
+
+  <!-- ================= HERO ================= -->
+  <section class="relative isolate min-h-[100svh] overflow-hidden aurora-dark grain text-white">
+    <!-- halos qui dérivent lentement -->
+    <div class="absolute -top-40 right-[-10%] h-[620px] w-[620px] rounded-full bg-aqua-500/25 blur-[120px] animate-drift"></div>
+    <div class="absolute bottom-[-20%] left-[-10%] h-[520px] w-[520px] rounded-full bg-iris-500/20 blur-[120px] animate-drift [animation-delay:-8s]"></div>
+    <div class="absolute inset-0 grid-lines"></div>
+    <!-- projecteur qui suit le curseur -->
+    <div class="pointer-events-none absolute inset-0 hidden md:block"
+         style="background: radial-gradient(500px circle at var(--px, 50%) var(--py, 40%), rgb(59 111 230 / 0.09), transparent 60%)"></div>
+
+    <!-- Navigation -->
+    <header class="fixed inset-x-0 top-0 z-50 transition-all duration-500"
+            [class.py-5]="!scrolled()" [class.py-3]="scrolled()">
+      <div class="mx-auto flex max-w-7xl items-center justify-between rounded-full px-5 py-2.5 transition-all duration-500 mx-4 lg:mx-auto"
+           [class.glass-dark]="scrolled()">
+        <a routerLink="/" class="fade-up"><mv-logo [dark]="true" /></a>
+        <nav class="hidden md:flex items-center gap-9 text-sm text-white/70 fade-up [transition-delay:100ms]">
+          <a href="#ecosysteme" class="hover:text-white transition-colors">Écosystème</a>
+          <a href="#parcours" class="hover:text-white transition-colors">Parcours</a>
+          <a href="#securite" class="hover:text-white transition-colors">Sécurité</a>
+        </nav>
+        <a [routerLink]="auth.connecte() ? '/app' : '/login'"
+           class="btn btn-ghost-dark px-5 py-2.5 text-sm fade-up [transition-delay:200ms]">
+          {{ auth.connecte() ? 'Mon espace' : 'Se connecter' }}
+          <mv-icon name="arrow-right" [size]="16" />
+        </a>
+      </div>
+    </header>
+
+    <div class="relative mx-auto grid min-h-[100svh] max-w-7xl items-center gap-10 px-6 pt-28 pb-20 lg:grid-cols-12 lg:pb-32">
+      <!-- Texte -->
+      <div class="lg:col-span-6 relative z-10">
+        <div class="fade-up [transition-delay:300ms] inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-xs text-white/75 backdrop-blur">
+          <span class="relative flex h-2 w-2">
+            <span class="absolute inline-flex h-full w-full rounded-full bg-aqua-400 animate-ping-soft"></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full bg-aqua-400"></span>
+          </span>
+          Plateforme e-santé · 7 microservices connectés
+        </div>
+
+        <h1 class="mt-7 font-display text-[3.2rem] leading-[0.98] sm:text-7xl lg:text-[4.6rem] xl:text-[5.4rem]">
+          <span class="line-mask"><span class="[transition-delay:350ms]">Votre santé,</span></span>
+          <span class="line-mask"><span class="italic text-gradient [transition-delay:470ms]">en sécurité,</span></span>
+          <span class="line-mask"><span class="[transition-delay:590ms]">dans un seul dossier.</span></span>
+        </h1>
+
+        <p class="fade-up [transition-delay:800ms] mt-7 max-w-lg text-lg leading-relaxed text-white/65">
+          Dossier médical, ordonnances vérifiées, pharmacie, analyses et rendez-vous :
+          MediVault réunit chaque acteur du soin autour d'un coffre de données protégé.
+        </p>
+
+        <div class="fade-up [transition-delay:950ms] mt-10 flex flex-wrap items-center gap-4">
+          <a [routerLink]="auth.connecte() ? '/app' : '/login'"
+             (pointermove)="magnet($event)" (pointerleave)="release($event)"
+             class="btn btn-primary shine px-7 py-4 text-[15px]">
+            Accéder à mon espace
+            <span class="grid h-7 w-7 place-items-center rounded-full bg-ink-950 text-aqua-300">
+              <mv-icon name="arrow-up-right" [size]="15" />
+            </span>
+          </a>
+          <a href="#ecosysteme" class="btn btn-ghost-dark px-6 py-4 text-[15px]">Découvrir la plateforme</a>
+        </div>
+
+      </div>
+
+      <!-- Visuel : hélice + anneaux + cartes de verre -->
+      <div class="relative lg:col-span-6 h-[460px] sm:h-[560px] lg:h-[600px] fade-up [transition-delay:500ms]">
+        <div class="absolute inset-0 grid place-items-center">
+          <div class="h-[92%] aspect-square rounded-full border border-white/[0.06] animate-spin-slow"
+               style="background: conic-gradient(from 0deg, transparent 0 80%, rgb(59 111 230 / .35) 92%, transparent 100%); mask: radial-gradient(circle, transparent 69.6%, #000 70%, #000 70.4%, transparent 70.8%)"></div>
+        </div>
+        <div class="absolute inset-0 grid place-items-center">
+          <div class="h-[70%] aspect-square rounded-full border border-dashed border-white/10 animate-spin-reverse"></div>
+        </div>
+        <div class="absolute inset-0 grid place-items-center">
+          <div class="h-[46%] aspect-square rounded-full bg-aqua-400/10 blur-3xl"></div>
+        </div>
+
+        <mv-hologram class="absolute inset-0" [capsule]="false" [count]="2000" (shape)="forme.set($event)" />
+
+        <!-- Étiquette de la forme affichée -->
+        <div class="absolute inset-x-0 bottom-0 flex justify-center">
+          @for (f of [formes[forme()]]; track f.titre) {
+            <div class="enter glass-dark flex items-center gap-3 rounded-full py-2 pl-3 pr-5">
+              <span class="grid h-8 w-8 place-items-center rounded-full bg-aqua-400 text-ink-950"><mv-icon [name]="f.icon" [size]="16" /></span>
+              <span class="text-sm"><span class="font-bold">{{ f.titre }}</span> <span class="text-white/55">· {{ f.texte }}</span></span>
+            </div>
+          }
+        </div>
+
+        <!-- Carte : rythme cardiaque -->
+        <div class="absolute left-0 top-[10%] w-56 hidden sm:block"
+             style="transform: translate3d(calc(var(--mx, 0) * -38px), calc(var(--my, 0) * -30px), 0)">
+          <div class="glass-dark rounded-2xl p-4 animate-float">
+            <div class="flex items-center justify-between text-xs text-white/60">
+              <span class="flex items-center gap-1.5"><mv-icon name="heart" [size]="14" class="text-rose-300" /> Rythme cardiaque</span>
+              <span class="chip bg-emerald-400/15 text-emerald-300">Stable</span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-1">
+              <span class="font-display text-4xl">72</span><span class="text-xs text-white/50">bpm</span>
+            </div>
+            <svg viewBox="0 0 200 40" class="mt-1 h-9 w-full">
+              <path class="ecg-draw" d="M0 22 H40 L48 22 L54 8 L60 34 L66 14 L72 22 H110 L118 22 L124 4 L130 36 L136 16 L142 22 H200"
+                    fill="none" stroke="#3b6fe6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Carte : interaction détectée -->
+        <div class="absolute right-0 top-[22%] w-64"
+             style="transform: translate3d(calc(var(--mx, 0) * 46px), calc(var(--my, 0) * 34px), 0)">
+          <div class="glass-dark rounded-2xl p-4 animate-float-slow [animation-delay:-3s]">
+            <div class="flex items-center gap-2 text-xs font-semibold text-amber-300">
+              <mv-icon name="alert" [size]="15" /> Interaction · GRAVE
+            </div>
+            <p class="mt-2 text-sm leading-snug text-white/85">Coumadine + Advil</p>
+            <p class="text-xs text-white/50">Risque hémorragique majoré</p>
+            <div class="mt-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+              <div class="h-full w-3/4 rounded-full bg-gradient-to-r from-amber-300 to-rose-400"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Carte : ordonnance validée -->
+        <div class="absolute bottom-[20%] left-[2%] w-60"
+             style="transform: translate3d(calc(var(--mx, 0) * -26px), calc(var(--my, 0) * 40px), 0)">
+          <div class="glass-dark rounded-2xl p-4 animate-float [animation-delay:-1.5s]">
+            <div class="flex items-center gap-3">
+              <div class="grid h-10 w-10 place-items-center rounded-xl bg-aqua-400/15 text-aqua-300">
+                <mv-icon name="check" [size]="18" [stroke]="2.4" />
+              </div>
+              <div>
+                <p class="text-sm font-semibold">Ordonnance validée</p>
+                <p class="font-mono text-[11px] text-white/50">ORD-2026-A7F3 · compatible</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Carte : rendez-vous -->
+        <div class="absolute bottom-[16%] right-0 w-52 hidden sm:block"
+             style="transform: translate3d(calc(var(--mx, 0) * 30px), calc(var(--my, 0) * -24px), 0)">
+          <div class="glass-dark rounded-2xl p-4 animate-float-slow">
+            <p class="text-[11px] uppercase tracking-widest text-white/45">Prochain rendez-vous</p>
+            <p class="mt-1 font-display text-3xl">10:30</p>
+            <div class="mt-2 flex items-center gap-2 text-xs text-white/70">
+              <span class="grid h-6 w-6 place-items-center rounded-full bg-iris-500/30 text-[10px] font-bold">DK</span>
+              Dr Karim · Cardiologie
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- indicateur de défilement -->
+    <div class="fade-up [transition-delay:1250ms] absolute inset-x-0 bottom-6 z-10 hidden px-6 lg:block">
+      <div class="glass-dark mx-auto flex max-w-7xl items-center justify-between gap-6 rounded-[1.75rem] px-7 py-4">
+        @for (a of atouts; track a.titre) {
+          <div class="flex items-center gap-3">
+            <span class="grid h-11 w-11 place-items-center rounded-2xl bg-aqua-400/10 text-aqua-300"><mv-icon [name]="a.icon" [size]="20" /></span>
+            <div>
+              <p class="text-sm font-bold">{{ a.titre }}</p>
+              <p class="text-xs text-white/55">{{ a.texte }}</p>
+            </div>
+          </div>
+        }
+        <a href="#ecosysteme" class="btn btn-primary shine px-6 py-3 text-sm">Explorer <mv-icon name="arrow-right" [size]="16" /></a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Écosystème ================= -->
+  <section id="ecosysteme" class="relative aurora-light py-28 lg:py-36">
+    <div class="mx-auto max-w-7xl px-6">
+      <div class="max-w-2xl" mvReveal>
+        <p class="text-xs font-bold uppercase tracking-[0.3em] text-aqua-600">L'écosystème</p>
+        <h2 class="mt-4 font-display text-5xl leading-[1.02] text-ink-900 sm:text-6xl">
+          Sept services.<br /><span class="italic text-gradient-dark">Une seule confiance.</span>
+        </h2>
+        <p class="mt-5 text-lg text-ink-500">
+          Chaque métier vit dans son propre microservice, avec sa base et ses règles.
+          Ensemble, ils forment un parcours de soin continu.
+        </p>
+      </div>
+
+      <div class="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        @for (m of modules; track m.titre; let i = $index) {
+          <article [mvReveal]="i * 70"
+                   class="group relative overflow-hidden rounded-[1.75rem] border p-7 shadow-[0_20px_50px_-30px_rgba(10,26,42,.35)] transition-all duration-500 hover:-translate-y-1.5 {{ m.big ? 'lg:col-span-2 lg:row-span-2' : '' }} {{ m.big || m.accent ? 'tone text-white border-white bg-[linear-gradient(135deg,#dbe7ff,#f6f9ff_55%,#dff5f1)]' : 'bg-white border-white' }}">
+            @if (m.big) {
+              <div class="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-aqua-500/25 blur-3xl transition-transform duration-700 group-hover:scale-125"></div>
+              <div class="absolute bottom-0 right-0 h-56 w-56 opacity-60">
+                <mv-hologram [fixe]="1" [capsule]="false" [count]="700" class="h-full w-full" />
+              </div>
+            }
+            @if (m.accent) {
+              <div class="absolute -bottom-16 -right-16 h-48 w-48 rounded-full bg-iris-500/30 blur-3xl"></div>
+            }
+            <div class="relative">
+              <div class="grid h-12 w-12 place-items-center rounded-2xl transition-transform duration-500 group-hover:rotate-[-8deg] group-hover:scale-110 {{ m.big || m.accent ? 'bg-aqua-400 text-ink-950' : 'bg-ink-50 text-aqua-600' }}">
+                <mv-icon [name]="m.icon" [size]="22" />
+              </div>
+              <h3 class="mt-6 font-display {{ m.big ? 'text-5xl' : 'text-3xl' }}">{{ m.titre }}</h3>
+              <p class="mt-3 max-w-sm text-[15px] leading-relaxed {{ m.big || m.accent ? 'text-white/65' : 'text-ink-500' }}">{{ m.texte }}</p>
+            </div>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Parcours d'une ordonnance ================= -->
+  <section id="parcours" class="relative overflow-hidden aurora-dark grain py-28 text-white lg:py-36">
+    <div class="absolute inset-0 grid-lines"></div>
+    <div class="relative mx-auto max-w-7xl px-6">
+      <div class="grid items-end gap-10 lg:grid-cols-2">
+        <div mvReveal>
+          <p class="text-xs font-bold uppercase tracking-[0.3em] text-aqua-300">Le parcours</p>
+          <h2 class="mt-4 font-display text-5xl leading-[1.02] sm:text-6xl">
+            Le voyage d'une<br /><span class="italic text-gradient">ordonnance.</span>
+          </h2>
+        </div>
+        <p class="text-lg text-white/60 lg:pb-3" mvReveal="120">
+          Du cabinet à la pharmacie, chaque étape est vérifiée par le bon service,
+          en synchrone quand il faut une réponse, en asynchrone quand il faut prévenir.
+        </p>
+      </div>
+
+      <div class="relative mt-20">
+        <div class="absolute left-0 right-0 top-7 hidden h-px bg-white/10 lg:block"></div>
+        <div class="line-grow absolute left-0 top-7 hidden h-px w-full origin-left bg-gradient-to-r from-aqua-400 via-sky-400 to-iris-400 lg:block" mvReveal="200"></div>
+        <div class="grid gap-10 lg:grid-cols-4">
+          @for (e of etapes; track e.n; let i = $index) {
+            <div [mvReveal]="250 + i * 180" class="relative">
+              <div class="relative z-10 grid h-14 w-14 place-items-center rounded-2xl border border-white/15 bg-ink-900 text-aqua-300 shadow-[0_0_40px_-8px_rgba(59,111,230,.6)]">
+                <mv-icon [name]="e.icon" [size]="22" />
+              </div>
+              <p class="mt-7 font-mono text-xs text-white/40">{{ e.n }}</p>
+              <h3 class="mt-2 font-display text-3xl">{{ e.titre }}</h3>
+              <p class="mt-3 text-white/60 leading-relaxed">{{ e.texte }}</p>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="mt-24 grid gap-6 lg:grid-cols-5" mvReveal="200">
+        <div id="securite" class="glass-dark rounded-[1.75rem] p-8 lg:col-span-5">
+          <p class="text-xs font-bold uppercase tracking-[0.3em] text-aqua-300">Sécurité</p>
+          <ul class="mt-6 grid gap-6 md:grid-cols-3">
+            <li class="flex gap-4">
+              <mv-icon name="key" class="mt-0.5 text-aqua-300" />
+              <div><p class="font-semibold">Identité Keycloak</p><p class="text-sm text-white/55">Jeton JWT et cinq rôles distincts.</p></div>
+            </li>
+            <li class="flex gap-4">
+              <mv-icon name="layers" class="mt-0.5 text-aqua-300" />
+              <div><p class="font-semibold">Données cloisonnées</p><p class="text-sm text-white/55">Une base par service, jamais partagée.</p></div>
+            </li>
+            <li class="flex gap-4">
+              <mv-icon name="activity" class="mt-0.5 text-aqua-300" />
+              <div><p class="font-semibold">Résilience</p><p class="text-sm text-white/55">Disjoncteur et repli si un service tombe.</p></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Chiffres ================= -->
+  <section class="bg-white py-24">
+    <div class="mx-auto grid max-w-7xl gap-10 px-6 sm:grid-cols-2 lg:grid-cols-4">
+      @for (s of chiffres; track s.l; let i = $index) {
+        <div [mvReveal]="i * 90" class="border-l border-ink-100 pl-6">
+          <p class="font-display text-7xl text-ink-900" [mvCountUp]="s.v"></p>
+          <p class="mt-2 text-ink-500">{{ s.l }}</p>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- ================= Appel final ================= -->
+  <section class="bg-white px-6 pb-24">
+    <div class="relative mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] aurora-dark grain px-8 py-20 text-center text-white sm:px-16" mvReveal>
+      <div class="absolute inset-0 grid-lines"></div>
+      <div class="absolute left-1/2 top-1/2 h-[480px] w-[480px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-aqua-500/20 blur-[100px]"></div>
+      <div class="relative">
+        <mv-logo [size]="56" [withText]="false" class="justify-center" />
+        <h2 class="mx-auto mt-8 max-w-3xl font-display text-5xl leading-[1.02] sm:text-7xl">
+          Entrez dans votre <span class="italic text-gradient">coffre de santé.</span>
+        </h2>
+        <p class="mx-auto mt-6 max-w-xl text-lg text-white/60">Un seul compte, le bon accès pour chaque rôle.</p>
+        <a [routerLink]="auth.connecte() ? '/app' : '/login'"
+           (pointermove)="magnet($event)" (pointerleave)="release($event)"
+           class="btn btn-primary shine mt-10 px-8 py-4 text-[15px]">
+          Commencer maintenant <mv-icon name="arrow-right" [size]="18" />
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="border-t border-ink-100 bg-white">
+    <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-ink-400 sm:flex-row">
+      <mv-logo [size]="28" />
+      <p>Projet MediVault · ESPRIT 4DASI4 · Équipe Keystone</p>
+    </div>
+  </footer>
+</div>

@@ -8,8 +8,8 @@ import tn.esprit.medivault.rendezvous.enums.TypeProfessionnel;
 import java.time.LocalDateTime;
 
 /**
- * Créneau horaire d'un professionnel (médecin ou laboratoire).
- * professionnel_id est l'identifiant du professionnel dans user-service (pas de clé étrangère).
+ * Créneau horaire d'un professionnel (médecin ou laborantin).
+ * professionnelId est l'identifiant String MongoDB de user-service (pas de clé étrangère).
  */
 @Entity
 @Table(name = "creneaux")
@@ -25,7 +25,7 @@ public class Creneau {
     private Long id;
 
     @Column(name = "professionnel_id", nullable = false)
-    private Long professionnelId;
+    private String professionnelId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type_professionnel", nullable = false)
@@ -47,4 +47,3 @@ public class Creneau {
         return rendezVous == null || rendezVous.getStatut() != StatutRdv.CONFIRME;
     }
 }
-

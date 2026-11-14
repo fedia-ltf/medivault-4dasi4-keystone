@@ -11,9 +11,9 @@ import java.util.Optional;
 @Repository
 public interface RendezVousRepository extends JpaRepository<RendezVous, Long> {
 
-    List<RendezVous> findByPatientId(Long patientId);
+    List<RendezVous> findByPatientId(String patientId);
 
     Optional<RendezVous> findTopByPatientIdAndCreneauProfessionnelIdAndStatutOrderByCreneauDateDebutDesc(
-            Long patientId, Long professionnelId, StatutRdv statut);
+            String patientId, String professionnelId, StatutRdv statut);
 }
 

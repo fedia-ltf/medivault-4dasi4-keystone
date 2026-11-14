@@ -16,10 +16,9 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class DisponibilitesResponse {
-    private Long id;
+    private String id;
     private String typeProfessionnel;
     private List<String> joursTravail;
     private LocalTime heureDebut;
     private LocalTime heureFin;
 }
-

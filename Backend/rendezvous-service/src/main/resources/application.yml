@@ -54,6 +54,7 @@ medivault:
     routing-keys:
       consultation-ajoutee: consultation.ajoutee
       rendezvous-confirme: rendezvous.confirme
+      rendezvous-annule: rendezvous.annule
 
 springdoc:
   swagger-ui:

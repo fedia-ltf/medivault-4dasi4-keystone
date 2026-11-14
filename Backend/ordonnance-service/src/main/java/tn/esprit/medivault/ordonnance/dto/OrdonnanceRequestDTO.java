@@ -1,4 +1,4 @@
-package tn.esprit.medivault.ordonnance.DTO;
+package tn.esprit.medivault.ordonnance.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,5 +12,5 @@ public class OrdonnanceRequestDTO {
     private Long patientId;
     private Long medecinId;
     private Long consultationId;
-    private List<LigneOrdonnanceResponseDTO> lignes; // See below
+    private List<LigneOrdonnanceDTO> lignes;
 }

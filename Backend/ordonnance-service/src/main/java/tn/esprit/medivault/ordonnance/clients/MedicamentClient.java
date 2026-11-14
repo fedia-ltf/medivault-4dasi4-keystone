@@ -3,8 +3,8 @@ package tn.esprit.medivault.ordonnance.clients;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import tn.esprit.medivault.ordonnance.DTO.CompatibiliteRequestDTO;
-import tn.esprit.medivault.ordonnance.DTO.CompatibiliteResponseDTO;
+import tn.esprit.medivault.ordonnance.dto.CompatibiliteRequestDTO;
+import tn.esprit.medivault.ordonnance.dto.CompatibiliteResponseDTO;
 
 @FeignClient(name = "medicament-service", fallbackFactory = MedicamentClientFallbackFactory.class)
 public interface MedicamentClient {

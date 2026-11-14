@@ -1,4 +1,4 @@
-package tn.esprit.medivault.ordonnance.DTO;
+package tn.esprit.medivault.ordonnance.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
@@ -10,7 +10,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AllergieResponseDTO {
-    private Long patientId;
-    private List<String> allergies;
+public class CompatibiliteResponseDTO {
+    private boolean compatible;
+    private List<String> conflits;
 }

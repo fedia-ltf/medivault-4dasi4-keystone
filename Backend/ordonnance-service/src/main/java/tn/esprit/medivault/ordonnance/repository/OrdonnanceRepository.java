@@ -11,6 +11,7 @@ import java.util.Optional;
 
 public interface OrdonnanceRepository extends JpaRepository<Ordonnance, Long> {
     Optional<Ordonnance> findByCode(String code);
+    boolean existsByCode(String code);
     List<Ordonnance> findByPatientId(Long patientId);
 
     @Query("SELECT DISTINCT o FROM Ordonnance o JOIN o.lignes l WHERE l.medicamentId = :medicamentId AND o.statut = :statut")

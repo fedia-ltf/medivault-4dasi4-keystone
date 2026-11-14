@@ -12,6 +12,10 @@ export class OrdonnanceService {
     return this.http.get<Ordonnance[]>(`${this.url}/patient/${patientId}`);
   }
 
+  toutes(): Observable<Ordonnance[]> {
+    return this.http.get<Ordonnance[]>(this.url);
+  }
+
   creer(request: OrdonnanceRequest): Observable<Ordonnance> {
     return this.http.post<Ordonnance>(this.url, request);
   }

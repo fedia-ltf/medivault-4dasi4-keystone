@@ -78,8 +78,8 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
       <section class="card p-6">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <h3 class="font-display text-2xl text-ink-900">Ordonnances du patient</h3>
-            <p class="mt-1 text-sm text-ink-400">Patient ID {{ saisie.patientId }}</p>
+            <h3 class="font-display text-2xl text-ink-900">Toutes les ordonnances</h3>
+            <p class="mt-1 text-sm text-ink-400">Historique complet des ordonnances</p>
           </div>
           <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="charger()">Actualiser</button>
         </div>
@@ -186,8 +186,8 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
 })
 export class OrdonnancesPage {
   private readonly api = inject(OrdonnanceService);
-  protected readonly saisie: OrdonnanceRequest = { patientId: 1, medecinId: 1, lignes: [] };
-  protected readonly lignes: LigneOrdonnance[] = [this.nouvelleLigne()];
+  protected readonly saisie = { patientId: null as number | null, medecinId: null as number | null };
+  protected readonly lignes: LigneSaisie[] = [this.nouvelleLigne()];
   protected readonly ordonnances = signal<Ordonnance[]>([]);
   protected readonly chargementListe = signal(true);
   protected readonly chargement = signal(false);
@@ -203,7 +203,7 @@ export class OrdonnancesPage {
 
   protected charger() {
     this.chargementListe.set(true);
-    this.api.parPatient(this.saisie.patientId).subscribe({
+    this.api.toutes().subscribe({
       next: ordonnances => { this.ordonnances.set(ordonnances); this.chargementListe.set(false); },
       error: () => { this.erreur.set('Impossible de charger les ordonnances.'); this.chargementListe.set(false); }
     });
@@ -272,18 +272,29 @@ export class OrdonnancesPage {
     this.erreur.set('');
     this.succes.set('');
     const lignesValides = this.lignes.every(ligne =>
-      ligne.medicamentId > 0 &&
+      ligne.medicamentId !== null && ligne.medicamentId > 0 &&
       ligne.nomMedicament.trim() &&
       ligne.posologie.trim() &&
-      ligne.dureeJours > 0 &&
-      ligne.quantite > 0
+      ligne.dureeJours !== null && ligne.dureeJours > 0 &&
+      ligne.quantite !== null && ligne.quantite > 0
     );
-    if (!this.saisie.patientId || !this.saisie.medecinId || !this.lignes.length || !lignesValides) {
+    if (this.saisie.patientId === null || this.saisie.medecinId === null || !this.lignes.length || !lignesValides) {
       this.erreur.set('Veuillez remplir tous les champs avec des valeurs valides.');
       return;
     }
     this.chargement.set(true);
-    const request = { ...this.saisie, lignes: this.lignes.map(ligne => ({ ...ligne })) };
+    const patientId = this.saisie.patientId;
+    const request: OrdonnanceRequest = {
+      patientId,
+      medecinId: this.saisie.medecinId,
+      lignes: this.lignes.map(ligne => ({
+        medicamentId: ligne.medicamentId!,
+        nomMedicament: ligne.nomMedicament,
+        posologie: ligne.posologie,
+        dureeJours: ligne.dureeJours!,
+        quantite: ligne.quantite!
+      }))
+    };
     const id = this.ordonnanceEnEdition();
     const appel = id === null ? this.api.creer(request) : this.api.modifier(id, request);
     appel.subscribe({
@@ -291,13 +302,28 @@ export class OrdonnancesPage {
         this.chargement.set(false);
         this.ordonnanceEnEdition.set(null);
         this.succes.set(`Ordonnance ${ordonnance.code} ${id === null ? 'créée' : 'modifiée'} avec succès.`);
+        this.reinitialiserFormulaire();
         this.charger();
       },
       error: () => { this.chargement.set(false); this.erreur.set('La création a été refusée par le serveur.'); }
     });
   }
 
-  private nouvelleLigne(): LigneOrdonnance {
-    return { medicamentId: 1, nomMedicament: '', posologie: '', dureeJours: 1, quantite: 1 };
+  private nouvelleLigne(): LigneSaisie {
+    return { medicamentId: null, nomMedicament: '', posologie: '', dureeJours: null, quantite: null };
   }
+
+  private reinitialiserFormulaire() {
+    this.saisie.patientId = null;
+    this.saisie.medecinId = null;
+    this.lignes.splice(0, this.lignes.length, this.nouvelleLigne());
+  }
+}
+
+interface LigneSaisie {
+  medicamentId: number | null;
+  nomMedicament: string;
+  posologie: string;
+  dureeJours: number | null;
+  quantite: number | null;
 }

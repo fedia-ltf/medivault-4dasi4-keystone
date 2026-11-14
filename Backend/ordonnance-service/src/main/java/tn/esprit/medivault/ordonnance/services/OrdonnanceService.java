@@ -1,8 +1,10 @@
 package tn.esprit.medivault.ordonnance.services;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.AmqpException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import tn.esprit.medivault.ordonnance.clients.DossierClient;
 import tn.esprit.medivault.ordonnance.clients.MedicamentClient;
 
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 
 @Service
+@Slf4j
 public class OrdonnanceService {
     private final OrdonnanceRepository repository;
     private final DossierClient dossierClient;
@@ -66,7 +69,12 @@ public class OrdonnanceService {
         OrdonnanceCreeeEvent event = new OrdonnanceCreeeEvent(
                 saved.getId(), saved.getCode(), saved.getPatientId(), saved.getMedecinId(), saved.getDateEmission()
         );
-        rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE, "ordonnance.creee", event);
+        try {
+            rabbitTemplate.convertAndSend(RabbitConfig.EXCHANGE, "ordonnance.creee", event);
+        } catch (AmqpException e) {
+            log.warn("Ordonnance {} enregistrée, mais événement non envoyé : RabbitMQ indisponible",
+                    saved.getCode(), e);
+        }
 
         return toDto(saved);
     }
@@ -77,6 +85,10 @@ public class OrdonnanceService {
 
     public List<OrdonnanceResponseDTO> findByPatient(Long patientId) {
         return repository.findByPatientId(patientId).stream().map(this::toDto).toList();
+    }
+
+    public List<OrdonnanceResponseDTO> findAll() {
+        return repository.findAll().stream().map(this::toDto).toList();
     }
 
     public List<OrdonnanceResponseDTO> findByMedicamentEtStatut(Long medicamentId, StatutOrdonnance statut) {
@@ -121,8 +133,7 @@ public class OrdonnanceService {
 
     private Ordonnance construire(OrdonnanceRequestDTO request) {
         Ordonnance o = new Ordonnance();
-        String annee = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy"));
-        o.setCode(String.format(Locale.ROOT, "ORD-%s-%04d", annee, repository.count() + 1));
+        o.setCode(prochainCode());
         o.setPatientId(request.getPatientId());
         o.setMedecinId(request.getMedecinId());
         o.setConsultationId(request.getConsultationId());
@@ -131,6 +142,17 @@ public class OrdonnanceService {
 
         ajouterLignes(o, request);
         return o;
+    }
+
+    private String prochainCode() {
+        String annee = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy"));
+        long numero = repository.count() + 1;
+        String code = String.format(Locale.ROOT, "ORD-%s-%04d", annee, numero);
+        while (repository.existsByCode(code)) {
+            numero++;
+            code = String.format(Locale.ROOT, "ORD-%s-%04d", annee, numero);
+        }
+        return code;
     }
 
     private void ajouterLignes(Ordonnance o, OrdonnanceRequestDTO request) {

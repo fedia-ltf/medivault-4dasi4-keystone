@@ -5,7 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-// Vue simplifiée d'une ordonnance renvoyée par ordonnance-service
+// Vue simplifiée d'une ordonnance renvoyée par ordonnance-service (via Feign).
+// On garde seulement les champs qui nous intéressent.
+// @JsonIgnoreProperties(ignoreUnknown = true) : si ordonnance-service envoie d'autres champs,
+//   on les ignore au lieu de planter. Comme ça, les deux services restent indépendants.
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

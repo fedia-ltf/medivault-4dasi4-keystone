@@ -14,9 +14,15 @@ import org.springframework.context.annotation.Configuration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+// Configuration de RabbitMQ. Au démarrage, Spring crée dans RabbitMQ :
+//   1) l'exchange "medivault.events" (la boîte aux lettres commune)
+//   2) notre file "medicament-service.ordonnance-delivree"
+//   3) le lien (binding) : "les messages avec la clé ordonnance.delivree vont dans notre file"
+// Chaque @Bean = un objet créé et géré par Spring.
 @Configuration
 public class RabbitMQConfig {
 
+    // Noms lus dans application.properties
     @Value("${medivault.rabbitmq.exchange}")
     private String exchange;
 
@@ -26,23 +32,28 @@ public class RabbitMQConfig {
     @Value("${medivault.rabbitmq.routing-key.ordonnance-delivree}")
     private String routingKeyOrdonnanceDelivree;
 
-    // Exchange commun à tous les microservices MediVault
+    // Exchange commun à tous les microservices MediVault.
+    // Type "topic" : il distribue les messages selon leur clé de routage.
+    // true = durable (survit à un redémarrage de RabbitMQ), false = pas supprimé automatiquement.
     @Bean
     public TopicExchange medivaultExchange() {
         return new TopicExchange(exchange, true, false);
     }
 
+    // File durable : si notre service est arrêté, les messages attendent dedans (aucun perdu)
     @Bean
     public Queue ordonnanceDelivreeQueue() {
         return QueueBuilder.durable(queueOrdonnanceDelivree).build();
     }
 
+    // Binding : relie notre file à l'exchange pour la clé "ordonnance.delivree"
     @Bean
     public Binding ordonnanceDelivreeBinding(Queue ordonnanceDelivreeQueue, TopicExchange medivaultExchange) {
         return BindingBuilder.bind(ordonnanceDelivreeQueue).to(medivaultExchange).with(routingKeyOrdonnanceDelivree);
     }
 
-    // Messages en JSON ; le type est déduit du paramètre du listener
+    // Messages en JSON (au lieu du format binaire Java) : lisible par tous les services.
+    // Le type est déduit du paramètre du listener
     // (les autres services n'ont pas les mêmes classes Java)
     @Bean
     public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {

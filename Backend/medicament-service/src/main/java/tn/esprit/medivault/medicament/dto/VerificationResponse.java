@@ -6,6 +6,9 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+// DTO de sortie de la vérification de compatibilité.
+// Exemple : { "compatible": false, "alertes": [ { "type": "ALLERGIE", ... } ] }
+// compatible = false dès qu'au moins une alerte est bloquante.
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

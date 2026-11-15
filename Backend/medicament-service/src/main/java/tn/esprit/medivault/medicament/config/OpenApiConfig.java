@@ -5,6 +5,10 @@ import io.swagger.v3.oas.models.info.Info;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+// Configuration de Swagger (la page http://localhost:8084/swagger-ui.html).
+// @Configuration : classe de réglages lue au démarrage.
+// @Bean : l'objet renvoyé par la méthode est gardé et utilisé par Spring.
+// Ici on donne juste le titre, la description et la version affichés en haut de Swagger.
 @Configuration
 public class OpenApiConfig {
 

@@ -6,7 +6,11 @@ import tn.esprit.medivault.medicament.dto.OrdonnanceDTO;
 
 import java.util.List;
 
-// Utilisé quand ordonnance-service est indisponible : le retrait continue sans bloquer
+// FALLBACK = plan B (Resilience4j / circuit breaker).
+// Utilisé quand ordonnance-service est indisponible (arrêté, trop lent, erreurs répétées) :
+// au lieu de planter, on renvoie une réponse prévue -> une liste vide.
+// Résultat : le retrait du médicament continue sans bloquer.
+// @Component : Spring crée cet objet pour pouvoir l'utiliser.
 @Component
 @Slf4j
 public class OrdonnanceClientFallback implements OrdonnanceClient {

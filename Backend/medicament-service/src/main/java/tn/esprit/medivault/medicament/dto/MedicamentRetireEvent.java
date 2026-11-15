@@ -6,7 +6,10 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-// Événement publié sur RabbitMQ lors du retrait d'un médicament (RG6)
+// Événement publié sur RabbitMQ lors du retrait d'un médicament (RG6).
+// C'est le "message" posté dans la boîte aux lettres (exchange medivault.events,
+// clé medicament.retire). pharmacie-service le reçoit et bloque la délivrance.
+// Il est converti automatiquement en JSON par RabbitMQConfig.
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

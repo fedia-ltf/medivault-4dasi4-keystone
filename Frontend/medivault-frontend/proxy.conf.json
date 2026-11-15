@@ -1,7 +1,6 @@
 {
-  "/api": {
-    "target": "http://localhost:8084",
-    "secure": false,
-    "changeOrigin": true
-  }
+  "/api/visites":    { "target": "http://localhost:8085", "secure": false, "changeOrigin": true },
+  "/api/plans":      { "target": "http://localhost:8085", "secure": false, "changeOrigin": true },
+  "/api/infirmiers": { "target": "http://localhost:8085", "secure": false, "changeOrigin": true },
+  "/api":            { "target": "http://localhost:8084", "secure": false, "changeOrigin": true }
 }

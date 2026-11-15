@@ -1,0 +1,197 @@
+<!-- Chiffres -->
+<section class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <button type="button" class="card card-hover enter flex items-center gap-4 p-5 text-left" (click)="onglet.set('attente')">
+    <div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-amber-50 text-amber-600"><mv-icon name="clock" [size]="22" /></div>
+    <div><p class="font-display text-4xl leading-none text-ink-900">{{ enAttente().length }}</p><p class="mt-1 text-sm text-ink-500">En attente de confirmation</p></div>
+  </button>
+  <button type="button" class="card card-hover enter flex items-center gap-4 p-5 text-left [animation-delay:70ms]" (click)="onglet.set('arealiser')">
+    <div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-aqua-50 text-aqua-600"><mv-icon name="user" [size]="22" /></div>
+    <div><p class="font-display text-4xl leading-none text-ink-900">{{ aRealiser().length }}</p><p class="mt-1 text-sm text-ink-500">Infirmier affecté, rapport à saisir</p></div>
+  </button>
+  <button type="button" class="card card-hover enter flex items-center gap-4 p-5 text-left [animation-delay:140ms]" (click)="onglet.set('historique')">
+    <div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><mv-icon name="check" [size]="22" /></div>
+    <div><p class="font-display text-4xl leading-none text-ink-900">{{ historique().length }}</p><p class="mt-1 text-sm text-ink-500">Historique</p></div>
+  </button>
+  <button type="button" class="card card-hover enter flex items-center gap-4 p-5 text-left [animation-delay:210ms]" (click)="onglet.set('infirmiers')">
+    <div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-indigo-50 text-iris-500"><mv-icon name="users" [size]="22" /></div>
+    <div><p class="font-display text-4xl leading-none text-ink-900">{{ infirmiers().length }}</p><p class="mt-1 text-sm text-ink-500">Infirmiers de la pharmacie</p></div>
+  </button>
+</section>
+
+@if (message()) { <p class="card mt-4 p-4 text-sm text-emerald-700" role="status">{{ message() }}</p> }
+@if (erreur()) { <p class="card mt-4 p-4 text-sm text-red-700" role="alert">{{ erreur() }}</p> }
+
+<section class="card enter mt-4 overflow-hidden [animation-delay:200ms]">
+  <div class="flex flex-col gap-4 border-b border-ink-100 p-5 lg:flex-row lg:items-center">
+    <div class="mr-auto">
+      <h3 class="text-lg font-bold text-ink-900">Soins à domicile · {{ pharmacie }}</h3>
+      <p class="text-sm text-ink-400">Demandes, soins confirmés et infirmiers.</p>
+    </div>
+    <div class="flex flex-wrap gap-1.5 rounded-full bg-ink-50 p-1">
+      <button type="button" (click)="onglet.set('attente')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'attente' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">En attente ({{ enAttente().length }})</button>
+      <button type="button" (click)="onglet.set('arealiser')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'arealiser' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">À réaliser ({{ aRealiser().length }})</button>
+      <button type="button" (click)="onglet.set('historique')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'historique' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">Historique</button>
+      <button type="button" (click)="onglet.set('infirmiers')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'infirmiers' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">Infirmiers ({{ infirmiers().length }})</button>
+    </div>
+    <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="charger()"><mv-icon name="refresh" [size]="15" /> Actualiser</button>
+  </div>
+
+  @if (onglet() === 'infirmiers') {
+  <!-- ================= Mes infirmiers : ajouter, modifier, supprimer ================= -->
+  <div class="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
+    <p class="text-sm text-ink-400">Les infirmiers n'ont pas de compte : vous les gérez ici et les affectez aux soins.</p>
+    <button class="btn btn-primary px-4 py-2 text-sm" type="button" (click)="nouvelInfirmier()"><mv-icon name="plus" [size]="15" /> Ajouter un infirmier</button>
+  </div>
+
+  @if (enEdition() !== null) {
+    <form class="mx-5 mt-4 rounded-2xl bg-ink-50 p-4" (ngSubmit)="enregistrerInfirmier()" #fi="ngForm">
+      <p class="text-sm font-semibold text-ink-900">{{ enEdition() === 'nouveau' ? 'Nouvel infirmier' : 'Modifier l\'infirmier' }}</p>
+      <div class="mt-3 grid gap-3 sm:grid-cols-3">
+        <label class="text-sm text-ink-500">Prénom
+          <input class="field mt-1" name="prenom" [(ngModel)]="fiche.prenom" required maxlength="60" placeholder="Sonia">
+        </label>
+        <label class="text-sm text-ink-500">Nom
+          <input class="field mt-1" name="nom" [(ngModel)]="fiche.nom" required maxlength="60" placeholder="Ben Ali">
+        </label>
+        <label class="text-sm text-ink-500">Téléphone
+          <input class="field mt-1" name="telephone" [(ngModel)]="fiche.telephone" pattern="[+0-9 ]{8,20}" placeholder="+216 22 145 870">
+        </label>
+      </div>
+      <p class="mt-3 text-sm font-semibold text-ink-700">Temps de disponibilité</p>
+      <div class="mt-1 grid gap-3 sm:grid-cols-3">
+        <label class="text-sm text-ink-500">De
+          <input class="field mt-1" type="time" name="heureDebut" [(ngModel)]="fiche.heureDebut" required>
+        </label>
+        <label class="text-sm text-ink-500">À
+          <input class="field mt-1" type="time" name="heureFin" [(ngModel)]="fiche.heureFin" required>
+        </label>
+      </div>
+      <div class="mt-4 flex flex-wrap gap-3">
+        <button class="btn btn-primary px-5 py-2.5 text-sm" type="submit" [disabled]="fi.invalid">Enregistrer</button>
+        <button class="btn btn-soft px-5 py-2.5 text-sm" type="button" (click)="enEdition.set(null)">Fermer</button>
+      </div>
+    </form>
+  }
+
+  <ul class="mt-2 divide-y divide-ink-100">
+    @for (i of infirmiers(); track i.id) {
+      <li class="flex flex-wrap items-center justify-between gap-3 p-5">
+        <div class="flex items-center gap-3">
+          <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-aqua-50 text-aqua-600"><mv-icon name="user" [size]="18" /></span>
+          <div>
+            <p class="font-semibold text-ink-900">{{ i.prenom }} {{ i.nom }}</p>
+            <p class="text-sm text-ink-400">{{ i.telephone || 'Pas de téléphone' }} · {{ soinsAVenir(i) }} soin(s) confirmé(s) à venir</p>
+            <p class="mt-0.5 flex items-center gap-1 text-xs text-aqua-700"><mv-icon name="clock" [size]="12" /> Disponible de {{ horaires(i) }}</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="modifierInfirmier(i)"><mv-icon name="edit" [size]="15" /> Modifier</button>
+          <button class="btn btn-soft px-4 py-2 text-sm text-red-600" type="button" (click)="supprimerInfirmier(i)"><mv-icon name="trash" [size]="15" /> Supprimer</button>
+        </div>
+      </li>
+    } @empty {
+      <li class="p-6 text-sm text-ink-400">Aucun infirmier : ajoutez-en un pour pouvoir confirmer les soins.</li>
+    }
+  </ul>
+  } @else {
+  <ul class="divide-y divide-ink-100">
+    @for (v of liste(); track v.id) {
+      <li class="p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="flex items-start gap-3">
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-ink-50 text-ink-500"><mv-icon name="user" [size]="18" /></span>
+            <div>
+              <p class="font-semibold text-ink-900">{{ v.patientId }}</p>
+              <p class="text-sm text-ink-500">{{ libelleSoin(v.typeSoin) }}@if (v.dose) { · {{ v.dose }} }@if (v.ordonnanceId) { · ordonnance n° {{ v.ordonnanceId }} }</p>
+              <p class="text-sm text-ink-400">{{ v.date | date: 'dd/MM/yyyy à HH:mm' }} · {{ v.adresse }}
+                @if (lienCarte(v); as lien) { · <a class="text-aqua-600 underline" [href]="lien" target="_blank" rel="noopener">Voir sur la carte</a> }
+              </p>
+              @if (v.infirmierNom) { <p class="mt-1 text-sm text-ink-700">Infirmier : <b>{{ v.infirmierNom }}</b>@if (v.infirmierTelephone) { · {{ v.infirmierTelephone }} }</p> }
+              @if (v.statut === 'REALISEE') {
+                <p class="mt-1 text-sm text-ink-500">
+                  @if (v.tension) { Tension {{ v.tension }} · }@if (v.glycemie) { Glycémie {{ v.glycemie }} g/L · }@if (v.injectionFaite) { Injection faite · }{{ v.observations }}
+                </p>
+              }
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="chip px-3 py-1 {{ statuts[v.statut].ton }}">{{ statuts[v.statut].libelle }}</span>
+            @if (v.statut === 'DEMANDEE') {
+              <button class="btn btn-primary px-4 py-2 text-sm" type="button" (click)="ouvrirAffectation(v)"><mv-icon name="check" [size]="15" /> Confirmer et affecter</button>
+              <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="refuser(v)">Refuser</button>
+            }
+            @if (v.statut === 'ACCEPTEE') {
+              <button class="btn btn-primary px-4 py-2 text-sm" type="button" (click)="ouvrirRapport(v)"><mv-icon name="edit" [size]="15" /> Saisir le rapport</button>
+            }
+          </div>
+        </div>
+
+        <!-- Affecter un infirmier -->
+        @if (enAffectation()?.id === v.id) {
+          <form class="mt-4 rounded-2xl bg-ink-50 p-4" (ngSubmit)="confirmer()">
+            <p class="text-sm font-semibold text-ink-900">Affecter un infirmier disponible</p>
+            <p class="text-xs text-ink-400">Le {{ v.date | date: 'dd/MM/yyyy à HH:mm' }} · seuls les infirmiers dans leurs horaires et sans autre soin à cette heure sont disponibles.</p>
+            <div class="mt-3 grid gap-3 sm:grid-cols-3">
+              @for (i of infirmiers(); track i.id) {
+                @let raison = indisponibilite(i, v);
+                @let libre = !raison;
+                <button type="button" [disabled]="!libre" (click)="choisirInfirmier(i)"
+                  class="flex items-center gap-3 rounded-2xl border bg-white p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50 {{ infirmierChoisi?.id === i.id ? 'border-aqua-500 ring-2 ring-aqua-200' : 'border-ink-100 hover:border-aqua-300' }}">
+                  <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full {{ libre ? 'bg-aqua-50 text-aqua-600' : 'bg-ink-100 text-ink-400' }}"><mv-icon name="user" [size]="16" /></span>
+                  <span>
+                    <span class="block text-sm font-semibold text-ink-900">{{ i.prenom }} {{ i.nom }}</span>
+                    <span class="block text-xs {{ libre ? 'text-emerald-600' : 'text-ink-400' }}">{{ libre ? 'Disponible · ' + horaires(i) : raison }}</span>
+                  </span>
+                </button>
+              } @empty {
+                <p class="text-sm text-ink-400">Aucun infirmier : ajoutez-en dans l'onglet « Mes infirmiers ».</p>
+              }
+            </div>
+            <div class="mt-4 flex flex-wrap gap-3">
+              <button class="btn btn-primary px-5 py-2.5 text-sm" type="submit" [disabled]="!infirmierChoisi">Confirmer le soin</button>
+              <button class="btn btn-soft px-5 py-2.5 text-sm" type="button" (click)="enAffectation.set(null)">Fermer</button>
+            </div>
+          </form>
+        }
+
+        <!-- Rapport de l'infirmier, versé au dossier médical -->
+        @if (enRapport()?.id === v.id) {
+          <form class="mt-4 rounded-2xl bg-ink-50 p-4" (ngSubmit)="enregistrerRapport()">
+            <p class="text-sm font-semibold text-ink-900">Rapport de {{ v.infirmierNom }}</p>
+            <p class="text-xs text-ink-400">Il sera ajouté automatiquement au dossier médical de {{ v.patientId }}.</p>
+            <div class="mt-3 grid gap-3 sm:grid-cols-3">
+              <label class="text-sm text-ink-500">Tension (cmHg)
+                <input class="field mt-1" name="tension" [(ngModel)]="rapport.tension" placeholder="13/8">
+              </label>
+              <label class="text-sm text-ink-500">Glycémie (g/L)
+                <input class="field mt-1" type="number" step="0.01" name="glycemie" [(ngModel)]="rapport.glycemie">
+              </label>
+              <label class="text-sm text-ink-500">Dose
+                <input class="field mt-1" name="dose" [(ngModel)]="rapport.dose">
+              </label>
+            </div>
+            <label class="mt-3 flex items-center gap-2 text-sm text-ink-700">
+              <input type="checkbox" name="injectionFaite" [(ngModel)]="rapport.injectionFaite"> Injection faite
+            </label>
+            <label class="mt-3 block text-sm text-ink-500">Observations de l'infirmier
+              <textarea class="field mt-1" rows="3" name="observations" [(ngModel)]="rapport.observations"></textarea>
+            </label>
+            <div class="mt-4 flex flex-wrap gap-3">
+              <button class="btn btn-primary px-5 py-2.5 text-sm" type="submit">Enregistrer dans le dossier médical</button>
+              <button class="btn btn-soft px-5 py-2.5 text-sm" type="button" (click)="enRapport.set(null)">Fermer</button>
+            </div>
+          </form>
+        }
+      </li>
+    } @empty {
+      <li class="p-6 text-sm text-ink-400">
+        @switch (onglet()) {
+          @case ('attente') { Aucun patient n'attend de confirmation. }
+          @case ('arealiser') { Aucun soin confirmé en attente de rapport. }
+          @default { Aucun soin terminé. }
+        }
+      </li>
+    }
+  </ul>
+  }
+</section>

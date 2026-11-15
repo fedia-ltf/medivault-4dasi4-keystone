@@ -1,0 +1,144 @@
+<!-- ================= Bannière ================= -->
+<mv-hero eyebrow="medicament-service · espace pharmacien" titre="Ma pharmacie"
+         phrase="Déclarez vos ventes de médicaments sensibles et suivez vos quotas du mois." icone="cross" [chips]="false">
+  <span class="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold ring-1 {{ statut() === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : 'bg-rose-50 text-rose-700 ring-rose-200' }}">
+    <span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full animate-ping-soft rounded-full {{ statut() === 'ACTIVE' ? 'bg-emerald-400' : 'bg-rose-400' }}"></span><span class="relative inline-flex h-2.5 w-2.5 rounded-full {{ statut() === 'ACTIVE' ? 'bg-emerald-500' : 'bg-rose-500' }}"></span></span>
+    {{ pharmacie()?.nom }} · {{ statut() }}
+  </span>
+</mv-hero>
+
+<!-- ================= Chiffres : une seule ligne fine ================= -->
+<section class="card enter mt-4 grid grid-cols-1 divide-ink-100/80 sm:grid-cols-3 sm:divide-x [animation-delay:80ms]">
+  <div class="px-6 py-4">
+    <p class="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-500"><span class="h-1.5 w-1.5 rounded-full bg-aqua-500"></span>Vendues ce mois</p>
+    <p class="mt-1 font-display text-4xl leading-none text-ink-900"><span [mvCountUp]="vendu()"></span><span class="text-base text-ink-300"> / {{ attribue() }}</span></p>
+    <div class="mt-2 h-[3px] overflow-hidden rounded-full bg-ink-100"><div class="h-full rounded-full bg-[linear-gradient(90deg,#2957cc,#2cc5b5)] transition-[width] duration-1000" [style.width.%]="attribue() ? (vendu() / attribue()) * 100 : 0"></div></div>
+  </div>
+  <div class="px-6 py-4">
+    <p class="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-500"><span class="h-1.5 w-1.5 rounded-full bg-teal-500"></span>Boîtes restantes</p>
+    <p class="mt-1 font-display text-4xl leading-none text-ink-900" [mvCountUp]="restant()"></p>
+  </div>
+  <div class="px-6 py-4">
+    <p class="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-500"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>Avertissements</p>
+    <p class="mt-1 font-display text-4xl leading-none {{ avert() ? 'text-aqua-700' : 'text-ink-900' }}">{{ avert() }}<span class="text-base text-ink-300"> / 2</span></p>
+  </div>
+</section>
+
+<div class="mt-4 grid gap-4 xl:grid-cols-12">
+  <div class="space-y-4 xl:col-span-7">
+    <!-- ================= Déclarer une vente ================= -->
+    <section class="card enter p-6 [animation-delay:300ms]">
+      <div class="flex items-center gap-3">
+        <span class="grid h-11 w-11 place-items-center rounded-xl bg-[#2957cc] text-white"><mv-icon name="clipboard" [size]="20" /></span>
+        <div><h3 class="text-lg font-bold text-ink-900">Déclarer une vente</h3><p class="text-xs text-ink-400">Vente possible seulement avec une ordonnance validée, dans la limite de votre quota.</p></div>
+      </div>
+      <form [formGroup]="form" (ngSubmit)="declarer()" class="mt-5 grid gap-4 sm:grid-cols-[1fr_1fr_7rem]">
+        <label class="block"><span class="mb-1.5 block text-sm font-semibold text-ink-700">Code de l'ordonnance</span>
+          <input class="field font-mono uppercase" formControlName="ordonnanceCode" placeholder="ORD-A7F3" />
+          @if (msg(form.controls.ordonnanceCode); as e) { <span class="mt-1 block text-xs text-rose-600">{{ e }}</span> }</label>
+        <label class="block"><span class="mb-1.5 block text-sm font-semibold text-ink-700">Médicament sensible</span>
+          <select class="field" formControlName="medicamentId"><option [ngValue]="null" disabled>Choisir…</option>
+            @for (q of mesQuotas(); track q.a.id) { <option [ngValue]="q.m.id">{{ q.m.nomCommercial }} · reste {{ q.restant }}</option> }</select>
+          @if (msg(form.controls.medicamentId); as e) { <span class="mt-1 block text-xs text-rose-600">{{ e }}</span> }</label>
+        <label class="block"><span class="mb-1.5 block text-sm font-semibold text-ink-700">Quantité</span>
+          <input type="number" class="field" formControlName="quantite" min="1" />
+          @if (msg(form.controls.quantite); as e) { <span class="mt-1 block text-xs text-rose-600">{{ e }}</span> }</label>
+        <button type="submit" [disabled]="envoi()" class="btn btn-primary shine py-3.5 text-sm disabled:opacity-60 sm:col-span-3">
+          @if (envoi()) { <span class="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></span> Vérification en cours… } @else { <mv-icon name="shield-check" [size]="17" /> Vérifier et enregistrer }
+        </button>
+      </form>
+
+      @if (etapes().length) {
+        <ol class="mt-5 space-y-2">
+          @for (e of etapes(); track e.libelle) {
+            <li class="enter flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm {{ e.ok === true ? 'border-emerald-200 bg-emerald-50/70 text-emerald-800' : e.ok === false ? 'border-rose-200 bg-rose-50/80 text-rose-800' : 'border-ink-100 bg-ink-50/60 text-ink-400' }}">
+              <span class="grid h-6 w-6 place-items-center rounded-full {{ e.ok === true ? 'bg-emerald-500 text-white' : e.ok === false ? 'bg-rose-500 text-white' : 'bg-ink-200 text-white' }}">
+                @if (e.ok === true) { <mv-icon name="check" [size]="13" [stroke]="3" /> } @else if (e.ok === false) { <mv-icon name="x" [size]="13" [stroke]="3" /> } @else { <span class="text-xs">–</span> }
+              </span>
+              <span class="font-semibold">{{ e.libelle }}</span>
+            </li>
+          }
+        </ol>
+      }
+      @if (resultat(); as r) {
+        <div class="enter mt-3 rounded-2xl p-5 {{ r.ok ? 'bg-[linear-gradient(120deg,#059669,#34d399)] text-white' : 'bg-rose-50 text-rose-800 ring-1 ring-rose-200' }}">
+          <p class="flex items-center gap-2 text-lg font-bold"><mv-icon [name]="r.ok ? 'check' : 'octagon'" [stroke]="2.4" /> {{ r.ok ? 'Vente enregistrée' : 'Vente refusée' }} <span class="ml-auto font-mono text-xs opacity-70">{{ r.code }}</span></p>
+          <p class="mt-1 text-sm {{ r.ok ? 'text-white/85' : '' }}">{{ r.message }}</p>
+          @if (r.avertissement) { <p class="mt-3 flex items-center gap-2 rounded-xl bg-white/80 px-3 py-2 text-sm font-bold text-sky-700"><mv-icon name="alert" [size]="16" /> Un avertissement a été ajouté à votre quota{{ r.suspendue ? ' : votre pharmacie est maintenant SUSPENDUE.' : ' (au 2e, votre quota sera suspendu).' }}</p> }
+          @if (!r.avertissement && r.suspendue) { <p class="mt-3 flex items-center gap-2 rounded-xl bg-white/80 px-3 py-2 text-sm font-bold text-rose-700"><mv-icon name="octagon" [size]="16" /> Votre pharmacie est suspendue.</p> }
+        </div>
+      }
+    </section>
+
+    <!-- ================= Dernières ventes ================= -->
+    <section class="card enter p-6 [animation-delay:360ms]">
+      <h3 class="text-lg font-bold text-ink-900">Dernières ventes</h3>
+      <ul class="mt-3 divide-y divide-ink-100 text-sm">
+        @for (v of dernieres(); track v.id) {
+          <li class="enter grid grid-cols-[3.5rem_1fr_auto_auto] items-center gap-3 py-3">
+            <span class="font-mono text-xs text-ink-400">{{ date(v.date) | date: 'd MMM' : '' : 'fr' }}</span>
+            <span class="font-semibold text-ink-900">{{ s.medicament(v.medicamentId)?.nomCommercial }}</span>
+            <span class="font-mono font-semibold text-ink-700">× {{ v.quantite }}</span>
+            <span class="inline-flex items-center gap-1.5 font-mono text-xs text-ink-600"><mv-icon name="check" [size]="13" class="text-emerald-600" [stroke]="2.5" /> {{ codeDe(v.ordonnanceId) }}</span>
+          </li>
+        } @empty {
+          <li class="grid place-items-center gap-2 py-10 text-center text-sm text-ink-400"><mv-pill-icon forme="GELULE" [variante]="0" [size]="56" /> Aucune vente déclarée ce mois-ci.</li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  <!-- ================= Mes quotas du mois ================= -->
+  <section class="enter xl:col-span-5 [animation-delay:340ms]">
+    <div class="mb-3 flex items-baseline justify-between"><h3 class="text-lg font-bold text-ink-900">Mes quotas du mois</h3><span class="text-xs text-ink-400">{{ mesQuotas().length }} médicament{{ mesQuotas().length > 1 ? 's' : '' }}</span></div>
+    @if (proches().length) {
+      <p class="mb-3 flex items-center gap-2 rounded-2xl bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800"><mv-icon name="alert" [size]="16" /> {{ proches().length }} quota{{ proches().length > 1 ? 's' : '' }} au-dessus de 90 % : attention aux ventes restantes.</p>
+    }
+    <div class="space-y-3">
+      @for (q of mesQuotas(); track q.a.id; let i = $index) {
+        <article class="card card-hover enter p-4" [style.animation-delay.ms]="380 + i * 70">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0"><p class="truncate font-bold text-ink-900">{{ q.m.nomCommercial }}</p><p class="text-xs text-ink-400">{{ q.m.dci }}</p></div>
+            <div class="flex flex-col items-end gap-1.5"><mv-categorie [categorie]="q.m.categorie" />
+              <span class="chip {{ q.a.statut === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700' }}">{{ q.a.statut }}</span></div>
+          </div>
+          <mv-quota-bar class="mt-3" [vendu]="q.a.quantiteVendue" [attribue]="q.a.quantiteAttribuee" />
+          <p class="mt-2 text-xs text-ink-400">Il reste <span class="font-bold text-ink-700">{{ q.restant }}</span> boîte{{ q.restant > 1 ? 's' : '' }}@if (q.a.avertissements) { · <span class="font-bold text-sky-600">{{ q.a.avertissements }} avertissement{{ q.a.avertissements > 1 ? 's' : '' }}</span> }</p>
+        </article>
+      } @empty {
+        <div class="card grid place-items-center gap-2 p-10 text-center text-sm text-ink-400"><mv-pill-icon forme="GELULE" [variante]="1" [size]="56" /> Aucun quota ne vous a été attribué ce mois-ci.</div>
+      }
+    </div>
+  </section>
+</div>
+
+<div class="mt-4 grid gap-4 xl:grid-cols-12">
+  <!-- ================= Ventes de la semaine ================= -->
+  <section class="card enter p-6 xl:col-span-6 [animation-delay:420ms]">
+    <h3 class="text-lg font-bold text-ink-900">Ventes de la semaine</h3>
+    <p class="text-xs text-ink-400">Boîtes de médicaments sensibles</p>
+    <div class="mt-5 flex h-44 items-end gap-3">
+      @for (j of jours; track j.j; let i = $index) {
+        <div class="flex flex-1 flex-col items-center gap-2">
+          <span class="text-[11px] font-semibold text-ink-500">{{ j.v }}</span>
+          <div class="flex h-32 w-full items-end overflow-hidden rounded-xl bg-ink-50">
+            <div class="w-full rounded-xl bg-gradient-to-t from-aqua-600 to-aqua-300 transition-[height] duration-1000 ease-out-expo" [style.height.%]="pret() ? (j.v / maxJour) * 100 : 0" [style.transition-delay.ms]="i * 80"></div>
+          </div>
+          <span class="text-xs text-ink-400">{{ j.j }}</span>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- ================= Quotas à surveiller ================= -->
+  <section class="card enter p-6 xl:col-span-6 [animation-delay:480ms]">
+    <h3 class="text-lg font-bold text-ink-900">Quotas à surveiller</h3>
+    <p class="text-xs text-ink-400">Les médicaments les plus proches de la limite</p>
+    <ul class="mt-4 space-y-4">
+      @for (q of aSurveiller(); track q.a.id) {
+        <li><div class="mb-1 flex items-center justify-between text-sm"><span class="font-semibold text-ink-900">{{ q.m.nomCommercial }}</span><span class="text-xs text-ink-400">reste {{ q.restant }}</span></div>
+          <mv-quota-bar [vendu]="q.a.quantiteVendue" [attribue]="q.a.quantiteAttribuee" /></li>
+      }
+    </ul>
+  </section>
+</div>

@@ -6,6 +6,7 @@ export interface Utilisateur {
   nom: string;
   email: string;
   role: Role;
+  patientId?: number;
 }
 
 export const ROLES: { value: Role; label: string; icon: string }[] = [
@@ -33,7 +34,7 @@ export class AuthService {
   connexion(email: string, role: Role) {
     const brut = email.split('@')[0].replace(/[._-]+/g, ' ').trim() || 'Utilisateur';
     const nom = brut.split(' ').map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(' ');
-    const u: Utilisateur = { nom, email, role };
+    const u: Utilisateur = { nom, email, role, patientId: role === 'PATIENT' ? 1 : undefined };
     localStorage.setItem(CLE, JSON.stringify(u));
     this.courant.set(u);
   }

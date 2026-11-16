@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Icon } from '../../../shared/icon';
+import { AuthService } from '../../../core/auth.service';
 import { LigneOrdonnance, Ordonnance, OrdonnanceRequest } from '../models/ordonnance.model';
 import { OrdonnanceService } from '../services/ordonnance.service';
 import { OrdonnancesScene } from '../components/ordonnances-scene';
@@ -21,12 +22,15 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
         </div>
         <p class="mt-6 font-mono text-xs text-aqua-300">ordonnance-service</p>
         <h2 class="mt-2 font-display text-6xl leading-none">Ordonnances</h2>
-        <p class="mt-4 text-lg text-white/60">Créez une ordonnance et retrouvez celles du patient connecté au contrôleur.</p>
+        <p class="mt-4 text-lg text-white/60">
+          {{ estPatient() ? 'Retrouvez toutes vos ordonnances et le détail de vos traitements.' : 'Créez une ordonnance et retrouvez celles du patient connecté au contrôleur.' }}
+        </p>
       </div>
     </section>
 
     <section class="mt-6 grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-      <form class="card p-6" (ngSubmit)="creer()">
+      @if (!estPatient()) {
+        <form class="card p-6" (ngSubmit)="creer()">
         <h3 class="font-display text-2xl text-ink-900">Nouvelle ordonnance</h3>
         <div class="mt-5 grid gap-4 sm:grid-cols-2">
           <label class="text-sm font-medium text-ink-600">Patient ID
@@ -73,13 +77,14 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
         <button class="btn btn-primary mt-6 w-full" type="submit" [disabled]="chargement()">
           {{ chargement() ? 'Enregistrement...' : (ordonnanceEnEdition() ? 'Modifier l’ordonnance' : 'Créer l’ordonnance') }}
         </button>
-      </form>
+        </form>
+      }
 
-      <section class="card p-6">
+      <section class="card p-6" [class.xl:col-span-2]="estPatient()">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <h3 class="font-display text-2xl text-ink-900">Toutes les ordonnances</h3>
-            <p class="mt-1 text-sm text-ink-400">Historique complet des ordonnances</p>
+            <h3 class="font-display text-2xl text-ink-900">{{ estPatient() ? 'Mes ordonnances' : 'Toutes les ordonnances' }}</h3>
+            <p class="mt-1 text-sm text-ink-400">{{ estPatient() ? 'Historique de vos prescriptions' : 'Historique complet des ordonnances' }}</p>
           </div>
           <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="charger()">Actualiser</button>
         </div>
@@ -109,49 +114,89 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
     @if (ordonnanceSelectionnee(); as ordonnance) {
       <div class="fixed inset-0 z-[100] grid place-items-center bg-ink-950/50 p-4 backdrop-blur-sm"
            role="presentation" (click)="fermerDetails()">
-        <article class="card max-h-[85vh] w-full max-w-2xl overflow-y-auto p-6 shadow-2xl"
+        <article class="card max-h-[92vh] w-full max-w-4xl overflow-y-auto bg-white p-0 shadow-2xl"
                  role="dialog" aria-modal="true" aria-labelledby="ordonnance-details-title"
                  (click)="$event.stopPropagation()">
-          <div class="flex items-start justify-between gap-4 border-b border-ink-100 pb-4">
-            <div>
-              <p class="font-mono text-xs text-aqua-600">Détail de l’ordonnance</p>
-              <h3 id="ordonnance-details-title" class="mt-1 font-display text-3xl text-ink-900">{{ ordonnance.code }}</h3>
-              <p class="mt-1 text-sm text-ink-400">Émise le {{ ordonnance.dateEmission }} · Expire le {{ ordonnance.dateExpiration }}</p>
-            </div>
-            <button class="grid h-9 w-9 place-items-center rounded-xl text-xl text-ink-400 hover:bg-ink-50 hover:text-ink-900"
-                    type="button" aria-label="Fermer" (click)="fermerDetails()">×</button>
-          </div>
-          <div class="mt-5 flex items-center justify-between">
-            <h4 class="font-semibold text-ink-900">Médicaments prescrits</h4>
-            <span class="chip bg-aqua-50 px-3 py-1 text-aqua-700">{{ ordonnance.statut }}</span>
-          </div>
-          <div class="mt-3 space-y-3">
-            @for (ligne of ordonnance.lignes; track $index; let i = $index) {
-              <div class="rounded-2xl border border-ink-100 bg-ink-50/50 p-4">
-                <div class="flex items-start justify-between gap-4">
-                  <div>
-                    <p class="text-xs font-mono text-ink-400">Médicament {{ i + 1 }}</p>
-                    <p class="mt-1 font-semibold text-ink-900">{{ ligne.nomMedicament }}</p>
-                  </div>
-                  <span class="rounded-lg bg-white px-2.5 py-1 text-xs font-medium text-ink-500">ID {{ ligne.medicamentId }}</span>
+          <header class="relative overflow-hidden bg-gradient-to-br from-ink-950 via-ink-900 to-iris-600 px-6 py-7 text-white sm:px-10">
+            <div class="pointer-events-none absolute -right-20 -top-32 h-72 w-72 rounded-full border border-white/10"></div>
+            <div class="pointer-events-none absolute -right-8 -top-20 h-48 w-48 rounded-full border border-white/10"></div>
+            <div class="relative flex items-start justify-between gap-6">
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.25em] text-aqua-300">MediVault</p>
+                <p class="mt-2 text-sm text-white/60">Dossier médical sécurisé</p>
+                <div class="mt-5 flex flex-wrap items-baseline gap-3">
+                  <h3 id="ordonnance-details-title" class="font-display text-4xl leading-none">Ordonnance</h3>
+                  <span class="font-mono text-sm text-white/60">{{ ordonnance.code }}</span>
                 </div>
-                <div class="mt-3 grid gap-2 text-sm text-ink-500 sm:grid-cols-3">
-                  <span><strong class="text-ink-700">Posologie :</strong> {{ ligne.posologie }}</span>
-                  <span><strong class="text-ink-700">Quantité :</strong> {{ ligne.quantite }}</span>
-                  <span><strong class="text-ink-700">Durée :</strong> {{ ligne.dureeJours }} jours</span>
-                </div>
+                <p class="mt-3 text-sm text-white/70">Émise le {{ ordonnance.dateEmission }} · Expire le {{ ordonnance.dateExpiration }}</p>
               </div>
-            }
-          </div>
-          <button class="btn btn-primary mt-6 w-full" type="button" (click)="fermerDetails()">Fermer</button>
-          <div class="mt-3 grid gap-3 sm:grid-cols-2">
-            <button class="btn btn-soft w-full px-4 py-2.5 text-sm" type="button" (click)="modifierDepuisDetails(ordonnance)">
-              Modifier
-            </button>
-            <button class="w-full rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100"
-                    type="button" (click)="demanderSuppression(ordonnance)">
-              Supprimer
-            </button>
+              <button class="relative grid h-9 w-9 place-items-center rounded-xl text-xl text-white/60 hover:bg-white/10 hover:text-white"
+                      type="button" aria-label="Fermer" (click)="fermerDetails()">×</button>
+            </div>
+          </header>
+
+          <div class="px-6 py-6 sm:px-10">
+            <section class="grid gap-4 rounded-2xl border border-ink-100 bg-gradient-to-br from-white to-ink-50 p-5 sm:grid-cols-[auto_1fr_1fr]">
+              <div class="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-aqua-400 to-iris-500 text-sm font-bold text-white">
+                {{ auth.initiales() }}
+              </div>
+              <div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-ink-400">Patient</p>
+                <p class="mt-1 text-lg font-semibold text-ink-900">{{ utilisateur()?.nom ?? 'Patient' }}</p>
+                <p class="mt-0.5 text-sm text-ink-500">{{ utilisateur()?.email ?? 'Informations non disponibles' }}</p>
+              </div>
+              <div class="sm:border-l sm:border-ink-200 sm:pl-5">
+                <p class="text-[11px] font-bold uppercase tracking-wider text-ink-400">Informations patient</p>
+                <p class="mt-1 text-sm text-ink-600">ID patient : <strong>{{ ordonnance.patientId }}</strong></p>
+                <p class="mt-0.5 text-sm text-ink-500">Profil : {{ utilisateur()?.role === 'PATIENT' ? 'Patient' : 'Dossier associé' }}</p>
+              </div>
+            </section>
+
+            <div class="mt-7 flex items-center justify-between gap-3">
+              <div>
+                <p class="font-display text-3xl text-iris-600">Rp/</p>
+                <p class="text-sm text-ink-400">{{ ordonnance.lignes.length }} prescription{{ ordonnance.lignes.length > 1 ? 's' : '' }}</p>
+              </div>
+              <span class="chip bg-aqua-50 px-3 py-1 text-aqua-700">{{ ordonnance.statut }}</span>
+            </div>
+            <div class="mt-3 space-y-3">
+              @for (ligne of ordonnance.lignes; track $index; let i = $index) {
+                <div class="rounded-2xl border border-ink-100 border-l-4 border-l-aqua-400 bg-white p-5 shadow-sm">
+                  <div class="flex items-start justify-between gap-4">
+                    <div>
+                      <p class="text-xs font-mono text-ink-400">Médicament {{ i + 1 }}</p>
+                      <p class="mt-1 text-lg font-semibold text-ink-900">{{ ligne.nomMedicament }}</p>
+                    </div>
+                    <span class="rounded-lg bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-500">ID {{ ligne.medicamentId }}</span>
+                  </div>
+                  <p class="mt-2 text-sm text-ink-500">{{ ligne.posologie }}</p>
+                  <div class="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                    <span class="chip bg-aqua-50 text-aqua-700">Quantité : {{ ligne.quantite }}</span>
+                    <span class="chip bg-emerald-50 text-emerald-700">Durée : {{ ligne.dureeJours }} jours</span>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="mt-5 rounded-2xl border border-aqua-100 bg-aqua-50/60 p-4">
+              <p class="text-sm font-semibold text-ink-800">Prescripteur</p>
+              <p class="mt-1 text-sm text-ink-500">Médecin ID : {{ ordonnance.medecinId }}</p>
+            </div>
+            <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              @if (!estPatient()) {
+                <button class="btn btn-soft px-4 py-2.5 text-sm" type="button" (click)="modifierDepuisDetails(ordonnance)">
+                  Modifier
+                </button>
+                <button class="rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+                        type="button" (click)="demanderSuppression(ordonnance)">
+                  Supprimer
+                </button>
+              }
+              <button class="btn btn-primary px-4 py-2.5 text-sm" type="button" (click)="imprimer(ordonnance)">
+                Imprimer / PDF
+              </button>
+              <button class="btn btn-soft px-4 py-2.5 text-sm" type="button" (click)="fermerDetails()">Fermer</button>
+            </div>
           </div>
         </article>
       </div>
@@ -186,6 +231,8 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
 })
 export class OrdonnancesPage {
   private readonly api = inject(OrdonnanceService);
+  protected readonly auth = inject(AuthService);
+  protected readonly utilisateur = this.auth.utilisateur;
   protected readonly saisie = { patientId: null as number | null, medecinId: null as number | null };
   protected readonly lignes: LigneSaisie[] = [this.nouvelleLigne()];
   protected readonly ordonnances = signal<Ordonnance[]>([]);
@@ -196,6 +243,7 @@ export class OrdonnancesPage {
   protected readonly ordonnanceSelectionnee = signal<Ordonnance | null>(null);
   protected readonly ordonnanceEnEdition = signal<number | null>(null);
   protected readonly ordonnanceASupprimer = signal<Ordonnance | null>(null);
+  protected readonly estPatient = () => this.auth.utilisateur()?.role === 'PATIENT';
 
   constructor() {
     this.charger();
@@ -203,7 +251,11 @@ export class OrdonnancesPage {
 
   protected charger() {
     this.chargementListe.set(true);
-    this.api.toutes().subscribe({
+    const utilisateur = this.auth.utilisateur();
+    const appel = utilisateur?.role === 'PATIENT'
+      ? this.api.parPatient(utilisateur.patientId ?? 1)
+      : this.api.toutes();
+    appel.subscribe({
       next: ordonnances => { this.ordonnances.set(ordonnances); this.chargementListe.set(false); },
       error: () => { this.erreur.set('Impossible de charger les ordonnances.'); this.chargementListe.set(false); }
     });
@@ -223,6 +275,18 @@ export class OrdonnancesPage {
 
   protected fermerDetails() {
     this.ordonnanceSelectionnee.set(null);
+  }
+
+  protected imprimer(ordonnance: Ordonnance) {
+    const utilisateur = this.utilisateur();
+    const patient = utilisateur?.role === 'PATIENT'
+      ? { name: utilisateur.nom, email: utilisateur.email }
+      : { name: `Patient #${ordonnance.patientId}`, email: '' };
+    const data = encodeURIComponent(JSON.stringify({
+      ...ordonnance,
+      patient
+    }));
+    window.open(`/ordonnance-medivault.html?data=${data}`, '_blank', 'noopener,noreferrer');
   }
 
   protected modifierDepuisDetails(ordonnance: Ordonnance) {

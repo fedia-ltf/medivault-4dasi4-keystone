@@ -29,7 +29,7 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
     </section>
 
     <section class="mt-6 grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-      @if (!estPatient()) {
+      @if (!estPatient() && !estPharmacien()) {
         <form class="card p-6" (ngSubmit)="creer()">
         <h3 class="font-display text-2xl text-ink-900">Nouvelle ordonnance</h3>
         <div class="mt-5 grid gap-4 sm:grid-cols-2">
@@ -98,7 +98,7 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
               <article class="rounded-2xl border border-ink-100 p-4">
                 <div class="flex items-center justify-between">
                   <strong class="text-ink-900">{{ ordonnance.code }}</strong>
-                  <span class="chip bg-aqua-50 px-3 py-1 text-aqua-700">{{ ordonnance.statut }}</span>
+                  <span class="chip px-3 py-1 {{ statutClasse(ordonnance.statut) }}">{{ ordonnance.statut }}</span>
                 </div>
                 <p class="mt-2 text-sm text-ink-500">{{ ordonnance.dateEmission }} · {{ ordonnance.lignes.length }} médicament(s)</p>
                 <button class="btn btn-soft mt-4 w-full px-4 py-2 text-sm" type="button" (click)="ouvrirDetails(ordonnance)">
@@ -157,7 +157,7 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
                 <p class="font-display text-3xl text-iris-600">Rp/</p>
                 <p class="text-sm text-ink-400">{{ ordonnance.lignes.length }} prescription{{ ordonnance.lignes.length > 1 ? 's' : '' }}</p>
               </div>
-              <span class="chip bg-aqua-50 px-3 py-1 text-aqua-700">{{ ordonnance.statut }}</span>
+              <span class="chip px-3 py-1 {{ statutClasse(ordonnance.statut) }}">{{ ordonnance.statut }}</span>
             </div>
             <div class="mt-3 space-y-3">
               @for (ligne of ordonnance.lignes; track $index; let i = $index) {
@@ -182,8 +182,33 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
               <p class="text-sm font-semibold text-ink-800">Prescripteur</p>
               <p class="mt-1 text-sm text-ink-500">Médecin ID : {{ ordonnance.medecinId }}</p>
             </div>
+            @if (estPharmacien() && !ordonnance.statutModifieParPharmacien) {
+              <section class="mt-5 rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+                <p class="text-sm font-semibold text-ink-800">Modifier l’état de l’ordonnance</p>
+                <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <label class="flex-1 text-sm font-medium text-ink-600">
+                    Nouvel état
+                    <select class="mt-1 w-full rounded-xl border border-ink-100 bg-white px-3 py-2.5 text-ink-900 outline-none focus:border-aqua-400 focus:ring-4 focus:ring-aqua-400/10"
+                            [ngModel]="statutEnModification()" (ngModelChange)="statutEnModification.set($event)">
+                      @for (statut of statuts; track statut.value) {
+                        <option [value]="statut.value">{{ statut.label }}</option>
+                      }
+                    </select>
+                  </label>
+                  <button class="btn btn-primary px-4 py-2.5 text-sm" type="button"
+                          [disabled]="chargement() || statutEnModification() === ordonnance.statut"
+                          (click)="modifierStatut(ordonnance)">
+                    {{ chargement() ? 'Enregistrement...' : 'Enregistrer l’état' }}
+                  </button>
+                </div>
+              </section>
+            } @else if (estPharmacien()) {
+              <p class="mt-5 rounded-2xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm text-ink-500">
+                L’état a déjà été modifié par le pharmacien et ne peut plus être changé.
+              </p>
+            }
             <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              @if (!estPatient()) {
+              @if (!estPatient() && !estPharmacien()) {
                 <button class="btn btn-soft px-4 py-2.5 text-sm" type="button" (click)="modifierDepuisDetails(ordonnance)">
                   Modifier
                 </button>
@@ -243,7 +268,24 @@ export class OrdonnancesPage {
   protected readonly ordonnanceSelectionnee = signal<Ordonnance | null>(null);
   protected readonly ordonnanceEnEdition = signal<number | null>(null);
   protected readonly ordonnanceASupprimer = signal<Ordonnance | null>(null);
+  protected readonly statutEnModification = signal('');
+  protected readonly statuts = [
+    { value: 'EN_ATTENTE_VERIFICATION', label: 'En attente de vérification' },
+    { value: 'VALIDEE', label: 'Validée' },
+    { value: 'DELIVREE', label: 'Délivrée' },
+    { value: 'EXPIREE', label: 'Expirée' }
+  ];
   protected readonly estPatient = () => this.auth.utilisateur()?.role === 'PATIENT';
+  protected readonly estPharmacien = () => this.auth.utilisateur()?.role === 'PHARMACIEN';
+
+  protected statutClasse(statut: string) {
+    return {
+      VALIDEE: 'bg-emerald-50 text-emerald-700',
+      EN_ATTENTE_VERIFICATION: 'bg-amber-50 text-amber-700',
+      EXPIREE: 'bg-rose-50 text-rose-700',
+      DELIVREE: 'bg-sky-50 text-sky-700'
+    }[statut] ?? 'bg-ink-100 text-ink-600';
+  }
 
   constructor() {
     this.charger();
@@ -271,10 +313,30 @@ export class OrdonnancesPage {
 
   protected ouvrirDetails(ordonnance: Ordonnance) {
     this.ordonnanceSelectionnee.set(ordonnance);
+    this.statutEnModification.set(ordonnance.statut);
   }
 
   protected fermerDetails() {
     this.ordonnanceSelectionnee.set(null);
+  }
+
+  protected modifierStatut(ordonnance: Ordonnance) {
+    const statut = this.statutEnModification();
+    if (!this.estPharmacien() || !statut || statut === ordonnance.statut) return;
+    this.chargement.set(true);
+    this.erreur.set('');
+    this.api.modifierStatut(ordonnance.id, statut).subscribe({
+      next: updated => {
+        this.chargement.set(false);
+        this.ordonnanceSelectionnee.set(updated);
+        this.ordonnances.update(liste => liste.map(item => item.id === updated.id ? updated : item));
+        this.succes.set(`L’état de ${updated.code} a été modifié.`);
+      },
+      error: () => {
+        this.chargement.set(false);
+        this.erreur.set('La modification de l’état a été refusée par le serveur.');
+      }
+    });
   }
 
   protected imprimer(ordonnance: Ordonnance) {

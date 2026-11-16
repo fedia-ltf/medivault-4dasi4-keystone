@@ -125,6 +125,18 @@ public class OrdonnanceService {
         });
     }
 
+    @Transactional
+    public OrdonnanceResponseDTO modifierStatut(Long ordonnanceId, StatutOrdonnance statut) {
+        Ordonnance ordonnance = repository.findById(ordonnanceId)
+                .orElseThrow(() -> new OrdonnanceNotFoundException(String.valueOf(ordonnanceId)));
+        if (ordonnance.isStatutModifieParPharmacien()) {
+            throw new StatutOrdonnanceVerrouilleeException(ordonnance.getCode());
+        }
+        ordonnance.setStatut(statut);
+        ordonnance.setStatutModifieParPharmacien(true);
+        return toDto(repository.save(ordonnance));
+    }
+
     private OrdonnanceResponseDTO saveEnAttente(OrdonnanceRequestDTO request) {
         Ordonnance o = construire(request);
         o.setStatut(StatutOrdonnance.EN_ATTENTE_VERIFICATION);
@@ -181,6 +193,7 @@ public class OrdonnanceService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         dto.setDateEmission(o.getDateEmission().format(formatter));
         dto.setDateExpiration(o.getDateExpiration().format(formatter));
+        dto.setStatutModifieParPharmacien(o.isStatutModifieParPharmacien());
 
         List<LigneOrdonnanceResponseDTO> lignesDto = o.getLignes().stream().map(l -> {
             LigneOrdonnanceResponseDTO lDto = new LigneOrdonnanceResponseDTO();

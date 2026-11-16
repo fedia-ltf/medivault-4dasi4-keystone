@@ -37,6 +37,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(StatutOrdonnanceVerrouilleeException.class)
+    public ProblemDetail handleStatutVerrouille(StatutOrdonnanceVerrouilleeException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("État déjà modifié");
+        return problem;
+    }
+
 
     @ExceptionHandler(ServiceIndisponibleException.class)
     public ProblemDetail handleIndisponible(ServiceIndisponibleException ex) {

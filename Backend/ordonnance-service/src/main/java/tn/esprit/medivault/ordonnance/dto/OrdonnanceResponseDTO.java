@@ -16,5 +16,6 @@ public class OrdonnanceResponseDTO {
     private String dateEmission;
     private String dateExpiration;
     private String statut;
+    private boolean statutModifieParPharmacien;
     private List<LigneOrdonnanceResponseDTO> lignes;
 }

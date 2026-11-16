@@ -35,6 +35,9 @@ public class Ordonnance {
     @Column(nullable = false)
     private StatutOrdonnance statut;
 
+    @Column(nullable = false)
+    private boolean statutModifieParPharmacien = false;
+
     @OneToMany(mappedBy = "ordonnance", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LigneOrdonnance> lignes = new ArrayList<>();
 
@@ -58,6 +61,10 @@ public class Ordonnance {
     public void setDateExpiration(LocalDate dateExpiration) { this.dateExpiration = dateExpiration; }
     public StatutOrdonnance getStatut() { return statut; }
     public void setStatut(StatutOrdonnance statut) { this.statut = statut; }
+    public boolean isStatutModifieParPharmacien() { return statutModifieParPharmacien; }
+    public void setStatutModifieParPharmacien(boolean statutModifieParPharmacien) {
+        this.statutModifieParPharmacien = statutModifieParPharmacien;
+    }
     public List<LigneOrdonnance> getLignes() { return lignes; }
     public void setLignes(List<LigneOrdonnance> lignes) { this.lignes = lignes; }
 }

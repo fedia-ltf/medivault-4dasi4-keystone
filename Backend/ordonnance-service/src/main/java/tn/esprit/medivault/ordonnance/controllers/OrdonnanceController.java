@@ -63,4 +63,10 @@ public class OrdonnanceController {
     public void marquerDelivree(@PathVariable Long ordonnanceId) {
         service.marquerDelivree(ordonnanceId);
     }
+
+    @PatchMapping("/{ordonnanceId}/statut")
+    public OrdonnanceResponseDTO modifierStatut(@PathVariable Long ordonnanceId,
+                                                  @RequestParam StatutOrdonnance statut) {
+        return service.modifierStatut(ordonnanceId, statut);
+    }
 }

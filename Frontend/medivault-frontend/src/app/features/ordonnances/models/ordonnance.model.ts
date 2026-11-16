@@ -19,5 +19,6 @@ export interface Ordonnance extends OrdonnanceRequest {
   dateEmission: string;
   dateExpiration: string;
   statut: string;
+  statutModifieParPharmacien: boolean;
   lignes: LigneOrdonnance[];
 }

@@ -27,4 +27,11 @@ export class OrdonnanceService {
   supprimer(id: number): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }
+
+  modifierStatut(id: number, statut: string): Observable<Ordonnance> {
+    return this.http.patch<Ordonnance>(
+      `${this.url}/${id}/statut?statut=${encodeURIComponent(statut)}`,
+      null
+    );
+  }
 }

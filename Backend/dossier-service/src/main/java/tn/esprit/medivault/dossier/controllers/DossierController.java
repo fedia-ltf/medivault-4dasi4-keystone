@@ -40,6 +40,33 @@ public class DossierController {
         return ResponseEntity.status(201).body(resp);
     }
 
+    @PutMapping("/{id}/consultations/{consultationId}")
+    @Operation(summary = "Modifier une consultation existante")
+    @ApiResponse(responseCode = "200", description = "Consultation modifiée")
+    @ApiResponse(responseCode = "400", description = "Requête invalide")
+    @ApiResponse(responseCode = "403", description = "Accès refusé")
+    @ApiResponse(responseCode = "404", description = "Dossier ou consultation introuvable")
+    public ResponseEntity<ConsultationResponse> updateConsultation(
+            @PathVariable Long id,
+            @PathVariable Long consultationId,
+            @Valid @RequestBody ConsultationUpdateRequest request) {
+        ConsultationResponse resp = dossierService.modifierConsultation(id, consultationId, request);
+        return ResponseEntity.ok(resp);
+    }
+
+    @DeleteMapping("/{id}/consultations/{consultationId}")
+    @Operation(summary = "Supprimer une consultation du dossier")
+    @ApiResponse(responseCode = "204", description = "Consultation supprimée")
+    @ApiResponse(responseCode = "403", description = "Accès refusé")
+    @ApiResponse(responseCode = "404", description = "Dossier ou consultation introuvable")
+    public ResponseEntity<Void> deleteConsultation(
+            @PathVariable Long id,
+            @PathVariable Long consultationId,
+            @RequestParam String medecinId) {
+        dossierService.supprimerConsultation(id, consultationId, medecinId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/patient/{patientId}/allergies")
     @Operation(summary = "Obtenir les allergies d'un patient")
     @ApiResponse(responseCode = "200", description = "Allergies retournées")

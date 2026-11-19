@@ -93,6 +93,64 @@ public class DossierService {
     }
 
     @Transactional
+    public ConsultationResponse modifierConsultation(Long dossierId, Long consultationId, ConsultationUpdateRequest req) {
+        Dossier dossier = dossierRepository.findById(dossierId)
+                .orElseThrow(() -> new DossierNotFoundException(
+                        "Aucun dossier trouvé avec l'id : " + dossierId));
+
+        Consultation consultation = consultationRepository.findByIdAndDossierId(consultationId, dossierId)
+                .orElseThrow(() -> new DossierNotFoundException(
+                        "Aucune consultation trouvée avec l'id " + consultationId + " pour le dossier " + dossierId));
+
+        boolean acces = accesDossierRepository.existsByDossierIdAndProfessionnelIdAndStatut(
+                dossierId, req.medecinId(), StatutAcces.ACTIF);
+
+        if (!acces) {
+            throw new AccesRefuseException(
+                    "Le médecin " + req.medecinId() + " n'a pas d'accès actif au dossier " + dossierId);
+        }
+
+        if (!consultation.getMedecinId().equals(req.medecinId())) {
+            throw new AccesRefuseException(
+                    "Seul le médecin auteur (" + consultation.getMedecinId() + ") peut modifier cette consultation");
+        }
+
+        consultation.setMotif(req.motif());
+        consultation.setDiagnostic(req.diagnostic());
+        consultation.setObservations(req.observations());
+
+        Consultation saved = consultationRepository.save(consultation);
+        return dossierMapper.toConsultationResponse(saved);
+    }
+
+    @Transactional
+    public void supprimerConsultation(Long dossierId, Long consultationId, String medecinId) {
+        Dossier dossier = dossierRepository.findById(dossierId)
+                .orElseThrow(() -> new DossierNotFoundException(
+                        "Aucun dossier trouvé avec l'id : " + dossierId));
+
+        Consultation consultation = consultationRepository.findByIdAndDossierId(consultationId, dossierId)
+                .orElseThrow(() -> new DossierNotFoundException(
+                        "Aucune consultation trouvée avec l'id " + consultationId + " pour le dossier " + dossierId));
+
+        boolean acces = accesDossierRepository.existsByDossierIdAndProfessionnelIdAndStatut(
+                dossierId, medecinId, StatutAcces.ACTIF);
+
+        if (!acces) {
+            throw new AccesRefuseException(
+                    "Le médecin " + medecinId + " n'a pas d'accès actif au dossier " + dossierId);
+        }
+
+        if (!consultation.getMedecinId().equals(medecinId)) {
+            throw new AccesRefuseException(
+                    "Seul le médecin auteur (" + consultation.getMedecinId() + ") peut supprimer cette consultation");
+        }
+
+        dossier.getConsultations().removeIf(c -> c.getId() != null && c.getId().equals(consultationId));
+        dossierRepository.save(dossier);
+    }
+
+    @Transactional
     public AccesResponse retirerAcces(Long dossierId, String professionnelId) {
         AccesDossier acces = accesDossierRepository
                 .findByDossierIdAndProfessionnelId(dossierId, professionnelId)

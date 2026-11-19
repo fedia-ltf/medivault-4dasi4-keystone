@@ -47,4 +47,12 @@ public class GlobalExceptionHandler {
         problem.setType(URI.create("about:blank"));
         return problem;
     }
+
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGeneralException(Exception ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        problem.setTitle("Erreur interne du serveur");
+        problem.setType(URI.create("about:blank"));
+        return problem;
+    }
 }

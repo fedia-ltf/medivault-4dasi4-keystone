@@ -29,12 +29,23 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
     </section>
 
     <section class="mt-6 grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-      @if (!estPatient() && !estPharmacien()) {
+      @if ((!estPatient() && !estPharmacien()) && (!estMedecin() || creationOrdonnance())) {
         <form class="card p-6" (ngSubmit)="creer()">
-        <h3 class="font-display text-2xl text-ink-900">Nouvelle ordonnance</h3>
+        <div class="flex items-center justify-between gap-3">
+          <h3 class="font-display text-2xl text-ink-900">
+            {{ ordonnanceEnEdition() ? 'Modifier l’ordonnance' : 'Nouvelle ordonnance' }}
+          </h3>
+          @if (estMedecin()) {
+            <button class="text-sm font-semibold text-ink-500 hover:text-ink-800" type="button" (click)="fermerCreation()">
+              Fermer
+            </button>
+          }
+        </div>
         <div class="mt-5 grid gap-4 sm:grid-cols-2">
           <label class="text-sm font-medium text-ink-600">Patient ID
-            <input class="mt-1 w-full rounded-xl border border-ink-100 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-aqua-400 focus:ring-4 focus:ring-aqua-400/10" type="number" min="1" name="patientId" [(ngModel)]="saisie.patientId" required>
+            <input class="mt-1 w-full rounded-xl border border-ink-100 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-aqua-400 focus:ring-4 focus:ring-aqua-400/10"
+                   type="number" min="1" name="patientId" [(ngModel)]="saisie.patientId"
+                   [readonly]="estMedecin()" [required]="!estMedecin()">
           </label>
           <label class="text-sm font-medium text-ink-600">Médecin ID
             <input class="mt-1 w-full rounded-xl border border-ink-100 bg-white px-3 py-2.5 text-ink-900 outline-none transition focus:border-aqua-400 focus:ring-4 focus:ring-aqua-400/10" type="number" min="1" name="medecinId" [(ngModel)]="saisie.medecinId" required>
@@ -80,16 +91,70 @@ import { OrdonnancesScene } from '../components/ordonnances-scene';
         </form>
       }
 
-      <section class="card p-6" [class.xl:col-span-2]="estPatient()">
+      <section class="card p-6"
+               [class.xl:col-span-2]="estPatient() || (estMedecin() && !creationOrdonnance())">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <h3 class="font-display text-2xl text-ink-900">{{ estPatient() ? 'Mes ordonnances' : 'Toutes les ordonnances' }}</h3>
-            <p class="mt-1 text-sm text-ink-400">{{ estPatient() ? 'Historique de vos prescriptions' : 'Historique complet des ordonnances' }}</p>
+            <h3 class="font-display text-2xl text-ink-900">
+              {{ estPatient() ? 'Mes ordonnances' : (patientSelectionne() === null ? 'Patients' : 'Ordonnances du patient') }}
+            </h3>
+            <p class="mt-1 text-sm text-ink-400">
+              {{ estPatient() ? 'Historique de vos prescriptions' : (patientSelectionne() === null ? 'Sélectionnez un patient pour consulter toutes ses ordonnances' : 'Historique complet du patient sélectionné') }}
+            </p>
           </div>
-          <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="charger()">Actualiser</button>
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            @if (estMedecin() && patientSelectionne() !== null) {
+              <button class="btn btn-primary px-4 py-2 text-sm" type="button" (click)="ouvrirCreation()">
+                Nouvelle ordonnance
+              </button>
+            }
+            @if (estMedecin() && patientSelectionne() !== null) {
+              <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="selectionnerPatient(null)">
+                Tous les patients
+              </button>
+            }
+            <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="charger()">Actualiser</button>
+          </div>
         </div>
         @if (chargementListe()) {
           <p class="mt-8 text-sm text-ink-400">Chargement...</p>
+        } @else if (estMedecin() && patientSelectionne() === null) {
+          <div class="relative mt-5">
+            <mv-icon name="search" [size]="18" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+            <input class="w-full rounded-xl border border-ink-100 bg-white py-2.5 pl-10 pr-10 text-sm text-ink-900 outline-none transition focus:border-aqua-400 focus:ring-4 focus:ring-aqua-400/10"
+                   type="search"
+                   name="recherchePatient"
+                   [ngModel]="recherchePatient()"
+                   (ngModelChange)="rechercherPatients($event)"
+                   placeholder="Rechercher un patient par ID..."
+                   aria-label="Rechercher un patient par ID">
+            @if (recherchePatient()) {
+              <button class="absolute right-3 top-1/2 -translate-y-1/2 text-lg leading-none text-ink-400 hover:text-ink-700"
+                      type="button" aria-label="Effacer la recherche" (click)="rechercherPatients('')">×</button>
+            }
+          </div>
+          @if (!patientsFiltres().length) {
+            <p class="mt-8 text-sm text-ink-400">Aucun patient trouvé.</p>
+          } @else {
+            <div class="mt-5 grid gap-3 sm:grid-cols-2">
+              @for (patientId of patientsFiltres(); track patientId) {
+                <article class="rounded-2xl border border-ink-100 p-4 transition hover:border-aqua-300 hover:shadow-sm">
+                  <div class="flex items-center gap-3">
+                    <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-to-br from-aqua-400 to-iris-500 text-sm font-bold text-white">
+                      P{{ patientId }}
+                    </div>
+                    <div>
+                      <p class="font-semibold text-ink-900">Patient #{{ patientId }}</p>
+                      <p class="mt-0.5 text-sm text-ink-400">{{ nombreOrdonnancesPatient(patientId) }} ordonnance(s)</p>
+                    </div>
+                  </div>
+                  <button class="btn btn-primary mt-4 w-full px-4 py-2 text-sm" type="button" (click)="selectionnerPatient(patientId)">
+                    Voir les ordonnances
+                  </button>
+                </article>
+              }
+            </div>
+          }
         } @else if (!ordonnances().length) {
           <p class="mt-8 text-sm text-ink-400">Aucune ordonnance trouvée.</p>
         } @else {
@@ -261,12 +326,17 @@ export class OrdonnancesPage {
   protected readonly saisie = { patientId: null as number | null, medecinId: null as number | null };
   protected readonly lignes: LigneSaisie[] = [this.nouvelleLigne()];
   protected readonly ordonnances = signal<Ordonnance[]>([]);
+  protected readonly patients = signal<number[]>([]);
+  protected readonly tousLesPatients = signal<number[]>([]);
+  protected readonly patientSelectionne = signal<number | null>(null);
+  protected readonly recherchePatient = signal('');
   protected readonly chargementListe = signal(true);
   protected readonly chargement = signal(false);
   protected readonly erreur = signal('');
   protected readonly succes = signal('');
   protected readonly ordonnanceSelectionnee = signal<Ordonnance | null>(null);
   protected readonly ordonnanceEnEdition = signal<number | null>(null);
+  protected readonly creationOrdonnance = signal(false);
   protected readonly ordonnanceASupprimer = signal<Ordonnance | null>(null);
   protected readonly statutEnModification = signal('');
   protected readonly statuts = [
@@ -276,6 +346,7 @@ export class OrdonnancesPage {
     { value: 'EXPIREE', label: 'Expirée' }
   ];
   protected readonly estPatient = () => this.auth.utilisateur()?.role === 'PATIENT';
+  protected readonly estMedecin = () => this.auth.utilisateur()?.role === 'MEDECIN';
   protected readonly estPharmacien = () => this.auth.utilisateur()?.role === 'PHARMACIEN';
 
   protected statutClasse(statut: string) {
@@ -296,11 +367,74 @@ export class OrdonnancesPage {
     const utilisateur = this.auth.utilisateur();
     const appel = utilisateur?.role === 'PATIENT'
       ? this.api.parPatient(utilisateur.patientId ?? 1)
-      : this.api.toutes();
+      : this.patientSelectionne() === null
+        ? this.api.toutes()
+        : this.api.parPatient(this.patientSelectionne()!);
     appel.subscribe({
-      next: ordonnances => { this.ordonnances.set(ordonnances); this.chargementListe.set(false); },
+      next: ordonnances => {
+        this.ordonnances.set(ordonnances);
+        if (utilisateur?.role === 'MEDECIN' && this.patientSelectionne() === null) {
+          const patientIds = [...new Set(ordonnances.map(ordonnance => ordonnance.patientId))].sort((a, b) => a - b);
+          this.tousLesPatients.set(patientIds);
+          this.appliquerFiltrePatient(this.recherchePatient());
+        }
+        this.chargementListe.set(false);
+      },
       error: () => { this.erreur.set('Impossible de charger les ordonnances.'); this.chargementListe.set(false); }
     });
+  }
+
+  protected selectionnerPatient(patientId: number | null) {
+    this.patientSelectionne.set(patientId);
+    this.creationOrdonnance.set(false);
+    this.ordonnanceEnEdition.set(null);
+    this.saisie.patientId = patientId;
+    this.charger();
+  }
+
+  protected ouvrirCreation() {
+    const patientId = this.patientSelectionne();
+    if (!patientId) return;
+    this.ordonnanceEnEdition.set(null);
+    this.saisie.patientId = patientId;
+    this.lignes.splice(0, this.lignes.length, this.nouvelleLigne());
+    this.creationOrdonnance.set(true);
+  }
+
+  protected fermerCreation() {
+    this.creationOrdonnance.set(false);
+    this.ordonnanceEnEdition.set(null);
+  }
+
+  protected nombreOrdonnancesPatient(patientId: number): number {
+    return this.ordonnances().filter(ordonnance => ordonnance.patientId === patientId).length;
+  }
+
+  protected patientsFiltres(): number[] {
+    return this.patients();
+  }
+
+  protected rechercherPatients(query: string) {
+    this.recherchePatient.set(query);
+    this.appliquerFiltrePatient(query);
+
+    this.api.rechercherPatients(query).subscribe({
+      next: patientIds => this.patients.set(patientIds),
+      error: () => this.erreur.set('Impossible de rechercher les patients.')
+    });
+  }
+
+  private appliquerFiltrePatient(query: string) {
+    const recherche = query.trim().toLowerCase();
+    if (!recherche) {
+      this.patients.set(this.tousLesPatients());
+      return;
+    }
+    this.patients.set(this.tousLesPatients().filter(patientId =>
+      String(patientId).includes(recherche) ||
+      `patient ${patientId}`.includes(recherche) ||
+      `patient #${patientId}`.includes(recherche)
+    ));
   }
 
   protected ajouterLigne() {
@@ -352,6 +486,7 @@ export class OrdonnancesPage {
   }
 
   protected modifierDepuisDetails(ordonnance: Ordonnance) {
+    if (this.estMedecin()) this.creationOrdonnance.set(true);
     this.ordonnanceEnEdition.set(ordonnance.id);
     this.saisie.patientId = ordonnance.patientId;
     this.saisie.medecinId = ordonnance.medecinId;
@@ -428,7 +563,14 @@ export class OrdonnancesPage {
         this.chargement.set(false);
         this.ordonnanceEnEdition.set(null);
         this.succes.set(`Ordonnance ${ordonnance.code} ${id === null ? 'créée' : 'modifiée'} avec succès.`);
-        this.reinitialiserFormulaire();
+        if (this.estMedecin()) {
+          this.creationOrdonnance.set(false);
+          this.saisie.patientId = this.patientSelectionne();
+          this.saisie.medecinId = null;
+          this.lignes.splice(0, this.lignes.length, this.nouvelleLigne());
+        } else {
+          this.reinitialiserFormulaire();
+        }
         this.charger();
       },
       error: () => { this.chargement.set(false); this.erreur.set('La création a été refusée par le serveur.'); }

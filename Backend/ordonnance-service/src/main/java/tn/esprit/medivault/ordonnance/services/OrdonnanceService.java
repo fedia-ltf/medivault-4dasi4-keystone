@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -89,6 +90,20 @@ public class OrdonnanceService {
 
     public List<OrdonnanceResponseDTO> findAll() {
         return repository.findAll().stream().map(this::toDto).toList();
+    }
+
+    public List<Long> findPatientIds(String query) {
+        String recherche = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        return repository.findAll().stream()
+                .map(Ordonnance::getPatientId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .filter(patientId -> recherche.isEmpty()
+                        || String.valueOf(patientId).contains(recherche)
+                        || ("patient #" + patientId).contains(recherche)
+                        || ("patient " + patientId).contains(recherche))
+                .sorted()
+                .collect(Collectors.toList());
     }
 
     public List<OrdonnanceResponseDTO> findByMedicamentEtStatut(Long medicamentId, StatutOrdonnance statut) {

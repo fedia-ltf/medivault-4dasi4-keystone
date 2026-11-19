@@ -29,6 +29,11 @@ public class OrdonnanceController {
         return service.findAll();
     }
 
+    @GetMapping("/patients/search")
+    public List<Long> rechercherPatients(@RequestParam(defaultValue = "") String q) {
+        return service.findPatientIds(q);
+    }
+
     @PutMapping("/{ordonnanceId}")
     public OrdonnanceResponseDTO modifier(@PathVariable Long ordonnanceId,
                                           @RequestBody OrdonnanceRequestDTO request) {

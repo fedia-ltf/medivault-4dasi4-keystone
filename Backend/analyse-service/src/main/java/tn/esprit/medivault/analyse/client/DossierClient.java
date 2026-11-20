@@ -8,13 +8,14 @@ import tn.esprit.medivault.analyse.dto.AccesResponse;
 
 /**
  * Appel synchrone (OpenFeign) vers dossier-service, résolu par Eureka.
- * Avant la saisie d'un résultat : le laboratoire a-t-il un accès ACTIF au dossier du patient ?
+ * Avant la saisie d'un résultat : la justification d'accès du laboratoire au dossier du patient
+ * (créée automatiquement à la réception de RendezVousConfirme) est-elle toujours ACTIVE ?
  * Si dossier-service est indisponible, le fallback refuse la saisie (fail-closed, 503).
  */
 @FeignClient(name = "dossier-service", fallback = DossierClientFallback.class)
 public interface DossierClient {
 
     @GetMapping("/api/dossiers/patient/{patientId}/acces")
-    AccesResponse verifierAcces(@PathVariable("patientId") Long patientId,
-                                @RequestParam("professionnelId") Long professionnelId);
+    AccesResponse verifierAcces(@PathVariable("patientId") String patientId,
+                                @RequestParam("professionnelId") String professionnelId);
 }

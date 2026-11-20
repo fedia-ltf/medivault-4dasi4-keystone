@@ -1,5 +1,8 @@
 package tn.esprit.medivault.analyse.event;
 
-/** Publié (clé resultat.disponible) vers dossier-service et user-service. */
-public record ResultatDisponibleEvent(Long analyseId, Long patientId, Long laboratoireId, String typeAnalyse) {
+import java.time.LocalDateTime;
+
+/** Publié (clé resultat.disponible) vers dossier-service et notification-service (patient et médecin). */
+public record ResultatDisponibleEvent(Long analyseId, String patientId, String medecinId, String laboratoireId,
+                                      String typeAnalyse, LocalDateTime date) {
 }

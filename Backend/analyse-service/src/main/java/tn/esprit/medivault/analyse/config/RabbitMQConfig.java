@@ -1,10 +1,12 @@
 package tn.esprit.medivault.analyse.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.support.converter.DefaultJackson2JavaTypeMapper;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,13 +27,19 @@ public class RabbitMQConfig {
     private String consultationQueue;
 
     @Value("${medivault.rabbitmq.queues.rendezvous-confirme}")
-    private String rendezVousQueue;
+    private String rendezVousConfirmeQueue;
+
+    @Value("${medivault.rabbitmq.queues.rendezvous-annule}")
+    private String rendezVousAnnuleQueue;
 
     @Value("${medivault.rabbitmq.routing-keys.consultation-ajoutee}")
     private String consultationKey;
 
     @Value("${medivault.rabbitmq.routing-keys.rendezvous-confirme}")
-    private String rendezVousKey;
+    private String rendezVousConfirmeKey;
+
+    @Value("${medivault.rabbitmq.routing-keys.rendezvous-annule}")
+    private String rendezVousAnnuleKey;
 
     @Bean
     public TopicExchange medivaultExchange() {
@@ -45,7 +53,12 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue rendezVousConfirmeQueue() {
-        return QueueBuilder.durable(rendezVousQueue).build();
+        return QueueBuilder.durable(rendezVousConfirmeQueue).build();
+    }
+
+    @Bean
+    public Queue rendezVousAnnuleQueue() {
+        return QueueBuilder.durable(rendezVousAnnuleQueue).build();
     }
 
     @Bean
@@ -55,12 +68,25 @@ public class RabbitMQConfig {
 
     @Bean
     public Binding rendezVousConfirmeBinding() {
-        return BindingBuilder.bind(rendezVousConfirmeQueue()).to(medivaultExchange()).with(rendezVousKey);
+        return BindingBuilder.bind(rendezVousConfirmeQueue()).to(medivaultExchange()).with(rendezVousConfirmeKey);
     }
 
-    /** Les événements circulent en JSON. */
     @Bean
-    public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+    public Binding rendezVousAnnuleBinding() {
+        return BindingBuilder.bind(rendezVousAnnuleQueue()).to(medivaultExchange()).with(rendezVousAnnuleKey);
+    }
+
+    /**
+     * Événements en JSON. Le type Java est déduit du paramètre du listener (INFERRED) :
+     * l'en-tête __TypeId__ envoyé par rendezvous ou dossier désigne leurs propres classes, absentes ici.
+     */
+    @Bean
+    public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {
+        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter(objectMapper);
+        DefaultJackson2JavaTypeMapper typeMapper = new DefaultJackson2JavaTypeMapper();
+        typeMapper.setTypePrecedence(DefaultJackson2JavaTypeMapper.TypePrecedence.INFERRED);
+        typeMapper.setTrustedPackages("*");
+        converter.setJavaTypeMapper(typeMapper);
+        return converter;
     }
 }

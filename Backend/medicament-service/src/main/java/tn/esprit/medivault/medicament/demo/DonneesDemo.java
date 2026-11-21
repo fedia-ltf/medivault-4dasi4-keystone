@@ -3,9 +3,12 @@ package tn.esprit.medivault.medicament.demo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 import tn.esprit.medivault.medicament.entities.*;
 import tn.esprit.medivault.medicament.repositories.AttributionRepository;
 import tn.esprit.medivault.medicament.repositories.MedicamentSensibleRepository;
@@ -15,6 +18,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 
 // Données de démonstration, créées UNE SEULE FOIS : seulement si la base est vide.
 // Comme la base H2 est un fichier, elles sont conservées d'un redémarrage à l'autre.
@@ -29,6 +33,27 @@ public class DonneesDemo implements ApplicationRunner {
     private final AttributionRepository attributions;
     private final VenteSensibleRepository ventes;
     private final Clock clock;
+
+    // Adresse du user-service (ex. http://localhost:8081) : si elle est donnée, les quotas de démonstration sont créés
+    // pour les VRAIES pharmacies de ce service. Sinon (ou s'il ne répond pas), pharmacies d'exemple.
+    @Value("${medivault.demo.user-service-url:}")
+    private String adresseUserService;
+
+    private List<String> pharmacies() {
+        if (!adresseUserService.isBlank()) {
+            try {
+                List<Map<String, Object>> comptes = RestClient.create().get()
+                        .uri(adresseUserService + "/api/utilisateurs?role=PHARMACIEN").retrieve()
+                        .body(new ParameterizedTypeReference<>() { });
+                if (comptes != null && !comptes.isEmpty()) {
+                    return comptes.stream().map(c -> String.valueOf(c.get("id"))).toList();
+                }
+            } catch (Exception e) {
+                log.warn("Pharmacies du user-service introuvables ({}) : pharmacies d'exemple", e.toString());
+            }
+        }
+        return List.of("pharmacie-centrale", "2", "3", "4", "5", "6", "7", "8");
+    }
 
     @Override
     public void run(ApplicationArguments args) {
@@ -60,16 +85,16 @@ public class DonneesDemo implements ApplicationRunner {
 
         YearMonth mois = YearMonth.now(clock);
         int compteur = 0;
-        // 8 pharmacies d'exemple : "pharmacie-centrale" (le compte de démonstration du user-service) puis "2" à "8" ;
-        // chaque médicament est attribué à 5 d'entre elles
+        // les pharmacies (celles du user-service si possible) ; chaque médicament est attribué à 5 d'entre elles
+        List<String> idsPharmacies = pharmacies();
         for (MedicamentSensible m : liste) {
-            for (int p = 1; p <= 8; p++) {
+            for (int p = 1; p <= idsPharmacies.size(); p++) {
                 if ((p + m.getId().intValue()) % 8 >= 5) {
                     continue;
                 }
                 int quota = 40 + ((p * 7 + m.getId().intValue() * 13) % 8) * 10;
                 Attribution a = attributions.save(Attribution.builder()
-                        .pharmacieId(p == 1 ? "pharmacie-centrale" : String.valueOf(p)).medicament(m).mois(mois).quantiteAttribuee(quota).build());
+                        .pharmacieId(idsPharmacies.get(p - 1)).medicament(m).mois(mois).quantiteAttribuee(quota).build());
                 // quelques ventes passées, cohérentes avec la quantité vendue du quota
                 int vendu = 0;
                 for (int v = 0; v < 3; v++) {

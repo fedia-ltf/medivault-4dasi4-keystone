@@ -16,13 +16,16 @@ import {
  * Identifiants des pharmacies côté back : « Pharmacie Centrale » est le compte de démonstration du user-service
  * (id texte « pharmacie-centrale »). Les autres gardent leur numéro. Le front, lui, compare des nombres.
  */
-const ID_BACK: Record<number, string> = { 1: 'pharmacie-centrale' };
+const ID_BACK: Record<number, string> = { 1: 'pharmacie-centrale' };   // remplacé par la vraie liste du user-service dès qu'elle est chargée
 const versBack = (id: number): string => ID_BACK[id] ?? String(id);
 const depuisBack = (id: unknown): unknown => {
   if (typeof id !== 'string') return id;
   const connu = Object.entries(ID_BACK).find(([, texte]) => texte === id);
   return connu ? Number(connu[0]) : /^\d+$/.test(id) ? Number(id) : id;
 };
+
+/** Un compte « pharmacien » tel que le renvoie le user-service */
+interface ComptePharmacie { id: string; nom: string; prenom: string; nomEtablissement?: string; ville?: string; }
 
 export const PHARMACIES: Pharmacie[] = [
   { id: 1, nom: 'Pharmacie Centrale', ville: 'Tunis' },
@@ -141,10 +144,13 @@ export class SensibleService {
     return (this.pret$ ??= forkJoin({
       m: this.http.get<MedicamentSensible[]>('/api/medicaments-sensibles'),
       a: this.http.get<Attribution[]>('/api/attributions'),
-      v: this.http.get<VenteSensible[]>('/api/ventes')
+      v: this.http.get<VenteSensible[]>('/api/ventes'),
+      // les vraies pharmacies viennent du user-service ; s'il ne répond pas, on garde la liste de démonstration
+      p: this.http.get<ComptePharmacie[]>('/api/utilisateurs?role=PHARMACIEN').pipe(catchError(() => of([] as ComptePharmacie[])))
     }).pipe(
       timeout(3000),
-      tap(({ m, a, v }) => {
+      tap(({ m, a, v, p }) => {
+        this.appliquerPharmacies(p);
         this.medicaments.set(m);
         this.attributions.set(a.map(x => this.deApi(x)));
         this.ventes.set(v.map(x => this.deApi(x)));
@@ -157,6 +163,14 @@ export class SensibleService {
       }),
       shareReplay(1)
     ));
+  }
+
+  /** Remplace la liste de démonstration par les vraies pharmacies (numéro 1, 2, 3… pour le front, id du user-service pour le back) */
+  private appliquerPharmacies(comptes: ComptePharmacie[]) {
+    if (!comptes.length) return;
+    Object.keys(ID_BACK).forEach(k => delete ID_BACK[Number(k)]);
+    PHARMACIES.splice(0, PHARMACIES.length, ...comptes.map((c, i) => ({ id: i + 1, nom: c.nomEtablissement ?? `${c.prenom} ${c.nom}`, ville: c.ville ?? '' })));
+    comptes.forEach((c, i) => (ID_BACK[i + 1] = c.id));
   }
 
   private demo() { return this.enLigne() !== true; }

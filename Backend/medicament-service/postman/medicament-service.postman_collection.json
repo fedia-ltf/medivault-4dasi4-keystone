@@ -1,109 +1,914 @@
 {
   "info": {
-    "name": "MediVault - medicament-service",
+    "name": "MediVault - medicament-service (médicaments sensibles)",
+    "description": "Lancer le dossier 1 puis 2 puis 3 dans l'ordre (les identifiants sont gardés dans des variables). Le service utilise les ordonnances simulées : ORD-A7F3 (valide), ORD-D102 (non validée).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8084" },
-    { "key": "gatewayUrl", "value": "http://localhost:8080" },
-    { "key": "medicamentId", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8084"
+    },
+    {
+      "key": "mois",
+      "value": "2026-11"
+    },
+    {
+      "key": "medicamentId",
+      "value": ""
+    },
+    {
+      "key": "attributionId",
+      "value": ""
+    }
   ],
   "item": [
     {
-      "name": "1. Catalogue",
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test('200 OK', () => pm.response.to.have.status(200));",
-        "pm.test('31 médicaments', () => pm.expect(pm.response.json().length).to.be.at.least(1));"
-      ]}}],
-      "request": { "method": "GET", "url": "{{baseUrl}}/api/medicaments" }
+      "name": "1. Médicaments sensibles (CRUD)",
+      "item": [
+        {
+          "name": "Créer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicaments-sensibles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomCommercial\": \"Test Postman 10 mg\",\n  \"dci\": \"Substance test\",\n  \"categorie\": \"PSYCHOTROPE\",\n  \"description\": \"Médicament de test\",\n  \"precautions\": \"Aucune\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('medicamentId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Créer un doublon (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicaments-sensibles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomCommercial\": \"test postman 10 mg\",\n  \"dci\": \"x\",\n  \"categorie\": \"PSYCHOTROPE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Créer invalide (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicaments-sensibles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomCommercial\": \"\",\n  \"dci\": \"\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lister",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicaments-sensibles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lister par catégorie",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicaments-sensibles?categorie=PSYCHOTROPE",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles"
+              ],
+              "query": [
+                {
+                  "key": "categorie",
+                  "value": "PSYCHOTROPE"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Un médicament",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicaments-sensibles/{{medicamentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles",
+                "{{medicamentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Un médicament inconnu (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicaments-sensibles/99999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles",
+                "99999"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modifier",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicaments-sensibles/{{medicamentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles",
+                "{{medicamentId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nomCommercial\": \"Test Postman 10 mg\",\n  \"dci\": \"Substance test\",\n  \"categorie\": \"ABORTIF\",\n  \"description\": \"Modifié\",\n  \"precautions\": \"Aucune\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
-      "name": "2. Ajouter un médicament (201)",
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test('201 Created', () => pm.response.to.have.status(201));",
-        "pm.collectionVariables.set('medicamentId', pm.response.json().id);"
-      ]}}],
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/medicaments",
-        "body": { "mode": "raw", "raw": "{\n  \"nom_commercial\": \"Spasfon\",\n  \"dci\": \"Phloroglucinol\",\n  \"classe_therapeutique\": \"Antispasmodique\",\n  \"forme\": \"COMPRIME\",\n  \"dosage\": \"80 mg\"\n}" }
-      }
+      "name": "2. Quotas (attributions)",
+      "item": [
+        {
+          "name": "Créer un quota",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attributions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pharmacieId\": \"42\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"mois\": \"{{mois}}\",\n  \"quantiteAttribuee\": 30\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('attributionId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quota en double (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attributions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pharmacieId\": \"42\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"mois\": \"{{mois}}\",\n  \"quantiteAttribuee\": 30\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quota en lot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributions/lot",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attributions",
+                "lot"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"mois\": \"{{mois}}\",\n  \"quantiteAttribuee\": 20,\n  \"pharmacieIds\": [\n    \"42\",\n    \"43\",\n    \"44\"\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.test('1 ignorée, 2 créées', () => { const r = pm.response.json(); pm.expect(r.crees).to.eql(2); pm.expect(r.ignores).to.eql(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lister (filtres)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributions?pharmacieId=42&mois={{mois}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attributions"
+              ],
+              "query": [
+                {
+                  "key": "pharmacieId",
+                  "value": "42"
+                },
+                {
+                  "key": "mois",
+                  "value": "{{mois}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Un quota",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributions/{{attributionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attributions",
+                "{{attributionId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modifier la quantité",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributions/{{attributionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attributions",
+                "{{attributionId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantiteAttribuee\": 40\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bilan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributions/{{attributionId}}/bilan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attributions",
+                "{{attributionId}}",
+                "bilan"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Disponibilités",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/disponibilites?medicamentId={{medicamentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "disponibilites"
+              ],
+              "query": [
+                {
+                  "key": "medicamentId",
+                  "value": "{{medicamentId}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RG4 : renouvellement du mois",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributions/renouvellement?mois=2099-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attributions",
+                "renouvellement"
+              ],
+              "query": [
+                {
+                  "key": "mois",
+                  "value": "2099-01"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
-      "name": "3. Ajouter un médicament invalide (400)",
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
-      ]}}],
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/medicaments",
-        "body": { "mode": "raw", "raw": "{\n  \"nom_commercial\": \"\",\n  \"dci\": \"Test\",\n  \"forme\": \"CAPSULE\"\n}" }
-      }
+      "name": "3. Ventes (RG1, RG2, RG3) - ordonnances simulées",
+      "description": "Le médicament créé en 1 a un identifiant élevé : pour ces tests on utilise les médicaments de démonstration (1 = Subutex) et la pharmacie 1.",
+      "item": [
+        {
+          "name": "Vente valide (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pharmacieId\": \"1\",\n  \"ordonnanceCode\": \"ORD-A7F3\",\n  \"medicamentId\": 1,\n  \"quantite\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RG1 : ordonnance non validée (409 + avertissement)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pharmacieId\": \"1\",\n  \"ordonnanceCode\": \"ORD-D102\",\n  \"medicamentId\": 1,\n  \"quantite\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('avertissement compté', () => pm.expect(pm.response.json().avertissements).to.be.at.least(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pharmacie inactive (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pharmacieId\": \"off-1\",\n  \"ordonnanceCode\": \"ORD-A7F3\",\n  \"medicamentId\": 1,\n  \"quantite\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Médicament inconnu (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pharmacieId\": \"1\",\n  \"ordonnanceCode\": \"ORD-A7F3\",\n  \"medicamentId\": 99999,\n  \"quantite\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Données invalides (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pharmacieId\": \"\",\n  \"quantite\": 0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Historique",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ventes?pharmacieId=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ventes"
+              ],
+              "query": [
+                {
+                  "key": "pharmacieId",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
-      "name": "4. Compatibilité - compatible",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/medicaments/compatibilite",
-        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [1, 21],\n  \"allergies\": [\"Pénicilline\"]\n}" }
-      }
-    },
-    {
-      "name": "5. Compatibilité - allergie (RG4)",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/medicaments/compatibilite",
-        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [7, 1],\n  \"allergies\": [\"Penicilline\"]\n}" }
-      }
-    },
-    {
-      "name": "6. Compatibilité - interaction contre-indiquée (RG4)",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/medicaments/compatibilite",
-        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [28, 29],\n  \"allergies\": []\n}" }
-      }
-    },
-    {
-      "name": "7. Compatibilité - interaction grave (alerte non bloquante)",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/medicaments/compatibilite",
-        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [11, 3, 15],\n  \"allergies\": []\n}" }
-      }
-    },
-    {
-      "name": "8. Retirer le médicament créé (204)",
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test('204 No Content', () => pm.response.to.have.status(204));"
-      ]}}],
-      "request": { "method": "DELETE", "url": "{{baseUrl}}/api/medicaments/{{medicamentId}}?motif=Rappel de lot" }
-    },
-    {
-      "name": "9. Retirer à nouveau (404)",
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
-      ]}}],
-      "request": { "method": "DELETE", "url": "{{baseUrl}}/api/medicaments/{{medicamentId}}" }
-    },
-    {
-      "name": "10. Compatibilité un médicament retiré (RG6)",
-      "request": {
-        "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
-        "url": "{{baseUrl}}/api/medicaments/compatibilite",
-        "body": { "mode": "raw", "raw": "{\n  \"medicament_ids\": [{{medicamentId}}],\n  \"allergies\": []\n}" }
-      }
-    },
-    {
-      "name": "11. Catalogue via API Gateway",
-      "request": { "method": "GET", "url": "{{gatewayUrl}}/api/medicaments" }
+      "name": "4. Nettoyage",
+      "item": [
+        {
+          "name": "Supprimer le quota (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/attributions/{{attributionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "attributions",
+                "{{attributionId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Médicament encore attribué (409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/medicaments-sensibles/{{medicamentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles",
+                "{{medicamentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

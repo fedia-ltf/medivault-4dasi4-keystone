@@ -1,0 +1,35 @@
+# docker-compose.yml : lance medicament-service AVEC un RabbitMQ, pour le tester seul dans Docker.
+# (L'équipe aura son propre docker-compose commun avec tous les services : celui-ci sert à ton service.)
+#
+#   Lancer   :  docker compose up -d --build
+#   Voir     :  http://localhost:8084/swagger-ui.html   et   http://localhost:15672 (guest / guest)
+#   Arrêter  :  docker compose down            (les données restent dans le volume)
+#   Tout effacer, données comprises :  docker compose down -v
+#
+# Ports modifiables si un port est déjà pris :  PORT=18084 RABBIT_PORT=5673 RABBIT_UI_PORT=15673 docker compose up -d
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "${RABBIT_PORT:-5672}:5672"
+      - "${RABBIT_UI_PORT:-15672}:15672"
+
+  medicament-service:
+    build: .
+    image: medicament-service:latest
+    depends_on:
+      - rabbitmq
+    ports:
+      - "${PORT:-8084}:8084"
+    environment:
+      RABBITMQ_HOST: rabbitmq                  # dans un conteneur, "localhost" n'est plus le PC : on utilise le nom du service
+      EUREKA_CLIENT_ENABLED: "false"           # pas d'Eureka dans ce test seul ; en équipe : EUREKA_URL=http://<adresse>:8761/eureka/
+      SPRING_CLOUD_CONFIG_ENABLED: "false"     # pas de Config Server dans ce test seul
+      INTEGRATION_MODE: simule                 # reel quand ordonnance-service et user-service tournent
+      DEMO_DATA: "true"
+    volumes:
+      - medicament-data:/app/data              # la base H2 (fichier) survit au redémarrage du conteneur
+
+volumes:
+  medicament-data:

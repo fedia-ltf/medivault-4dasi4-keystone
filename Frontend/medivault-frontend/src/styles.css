@@ -341,3 +341,9 @@ body {
   .reveal, .fade-up { opacity: 1; transform: none; filter: none; }
   .line-mask > span { transform: none; }
 }
+
+/* Indicateur « Faites défiler » de l'histoire des médicaments */
+@keyframes defile {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(200%); }
+}

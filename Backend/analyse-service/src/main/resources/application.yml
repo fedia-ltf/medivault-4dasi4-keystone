@@ -16,7 +16,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     open-in-view: false
   h2:
     console:
@@ -29,12 +29,34 @@ spring:
     port: 5672
     username: guest
     password: guest
+    listener:
+      simple:
+        # message en erreur : rejeté sans être remis en boucle dans la file
+        default-requeue-rejected: false
 
   # Circuit breaker (Resilience4j) sur l'appel OpenFeign vers dossier-service
   cloud:
     openfeign:
       circuitbreaker:
         enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 3000
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 4s
 
 eureka:
   client:
@@ -44,16 +66,27 @@ eureka:
     prefer-ip-address: true
 
 medivault:
+  # Analyses du parcours d'Ahmed (id de démonstration de user-service)
+  seed:
+    enabled: true
   rabbitmq:
     exchange: medivault.events
     queues:
       consultation-ajoutee: analyse.consultation-ajoutee
       rendezvous-confirme: analyse.rendezvous-confirme
+      rendezvous-annule: analyse.rendezvous-annule
     routing-keys:
       consultation-ajoutee: consultation.ajoutee
       rendezvous-confirme: rendezvous.confirme
+      rendezvous-annule: rendezvous.annule
       resultat-disponible: resultat.disponible
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,circuitbreakers

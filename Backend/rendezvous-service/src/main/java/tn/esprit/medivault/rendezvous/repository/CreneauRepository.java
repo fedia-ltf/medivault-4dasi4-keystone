@@ -12,12 +12,12 @@ import java.util.List;
 @Repository
 public interface CreneauRepository extends JpaRepository<Creneau, Long> {
 
-    List<Creneau> findByProfessionnelId(Long professionnelId);
+    List<Creneau> findByProfessionnelId(String professionnelId);
 
     @Query("SELECT c FROM Creneau c WHERE c.professionnelId = :professionnelId " +
            "AND c.dateDebut >= :debutJournee AND c.dateDebut < :finJournee")
     List<Creneau> findByProfessionnelIdAndDate(
-            @Param("professionnelId") Long professionnelId,
+            @Param("professionnelId") String professionnelId,
             @Param("debutJournee") LocalDateTime debutJournee,
             @Param("finJournee") LocalDateTime finJournee
     );

@@ -13,13 +13,17 @@ import lombok.NoArgsConstructor;
 @Builder
 public class RendezVousRequest {
 
-    @NotNull(message = "L'identifiant du patient est obligatoire")
-    private Long patientId;
+    @NotBlank(message = "L'identifiant du patient est obligatoire")
+    private String patientId;
 
     @NotNull(message = "L'identifiant du créneau est obligatoire")
     private Long creneauId;
 
     @NotBlank(message = "Le motif du rendez-vous est obligatoire")
     private String motif;
-}
 
+    /**
+     * Renseigné uniquement pour un rendez-vous au laboratoire (id de l'analyse prescrite).
+     */
+    private Long analyseId;
+}

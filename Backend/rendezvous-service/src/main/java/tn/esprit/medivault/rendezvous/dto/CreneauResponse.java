@@ -14,10 +14,9 @@ import java.time.LocalDateTime;
 @Builder
 public class CreneauResponse {
     private Long id;
-    private Long professionnelId;
+    private String professionnelId;
     private TypeProfessionnel typeProfessionnel;
     private LocalDateTime dateDebut;
     private LocalDateTime dateFin;
     private boolean libre;
 }
-

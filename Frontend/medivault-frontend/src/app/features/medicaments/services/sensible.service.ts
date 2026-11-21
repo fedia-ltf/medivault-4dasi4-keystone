@@ -3,7 +3,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Observable, catchError, forkJoin, map, of, shareReplay, tap, throwError, timeout } from 'rxjs';
 import {
   Attribution, Bilan, Disponibilite, LotRequest, MedicamentSensible, NouveauMedicament, Pharmacie,
-  ResultatLot, ResultatVente, VenteSensible, EtapeVente, moisDe
+  ResultatLot, ResultatVente, StatutAttribution, VenteSensible, EtapeVente, moisDe
 } from '../models/sensible.model';
 
 // ---------------------------------------------------------------------------
@@ -101,6 +101,15 @@ export class SensibleService {
 
   private pret$?: Observable<void>;
 
+  /** Le back (user-service) identifie les pharmacies par un texte ("1") ; le front les compare comme des nombres */
+  private deApi<T extends { pharmacieId: unknown }>(x: T): T {
+    const id = x.pharmacieId;
+    return { ...x, pharmacieId: typeof id === 'string' && /^\d+$/.test(id) ? Number(id) : id };
+  }
+  private rafraichirQuotas() {
+    this.http.get<Attribution[]>('/api/attributions').pipe(catchError(() => of(null))).subscribe(a => a && this.attributions.set(a.map(x => this.deApi(x))));
+  }
+
   // ---------- Chiffres utiles aux pages ----------
   readonly attributionsDuMois = computed(() => this.attributions().filter(a => a.mois === this.moisCourant));
   readonly totalAttribue = computed(() => this.attributionsDuMois().reduce((t, a) => t + a.quantiteAttribuee, 0));
@@ -126,8 +135,8 @@ export class SensibleService {
       timeout(3000),
       tap(({ m, a, v }) => {
         this.medicaments.set(m);
-        this.attributions.set(a);
-        this.ventes.set(v);
+        this.attributions.set(a.map(x => this.deApi(x)));
+        this.ventes.set(v.map(x => this.deApi(x)));
         this.enLigne.set(true);
       }),
       map(() => void 0),
@@ -172,7 +181,11 @@ export class SensibleService {
   // ---------- Quotas (attributions) ----------
   attribuerLot(req: LotRequest): Observable<ResultatLot> {
     if (!this.demo()) {
-      return this.http.post<ResultatLot>('/api/attributions/lot', req).pipe(tap(r => this.attributions.update(l => [...l, ...r.creees])));
+      const corps = { medicamentId: req.medicamentId, mois: req.mois, quantiteAttribuee: req.quantite, pharmacieIds: req.pharmacieIds.map(String) };
+      return this.http.post<{ attributions: Attribution[]; pharmaciesIgnorees: string[] }>('/api/attributions/lot', corps).pipe(
+        map(r => ({ creees: r.attributions.map(x => this.deApi(x)), ignorees: r.pharmaciesIgnorees.map(Number) } as ResultatLot)),
+        tap(r => this.attributions.update(l => [...l, ...r.creees]))
+      );
     }
     const creees: Attribution[] = [], ignorees: number[] = [];
     let id = Math.max(0, ...this.attributions().map(a => a.id));
@@ -188,7 +201,9 @@ export class SensibleService {
   modifierAttribution(id: number, quantiteAttribuee: number): Observable<Attribution> {
     const local = (a: Attribution) => this.attributions.update(l => l.map(x => (x.id === id ? a : x)));
     const actuelle = this.attributions().find(a => a.id === id)!;
-    if (!this.demo()) return this.http.put<Attribution>(`/api/attributions/${id}`, { ...actuelle, quantiteAttribuee }).pipe(tap(local));
+    if (!this.demo()) {
+      return this.http.put<Attribution>(`/api/attributions/${id}`, { quantiteAttribuee, statut: actuelle.statut }).pipe(map(a => this.deApi(a)), tap(local));
+    }
     const maj = { ...actuelle, quantiteAttribuee };
     local(maj);
     return of(maj);
@@ -209,7 +224,11 @@ export class SensibleService {
         taux: a.quantiteAttribuee ? Math.round((a.quantiteVendue / a.quantiteAttribuee) * 100) : 0, avertissements: a.avertissements, statut: a.statut
       };
     };
-    return this.demo() ? of(calcul()) : this.http.get<Bilan>(`/api/attributions/${id}/bilan`).pipe(catchError(() => of(calcul())));
+    if (this.demo()) return of(calcul());
+    return this.http.get<{ recu: number; vendu: number; reste: number; avertissements: number; statut: StatutAttribution }>(`/api/attributions/${id}/bilan`).pipe(
+      map(b => ({ attribuee: b.recu, vendue: b.vendu, restant: b.reste, taux: b.recu ? Math.round((b.vendu / b.recu) * 100) : 0, avertissements: b.avertissements, statut: b.statut } as Bilan)),
+      catchError(() => of(calcul()))
+    );
   }
 
   // ---------- Disponibilités (pour la consultation) ----------
@@ -223,7 +242,14 @@ export class SensibleService {
         return { pharmacieId: p.id, nom: p.nom, ville: p.ville, restant, etat } as Disponibilite;
       });
     if (this.demo()) return of(calcul());
-    return this.http.get<Disponibilite[]>('/api/disponibilites', { params: new HttpParams().set('medicamentId', medicamentId) }).pipe(catchError(() => of(calcul())));
+    return this.http.get<{ pharmacieId: string; reste: number; etat: Disponibilite['etat'] }[]>('/api/disponibilites', { params: new HttpParams().set('medicamentId', medicamentId) }).pipe(
+      map(liste => liste.map(d => {
+        const id = this.deApi(d).pharmacieId as unknown as number;
+        const p = this.pharmacie(id);
+        return { pharmacieId: id, nom: p?.nom ?? `Pharmacie ${d.pharmacieId}`, ville: p?.ville ?? '', restant: d.reste, etat: d.etat } as Disponibilite;
+      })),
+      catchError(() => of(calcul()))
+    );
   }
 
   // ---------- Déclarer une vente (RG1, RG2, RG3) ----------
@@ -236,7 +262,8 @@ export class SensibleService {
     ];
 
     if (!this.demo()) {
-      return this.http.post<VenteSensible>('/api/ventes', { pharmacieId: pid, ...req }).pipe(
+      return this.http.post<VenteSensible>('/api/ventes', { pharmacieId: String(pid), ...req }).pipe(
+        map(v => this.deApi(v)),
         map(v => {
           this.ventes.update(l => [v, ...l]);
           this.attributions.update(l => l.map(a => (a.pharmacieId === pid && a.medicamentId === req.medicamentId && a.mois === this.moisCourant ? { ...a, quantiteVendue: a.quantiteVendue + req.quantite } : a)));
@@ -246,12 +273,15 @@ export class SensibleService {
         catchError((err: HttpErrorResponse) => {
           const e = etapes();
           const detail = err.error?.detail as string | undefined;
-          if (err.status === 403) { e[0].ok = false; return of({ ok: false, code: 403, message: detail ?? 'Votre pharmacie est inactive : aucune vente possible.', etapes: e, avertissement: false, suspendue: true } as ResultatVente); }
+          const suspendue = !!err.error?.suspendue;
+          // le back a pu enregistrer un avertissement : on relit les quotas pour que l'écran reste exact
+          if (err.status === 403 || err.status === 409) this.rafraichirQuotas();
+          if (err.status === 403) { e[0].ok = false; return of({ ok: false, code: 403, message: detail ?? 'Votre pharmacie est inactive : aucune vente possible.', etapes: e, avertissement: false, suspendue } as ResultatVente); }
           if (err.status === 409) {
             e[0].ok = true;
-            const quota = /quota/i.test(detail ?? '');
+            const quota = err.error?.title === 'Quota épuisé';
             e[1].ok = quota; e[2].ok = quota ? false : null; if (!quota) e[1].ok = false;
-            return of({ ok: false, code: 409, message: detail ?? 'Ordonnance invalide ou quota épuisé.', etapes: e, avertissement: true, suspendue: false } as ResultatVente);
+            return of({ ok: false, code: 409, message: detail ?? 'Ordonnance invalide ou quota épuisé.', etapes: e, avertissement: true, suspendue } as ResultatVente);
           }
           return of({ ok: false, code: 503, message: 'Un service est momentanément indisponible. Réessayez dans un instant.', etapes: e, avertissement: false, suspendue: false } as ResultatVente);
         })

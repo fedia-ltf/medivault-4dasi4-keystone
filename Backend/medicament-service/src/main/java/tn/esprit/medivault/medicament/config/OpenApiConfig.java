@@ -6,9 +6,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 // Configuration de Swagger (la page http://localhost:8084/swagger-ui.html).
-// @Configuration : classe de réglages lue au démarrage.
-// @Bean : l'objet renvoyé par la méthode est gardé et utilisé par Spring.
-// Ici on donne juste le titre, la description et la version affichés en haut de Swagger.
 @Configuration
 public class OpenApiConfig {
 
@@ -16,7 +13,7 @@ public class OpenApiConfig {
     public OpenAPI medicamentOpenAPI() {
         return new OpenAPI().info(new Info()
                 .title("MediVault - medicament-service")
-                .description("Catalogue des médicaments, interactions et vérification de compatibilité")
-                .version("1.0"));
+                .description("Médicaments sensibles : quota mensuel par pharmacie, vente justifiée par ordonnance, sanction au 2e avertissement")
+                .version("2.0"));
     }
 }

@@ -19,3 +19,8 @@ Thumbs.db
 
 # Env
 .env
+
+# Base H2 fichier du service (donnees locales)
+data/
+*.mv.db
+*.trace.db

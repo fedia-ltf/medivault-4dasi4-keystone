@@ -6,7 +6,8 @@ import tn.esprit.medivault.rendezvous.enums.StatutRdv;
 
 /**
  * Rendez-vous pris par un patient sur un créneau donné.
- * patient_id est l'identifiant du patient dans user-service (pas de clé étrangère).
+ * patientId est l'identifiant String MongoDB de user-service (pas de clé étrangère).
+ * analyseId est l'identifiant Long de l'analyse prescrite (renseigné seulement pour un rendez-vous au laboratoire).
  */
 @Entity
 @Table(name = "rendez_vous")
@@ -22,7 +23,7 @@ public class RendezVous {
     private Long id;
 
     @Column(name = "patient_id", nullable = false)
-    private Long patientId;
+    private String patientId;
 
     @Column(nullable = false)
     private String motif;
@@ -30,6 +31,12 @@ public class RendezVous {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutRdv statut;
+
+    /**
+     * Renseigné seulement si rendez-vous au laboratoire (pour réaliser une analyse prescrite).
+     */
+    @Column(name = "analyse_id")
+    private Long analyseId;
 
     @OneToOne
     @JoinColumn(name = "creneau_id", nullable = false, unique = true)
@@ -43,4 +50,3 @@ public class RendezVous {
         this.statut = StatutRdv.TERMINE;
     }
 }
-

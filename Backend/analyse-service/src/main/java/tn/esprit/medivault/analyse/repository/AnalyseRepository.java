@@ -9,8 +9,14 @@ import java.util.List;
 public interface AnalyseRepository extends JpaRepository<Analyse, Long> {
 
     /** GET /api/analyses?statut=EN_COURS&laboratoireId= */
-    List<Analyse> findByStatutAndLaboratoireId(StatutAnalyse statut, Long laboratoireId);
+    List<Analyse> findByStatutAndLaboratoireIdOrderByDateDemandeAsc(StatutAnalyse statut, String laboratoireId);
+
+    List<Analyse> findByStatutOrderByDateDemandeAsc(StatutAnalyse statut);
+
+    List<Analyse> findByLaboratoireIdOrderByDateDemandeAsc(String laboratoireId);
 
     /** GET /api/analyses/patient/{patientId} */
-    List<Analyse> findByPatientId(Long patientId);
+    List<Analyse> findByPatientIdOrderByDateDemandeDesc(String patientId);
+
+    boolean existsByConsultationIdAndTypeAnalyse(Long consultationId, String typeAnalyse);
 }

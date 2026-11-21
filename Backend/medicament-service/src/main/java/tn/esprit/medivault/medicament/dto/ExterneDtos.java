@@ -12,7 +12,7 @@ public final class ExterneDtos {
     private ExterneDtos() {
     }
 
-    // ordonnance-service : GET /api/ordonnances/{code}
+    // ordonnance-service : GET /api/ordonnances/code/{code}
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Ordonnance(Long id, String code, String patientId, String statut, List<Ligne> lignes) {
     }

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import tn.esprit.medivault.medicament.events.QuotaBientotEpuise;
 import tn.esprit.medivault.medicament.events.SanctionPharmacie;
 import tn.esprit.medivault.medicament.events.VenteSensibleEnregistree;
 
@@ -15,6 +16,8 @@ import tn.esprit.medivault.medicament.events.VenteSensibleEnregistree;
 // Les deux événements de la documentation, sur l'exchange commun "medivault.events" :
 //   VenteSensibleEnregistree  (vente.sensible.enregistree) -> ordonnance-service
 //   SanctionPharmacie         (pharmacie.sanction)         -> notification-service
+// Plus une alerte propre à ce service :
+//   QuotaBientotEpuise        (quota.bientot.epuise)       -> notification-service (quota utilisé à 80 %)
 // AFTER_COMMIT : le message part seulement une fois la vente (ou l'avertissement) réellement enregistrée en base.
 @Component
 @RequiredArgsConstructor
@@ -32,6 +35,9 @@ public class EvenementsPublisher {
     @Value("${medivault.rabbitmq.routing-key.sanction-pharmacie}")
     private String cleSanction;
 
+    @Value("${medivault.rabbitmq.routing-key.quota-bientot-epuise}")
+    private String cleAlerteQuota;
+
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void surVente(VenteSensibleEnregistree evenement) {
         publier(cleVente, evenement);
@@ -40,6 +46,11 @@ public class EvenementsPublisher {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void surSanction(SanctionPharmacie evenement) {
         publier(cleSanction, evenement);
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void surAlerteQuota(QuotaBientotEpuise evenement) {
+        publier(cleAlerteQuota, evenement);
     }
 
     private void publier(String cle, Object evenement) {

@@ -54,6 +54,14 @@ public class Attribution {
     @Version
     private Long version;
 
+    // Seuil de l'alerte « quota bientôt épuisé » (événement RabbitMQ) et de la prévision : 80 % du quota utilisé
+    public static final int SEUIL_ALERTE = 80;
+
+    // Part du quota déjà vendue, en pourcentage entier (arrondi vers le bas)
+    public int pourcentageUtilise() {
+        return quantiteAttribuee > 0 ? (int) (quantiteVendue * 100L / quantiteAttribuee) : 0;
+    }
+
     // reste = attribué - vendu (la documentation)
     public int reste() {
         return quantiteAttribuee - quantiteVendue;

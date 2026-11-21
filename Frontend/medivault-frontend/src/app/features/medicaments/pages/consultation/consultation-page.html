@@ -51,7 +51,7 @@
       @let cartes = [
         { n: '01', t: 'Substance active', icone: 'flask', v: m.dci, texte: m.description },
         { n: '02', t: 'Sur ordonnance', icone: 'clipboard', v: 'Ordonnance valide', texte: 'Vente seulement sur une ordonnance valide qui contient ce médicament, dans la limite de la quantité prescrite.' },
-        { n: '03', t: 'Quota des pharmacies', icone: 'layers', v: q.reste + ' / ' + q.attribue + ' boîtes', texte: q.pharmacies ? 'Il reste ' + (q.ratio * 100).toFixed(0) + ' % du quota de ce mois, dans ' + q.pharmacies + ' pharmacie' + (q.pharmacies > 1 ? 's' : '') + '. Une fois épuisé, plus de vente.' : 'Chaque pharmacie a un quota par mois : une fois épuisé, plus de vente.' },
+        { n: '03', t: 'Quota des pharmacies', icone: 'layers', v: q.reste + ' / ' + q.attribue + ' boîtes', texte: q.pharmacies ? 'Il reste ' + (q.ratio * 100).toFixed(0) + ' % du quota de ce mois, dans ' + q.pharmacies + ' pharmacie' + (q.pharmacies > 1 ? 's' : '') + '. ' + (q.prevision || 'Une fois épuisé, plus de vente.') : 'Chaque pharmacie a un quota par mois : une fois épuisé, plus de vente.' },
         { n: '04', t: 'Une vente tracée', icone: 'shield-check', v: categorieInfo(m.categorie).label, texte: categorieInfo(m.categorie).regle },
         { n: '05', t: 'Précautions', icone: 'alert', v: '', texte: m.precautions }
       ];

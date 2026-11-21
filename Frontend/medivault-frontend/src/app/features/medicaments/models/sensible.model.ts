@@ -102,3 +102,28 @@ export const categorieInfo = (c: Categorie) => CATEGORIES.find(x => x.cle === c)
 export const moisDe = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 export const libelleMois = (m: string) =>
   new Date(+m.slice(0, 4), +m.slice(5, 7) - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+// ---------------------------------------------------------------------------
+// Surveillance : score de risque, historique des refus, prévision d'épuisement
+// ---------------------------------------------------------------------------
+export type NiveauRisque = 'FAIBLE' | 'MOYEN' | 'ELEVE';
+/** GET /risques : le score (0 à 100) d'une pharmacie, avec les raisons qui l'expliquent */
+export interface RisquePharmacie {
+  pharmacieId: number; score: number; niveau: NiveauRisque; refus: number; avertissements: number;
+  suspensions: number; tauxConsommation: number; raisons: string[];
+}
+
+export type MotifRefus = 'PHARMACIE_INACTIVE' | 'AUCUN_QUOTA' | 'PHARMACIE_SUSPENDUE' | 'ORDONNANCE_NON_JUSTIFIEE' | 'QUOTA_EPUISE';
+/** GET /tentatives-refusees : une vente refusée (qui, quoi, quand, pourquoi) */
+export interface TentativeRefusee {
+  id: number; pharmacieId: number; medicamentId: number; medicamentNom: string; ordonnanceCode: string;
+  quantite: number; date: string; motif: MotifRefus; detail: string;
+}
+
+export type NiveauPrevision = 'OK' | 'A_SURVEILLER' | 'ALERTE' | 'EPUISE';
+/** GET /previsions/medicaments : « à ce rythme, le quota sera épuisé vers le 23 » */
+export interface PrevisionMedicament {
+  medicamentId: number; medicamentNom: string; pharmacies: number; quantiteAttribuee: number; quantiteVendue: number;
+  reste: number; pourcentageUtilise: number; dateEpuisementPrevue: string | null; epuisementAvantFinDeMois: boolean;
+  niveau: NiveauPrevision; pharmaciesEnAlerte: number; message: string;
+}

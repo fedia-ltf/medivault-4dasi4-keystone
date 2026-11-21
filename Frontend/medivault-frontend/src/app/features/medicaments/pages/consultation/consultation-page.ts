@@ -50,7 +50,7 @@ export class ConsultationPage {
     const l = m ? this.s.attributionsDuMois().filter(a => a.medicamentId === m.id) : [];
     const attribue = l.reduce((t, a) => t + a.quantiteAttribuee, 0);
     const reste = Math.max(0, attribue - l.reduce((t, a) => t + a.quantiteVendue, 0));
-    return { attribue, reste, pharmacies: l.length, ratio: attribue ? reste / attribue : 0 };
+    return { attribue, reste, pharmacies: l.length, ratio: attribue ? reste / attribue : 0, prevision: (m && this.s.prevision(m.id)?.message) || '' };
   });
 
   protected liste = computed(() => {

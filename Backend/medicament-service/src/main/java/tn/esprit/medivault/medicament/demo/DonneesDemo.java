@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClient;
 import tn.esprit.medivault.medicament.entities.*;
 import tn.esprit.medivault.medicament.repositories.AttributionRepository;
 import tn.esprit.medivault.medicament.repositories.MedicamentSensibleRepository;
+import tn.esprit.medivault.medicament.repositories.TentativeRefuseeRepository;
 import tn.esprit.medivault.medicament.repositories.VenteSensibleRepository;
 
 import java.time.Clock;
@@ -32,6 +33,7 @@ public class DonneesDemo implements ApplicationRunner {
     private final MedicamentSensibleRepository medicaments;
     private final AttributionRepository attributions;
     private final VenteSensibleRepository ventes;
+    private final TentativeRefuseeRepository refus;
     private final Clock clock;
 
     // Adresse du user-service (ex. http://localhost:8081) : si elle est donnée, les quotas de démonstration sont créés
@@ -109,20 +111,41 @@ public class DonneesDemo implements ApplicationRunner {
                             .date(LocalDateTime.now(clock).minusDays(compteur % 12)).attribution(a).build());
                     vendu += quantite;
                 }
+                // un quota qui approche de l'épuisement (86 %) : on voit l'alerte à 80 % et la prévision de date
+                if (p == 2 && m.getId() == 2L && vendu < quota * 86 / 100) {
+                    int extra = quota * 86 / 100 - vendu;
+                    compteur++;
+                    ventes.save(VenteSensible.builder().patientId("patient-" + (1 + compteur % 9)).ordonnanceId(2000L + compteur)
+                            .ordonnanceCode("ORD-DEMO-" + (1000 + compteur)).quantite(extra)
+                            .date(LocalDateTime.now(clock).minusDays(1)).attribution(a).build());
+                    vendu += extra;
+                }
                 a.ajouterVente(vendu);
                 // un exemple d'avertissement et un exemple de suspension
-                if (p == 1 && m.getId() == 4L) {
+                // chaque avertissement a son refus dans l'historique (comme en vrai)
+                if (p == 1 && m.getId() == 1L) {
                     a.ajouterAvertissement();
+                    refusDemo(a, MotifRefus.QUOTA_EPUISE, 12, 3, "Quota du mois insuffisant.");
+                    refusDemo(a, MotifRefus.AUCUN_QUOTA, 4, 5, "Aucun quota attribué pour ce mois.");   // pas d'avertissement pour ce motif
                 }
                 if (p == 6 && m.getId() == 6L) {
                     a.ajouterAvertissement();
                     a.ajouterAvertissement();
+                    refusDemo(a, MotifRefus.ORDONNANCE_NON_JUSTIFIEE, 9, 6, "Cette ordonnance ne contient pas ce médicament.");
+                    refusDemo(a, MotifRefus.QUOTA_EPUISE, 14, 1, "Quota du mois insuffisant.");
                 }
                 attributions.save(a);
             }
         }
         log.info("Données de démonstration créées : {} médicaments sensibles, {} quotas, {} ventes",
                 medicaments.count(), attributions.count(), ventes.count());
+    }
+
+    // Un refus de démonstration, daté de quelques jours en arrière
+    private void refusDemo(Attribution a, MotifRefus motif, int quantite, int joursAvant, String detail) {
+        refus.save(TentativeRefusee.builder().pharmacieId(a.getPharmacieId()).medicamentId(a.getMedicament().getId())
+                .medicamentNom(a.getMedicament().getNomCommercial()).ordonnanceCode("ORD-DEMO-REFUS").quantite(quantite)
+                .date(LocalDateTime.now(clock).minusDays(joursAvant)).motif(motif).detail(detail).build());
     }
 
     private MedicamentSensible med(String nom, String dci, Categorie categorie, String description, String precautions) {

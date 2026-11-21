@@ -10,7 +10,7 @@ Port **8084** · base **H2 fichier** `medicament_db` · Swagger : <http://localh
 
 ```bash
 mvn spring-boot:run          # ou ▶ sur MedicamentServiceApplication dans IntelliJ
-mvn test                     # 44 tests
+mvn test                     # 69 tests
 ```
 
 - La base est le fichier `data/medicament_db.mv.db` (créé au 1er lancement, ignoré par Git).
@@ -41,6 +41,9 @@ mvn test                     # 44 tests
 | POST | `/ventes` | 201 · 400 · 403 · 404 · 409 · 503 | pharmacien, soin-domicile |
 | GET | `/ventes` (`?pharmacieId=&medicamentId=&mois=`) · `/ventes/{id}` | 200 · 404 | admin |
 | GET | `/disponibilites?medicamentId=` | 200 · 404 | médecin, patient |
+| GET | `/tentatives-refusees` (`?pharmacieId=&medicamentId=&mois=&motif=`) | 200 | admin |
+| GET | `/risques` (`?mois=AAAA-MM&aSurveiller=true`) | 200 | admin |
+| GET | `/previsions` (`?pharmacieId=&medicamentId=&mois=`) · `/previsions/medicaments` | 200 | admin, médecin, patient |
 
 Erreurs au format *Problem Details* (`title`, `status`, `detail`). Un refus de vente ajoute `avertissements` et `suspendue`.
 
@@ -60,19 +63,47 @@ Erreurs au format *Problem Details* (`title`, `status`, `detail`). Un refus de v
 du mois précédent et crée les nouveaux quotas (même quantité, `ACTIVE`, 0 vente, 0 avertissement).
 Remettre un quota `ACTIVE` avec `PUT /attributions/{id}` lève la sanction (avertissements remis à 0).
 
+## Surveillance : historique des refus, score de risque, prévision (propres à ce service)
+
+Ces trois fonctions ne dépendent d'aucun autre service : elles n'utilisent que les quotas, les ventes et les refus de ce service.
+
+**Historique des refus** (`GET /tentatives-refusees`). Chaque tentative de vente refusée par `POST /ventes` est enregistrée :
+pharmacie, médicament, ordonnance saisie, quantité, date, motif (`PHARMACIE_INACTIVE`, `AUCUN_QUOTA`, `PHARMACIE_SUSPENDUE`,
+`ORDONNANCE_NON_JUSTIFIEE`, `QUOTA_EPUISE`) et détail. Comme une vente, une trace n'est jamais modifiée ni supprimée. Une panne d'un autre
+service (503) n'est pas un refus de la pharmacie : elle n'est pas enregistrée.
+
+**Score de risque** (`GET /risques`). Un score de 0 à 100 par pharmacie et par mois, somme de points toujours expliqués (champ `raisons`) :
+
+| Indicateur | Points |
+|---|---|
+| vente refusée | 12 par refus (maximum 40) |
+| avertissement (RG3) | 15 par avertissement (maximum 30) |
+| quota suspendu | 25 |
+| 40 % ou plus des boîtes vendues dans les 5 derniers jours du mois (au moins 10 boîtes) | 20 |
+| 90 % du quota consommé avant le 20 du mois | 10 |
+
+0-29 `FAIBLE` · 30-59 `MOYEN` · 60 et plus `ELEVE`. `?aSurveiller=true` ne garde que `MOYEN` et `ELEVE`.
+
+**Prévision d'épuisement** (`GET /previsions`, `GET /previsions/medicaments`). Rythme = boîtes vendues ÷ jours écoulés du mois ;
+jours restants = reste ÷ rythme. Résultat : la date d'épuisement prévue et une phrase (« À ce rythme, le quota sera épuisé vers le 23 novembre. »).
+Niveaux : `OK`, `A_SURVEILLER` (épuisé avant la fin du mois à ce rythme), `ALERTE` (80 % du quota utilisé ou plus), `EPUISE`.
+
+**Alerte à 80 %.** Quand une vente fait passer un quota de moins de 80 % à 80 % ou plus, le service publie **une seule fois**
+l'événement `QuotaBientotEpuise` (`quota.bientot.epuise`). Aucun autre service ne l'écoute encore : à voir avec le notification-service.
+
 ## Communications
 
 | | Détail |
 |---|---|
-| Synchrone | Feign → `ordonnance-service` `GET /api/ordonnances/{code}` · Feign → `user-service` `GET /api/utilisateurs/{id}` (champ `actif`) |
-| Asynchrone | publie `VenteSensibleEnregistree` (`vente.sensible.enregistree`) et `SanctionPharmacie` (`pharmacie.sanction`) sur l'exchange `medivault.events` |
+| Synchrone | Feign → `ordonnance-service` `GET /api/ordonnances/code/{code}` · Feign → `user-service` `GET /api/utilisateurs/{id}` (champ `actif`) |
+| Asynchrone | publie `VenteSensibleEnregistree` (`vente.sensible.enregistree`), `SanctionPharmacie` (`pharmacie.sanction`) et `QuotaBientotEpuise` (`quota.bientot.epuise`) sur l'exchange `medivault.events` |
 | Panne | Resilience4j + fallback → 503 ; RabbitMQ arrêté → la vente reste valide, l'échec est seulement journalisé |
 
 `medivault.integration.mode` dans `application.properties` :
 - `simule` (par défaut) : ordonnances et comptes fictifs, pour travailler seul (`ORD-A7F3`, `ORD-B219` valides ; `ORD-C884` seulement les médicaments 1 et 3 ; `ORD-D102` en attente ; `ORD-E410` délivrée ; pharmacie `off-…` inactive).
 - `reel` : vrais appels Feign (Eureka, ordonnance-service et user-service lancés).
 
-À aligner avec les autres membres : le chemin `/api/ordonnances/{code}` et ses champs (`id`, `code`, `patientId`, `statut`, `lignes[medicamentId, quantite]`) avec Amine, le chemin `/api/utilisateurs/{id}` et le champ `actif` avec l'équipe user-service.
+Contrats vérifiés dans le code des autres services : `GET /api/ordonnances/code/{code}` (champs `id`, `code`, `patientId`, `statut`, `lignes[medicamentId, quantite]`) dans la branche `feature/ordonnance-service`, et `GET /api/utilisateurs/{id}` (champ `actif`) dans le user-service. Pas encore testés ensemble (il faut MongoDB pour le user-service). Personne n'écoute encore les événements publiés par ce service.
 
 ## Docker
 
@@ -96,6 +127,7 @@ Variables d'environnement (valeurs par défaut entre parenthèses) :
 | `DATA_DIR` (`/app/data` dans Docker) | Dossier de la base H2 : à mettre dans un **volume**, sinon les données sont perdues |
 | `INTEGRATION_MODE` (`simule`) | `reel` = vrais appels vers ordonnance-service et user-service |
 | `DEMO_DATA` (`true`) | Crée des données d'exemple au premier lancement (base vide) |
+| `DEMO_USER_SERVICE_URL` (vide) | Ex. `http://localhost:8081` : les quotas de démonstration visent alors les vraies pharmacies du user-service |
 | `EUREKA_URL` (`http://localhost:8761/eureka/`) | Adresse d'Eureka. `EUREKA_CLIENT_ENABLED=false` pour s'en passer |
 | `RABBITMQ_HOST` / `RABBITMQ_PORT` (`localhost` / `5672`) | Dans un conteneur, `localhost` n'est plus le PC : donner le nom du service RabbitMQ |
 | `RABBITMQ_USER` / `RABBITMQ_PASSWORD` (`guest`) | Identifiants RabbitMQ |

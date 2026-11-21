@@ -9,13 +9,13 @@ import { SensibleService } from '../../services/sensible.service';
 
 const normaliser = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 /** Moments (0 à 1 du défilement) où chaque chapitre commence */
-const SEUILS = [0.17, 0.38, 0.56, 0.74];
+const SEUILS = [0.17, 0.31, 0.45, 0.6, 0.75];
 const VARIANTE: Record<Categorie, number> = { STUPEFIANT: 0, PSYCHOTROPE: 1, ABORTIF: 2 };
 
 // Espace de consultation (médecin, patient) : lecture seule.
 // Liste des médicaments sensibles ; un clic ouvre « Qu'y a-t-il dans … ? », une histoire animée
-// au défilement : la gélule s'ouvre, ses grains forment une hélice d'ADN, la caméra plonge dedans
-// pendant que les 4 chapitres défilent. Rien ne bouge sans le défilement.
+// au défilement : la gélule s'ouvre, puis un parcours de verre suit une vente (ordonnance, quota, vente enregistrée)
+// pendant que les 5 chapitres défilent. Rien ne bouge sans le défilement.
 @Component({
   selector: 'mv-consultation',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,6 +44,15 @@ export class ConsultationPage {
   private adn = viewChild(AdnScene);
   protected teinte = computed(() => ({ STUPEFIANT: 218, PSYCHOTROPE: 172, ABORTIF: 198 }[this.choisi()?.categorie ?? 'STUPEFIANT']));
 
+  /** Le quota de ce médicament ce mois-ci, toutes pharmacies confondues : il remplit la jauge de la scène */
+  protected quota = computed(() => {
+    const m = this.choisi();
+    const l = m ? this.s.attributionsDuMois().filter(a => a.medicamentId === m.id) : [];
+    const attribue = l.reduce((t, a) => t + a.quantiteAttribuee, 0);
+    const reste = Math.max(0, attribue - l.reduce((t, a) => t + a.quantiteVendue, 0));
+    return { attribue, reste, pharmacies: l.length, ratio: attribue ? reste / attribue : 0 };
+  });
+
   protected liste = computed(() => {
     const q = normaliser(this.recherche()), c = this.filtreCat();
     return this.s.medicaments().filter(m => (!c || m.categorie === c) && (!q || normaliser(`${m.nomCommercial} ${m.dci}`).includes(q)));
@@ -66,7 +75,7 @@ export class ConsultationPage {
 
   protected ouvrir(m: MedicamentSensible) {
     this.choisi.set(m);
-    this.etape.set(this.reduit ? 4 : 0);
+    this.etape.set(this.reduit ? SEUILS.length : 0);
     this.sombre.set(false);
     this.debut.set(!this.reduit);
     this.dispo.set([]);
@@ -85,9 +94,9 @@ export class ConsultationPage {
     const statique = this.reduit || parcours <= 0;
     const p = statique ? 1 : Math.min(1, Math.max(0, (haut - h.getBoundingClientRect().top) / parcours));
     this.adn()?.progression(p);
-    const e = statique ? 4 : SEUILS.filter(t => p >= t).length;
+    const e = statique ? SEUILS.length : SEUILS.filter(t => p >= t).length;
     const sombre = !statique && p > 0.155 && p < 0.905;
-    const debut = !statique && p < 0.055;
+    const debut = !statique && p < 0.035;
     if (e !== this.etape() || sombre !== this.sombre() || debut !== this.debut())
       this.zone.run(() => { this.etape.set(e); this.sombre.set(sombre); this.debut.set(debut); });
   }

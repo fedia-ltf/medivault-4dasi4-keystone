@@ -41,17 +41,19 @@
 
   <section #histoire class="mt-4 {{ reduit ? '' : 'h-[460vh]' }}">
     <div #scene class="sticky top-20 h-[calc(100svh-6rem)] min-h-[32rem] overflow-hidden rounded-[2rem] border border-white bg-[#eef4ff] shadow-[0_40px_80px_-50px_rgba(41,87,204,.7)] lg:top-28 lg:h-[calc(100vh-8rem)]">
-      <!-- hélice d'ADN en verre : pilotée par le défilement -->
-      <mv-adn-scene class="absolute inset-0" [teinte]="teinte()" />
+      <!-- gélule et parcours de verre : pilotés par le défilement -->
+      <mv-adn-scene class="absolute inset-0" [teinte]="teinte()" [quota]="quota().ratio" />
       <!-- voile derrière le texte (fond nuit) pour qu'il reste lisible -->
       <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[55%] bg-[linear-gradient(270deg,rgba(2,9,22,.82),rgba(2,9,22,.45)_55%,transparent)] transition-opacity duration-700 lg:block {{ sombre() ? 'opacity-100' : 'opacity-0' }}"></div>
       <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[45%] bg-[linear-gradient(270deg,rgba(244,248,255,.85),rgba(244,248,255,.4)_60%,transparent)] transition-opacity duration-700 lg:block {{ !sombre() && etape() > 0 ? 'opacity-100' : 'opacity-0' }}"></div>
 
+      @let q = quota();
       @let cartes = [
-        { n: '01', t: 'Substance active', icone: 'flask', v: m.dci, texte: 'La molécule qui agit, connue sous le nom de ' + m.nomCommercial + '.' },
-        { n: '02', t: 'Ce qu\'il fait', icone: 'activity', v: '', texte: m.description },
-        { n: '03', t: 'Pourquoi il est contrôlé', icone: 'shield-check', v: categorieInfo(m.categorie).label, texte: categorieInfo(m.categorie).regle },
-        { n: '04', t: 'Précautions', icone: 'alert', v: '', texte: m.precautions }
+        { n: '01', t: 'Substance active', icone: 'flask', v: m.dci, texte: m.description },
+        { n: '02', t: 'Sur ordonnance', icone: 'clipboard', v: 'Ordonnance valide', texte: 'Vente seulement sur une ordonnance valide qui contient ce médicament, dans la limite de la quantité prescrite.' },
+        { n: '03', t: 'Quota des pharmacies', icone: 'layers', v: q.reste + ' / ' + q.attribue + ' boîtes', texte: q.pharmacies ? 'Il reste ' + (q.ratio * 100).toFixed(0) + ' % du quota de ce mois, dans ' + q.pharmacies + ' pharmacie' + (q.pharmacies > 1 ? 's' : '') + '. Une fois épuisé, plus de vente.' : 'Chaque pharmacie a un quota par mois : une fois épuisé, plus de vente.' },
+        { n: '04', t: 'Une vente tracée', icone: 'shield-check', v: categorieInfo(m.categorie).label, texte: categorieInfo(m.categorie).regle },
+        { n: '05', t: 'Précautions', icone: 'alert', v: '', texte: m.precautions }
       ];
 
       <!-- ouverture : le grand titre, au-dessus de la gélule -->
@@ -59,7 +61,7 @@
         <div class="text-center transition-all duration-500 ease-out-expo lg:text-left {{ debut() ? 'opacity-100' : '-translate-y-6 opacity-0' }}">
           <mv-categorie [categorie]="m.categorie" />
           <h3 class="mt-3 font-display text-4xl leading-none text-ink-900 sm:text-6xl">Qu'y a-t-il dans <span class="italic text-gradient-dark">{{ m.nomCommercial }}</span> ?</h3>
-          <p class="mt-5 hidden max-w-sm text-[15px] leading-relaxed text-ink-500 lg:block">Faites défiler : la gélule s'ouvre et montre ce qu'elle contient, ce qu'elle fait et pourquoi elle est contrôlée.</p>
+          <p class="mt-5 hidden max-w-sm text-[15px] leading-relaxed text-ink-500 lg:block">Faites défiler : la gélule s'ouvre, puis suivez le parcours d'une vente, de l'ordonnance jusqu'au quota.</p>
         </div>
       </div>
 
@@ -78,7 +80,7 @@
           <div class="rounded-3xl p-5 transition-all duration-700 ease-out-expo lg:rounded-none lg:bg-transparent lg:p-0 lg:backdrop-blur-none {{ sombre() ? 'bg-[#061532]/55 backdrop-blur-md' : 'bg-white/75 backdrop-blur-md' }} {{ etape() === i + 1 ? 'translate-y-0 opacity-100 blur-0' : (etape() > i + 1 ? '-translate-y-8 opacity-0 blur-sm' : 'translate-y-8 opacity-0 blur-sm') }}">
             <div class="flex items-center gap-3">
               <span class="grid h-10 w-10 place-items-center rounded-full border transition-colors duration-700 {{ sombre() ? 'border-sky-300/30 bg-sky-400/10 text-sky-200 shadow-[0_0_24px_-4px_rgba(56,189,248,.6)]' : 'border-aqua-200 bg-white text-aqua-600' }}"><mv-icon [name]="c.icone" [size]="17" /></span>
-              <p class="font-mono text-[11px] tracking-[0.2em] transition-colors duration-700 {{ sombre() ? 'text-sky-300' : 'text-aqua-600' }}">{{ c.n }} <span class="opacity-50">/ 04</span></p>
+              <p class="font-mono text-[11px] tracking-[0.2em] transition-colors duration-700 {{ sombre() ? 'text-sky-300' : 'text-aqua-600' }}">{{ c.n }} <span class="opacity-50">/ 0{{ cartes.length }}</span></p>
             </div>
             <p class="mt-4 text-[11px] font-bold uppercase tracking-[0.3em] transition-colors duration-700 {{ sombre() ? 'text-sky-100/60' : 'text-ink-400' }}">{{ c.t }}</p>
             @if (c.v) { <p class="mt-1 font-display text-4xl leading-tight transition-colors duration-700 lg:text-5xl {{ sombre() ? 'text-white' : 'text-ink-900' }}">{{ c.v }}</p> }

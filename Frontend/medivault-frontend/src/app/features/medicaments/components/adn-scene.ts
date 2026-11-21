@@ -13,26 +13,23 @@ const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 // Générateur pseudo-aléatoire fixe : la scène est toujours la même d'un affichage à l'autre.
 function graine(n: number) { return () => (n = (n * 16807) % 2147483647) / 2147483647; }
 
-// ---- L'hélice (unités du monde : rayon 1, un tour = 3,4 comme le vrai ADN)
-const L = 7.5;                       // demi-longueur
-const OMEGA = (2 * Math.PI) / 3.4;
-const DECAL = Math.PI * 0.78;        // décalage des 2 brins (grand et petit sillon)
-const RT = 0.15;                     // rayon des brins
-const RB = 0.055;                    // rayon des barreaux
-const ECART = 0.34;                  // distance entre deux barreaux
-const NB_BARREAUX = Math.floor((2 * L - 0.4) / ECART) + 1;
-const Y_BARREAU = (j: number) => -L + 0.2 + j * ECART;
+// ---- Le parcours de contrôle (unités du monde) : un rail de lumière et 3 portiques de verre
+const L = 7.5;                       // demi-longueur du rail
+const PORTIQUES = [-4, 0, 4];        // hauteur des 3 portiques : ordonnance, quota, vente
+const RAYON_PORTIQUE = 1.5;
+const TEAL = new THREE.Color('#2fd4c4'), AMBRE = new THREE.Color('#f2b84b'), ROSE = new THREE.Color('#ff6b8b');
 
 /** Plans de la caméra : la scène passe de l'un à l'autre pendant le défilement (p de 0 à 1). */
 interface Plan { p: number; camZ: number; camY: number; ax: number; az: number; dx: number; cy: number }
 const PLANS: Plan[] = [
-  { p: 0, camZ: 16, camY: 0, ax: 0.25, az: 0.55, dx: 0.17, cy: 0.5 },       // la gélule éclatée, à droite du titre
-  { p: 0.2, camZ: 8, camY: -0.4, ax: 0.35, az: 0.7, dx: -0.1, cy: 0.5 },     // les grains s'assemblent
-  { p: 0.36, camZ: 3.9, camY: -1.4, ax: 0.6, az: 0.95, dx: -0.13, cy: 0.5 }, // gros plan : anneaux lumineux
-  { p: 0.54, camZ: 4.4, camY: 2, ax: 0.4, az: 1.2, dx: -0.15, cy: 0.5 },     // la caméra glisse le long de l'hélice
-  { p: 0.72, camZ: 10, camY: 0.6, ax: 0.22, az: 1.05, dx: -0.14, cy: 0.5 },  // plan large, en diagonale
-  { p: 0.87, camZ: 12, camY: 0.5, ax: 0.22, az: 0.75, dx: -0.14, cy: 0.5 },  // l'hélice se défait en grains
-  { p: 1, camZ: 14, camY: 0, ax: 0.2, az: 0.6, dx: -0.17, cy: 0.5 }          // les grains rentrent : la gélule éclatée se recompose
+  { p: 0, camZ: 16, camY: 0, ax: 0.25, az: 0.55, dx: 0.17, cy: 0.5 },         // la gélule fermée, à droite du titre
+  { p: 0.22, camZ: 11, camY: -2.6, ax: 0.5, az: 0.6, dx: -0.06, cy: 0.5 },    // la gélule est ouverte : le rail de lumière se forme
+  { p: 0.36, camZ: 6.2, camY: -4, ax: 0.95, az: 0.45, dx: -0.12, cy: 0.5 },    // portique 1 : l'ordonnance
+  { p: 0.5, camZ: 6.2, camY: 0, ax: 0.95, az: 0.45, dx: -0.13, cy: 0.5 },      // portique 2 : le quota
+  { p: 0.64, camZ: 6.2, camY: 4, ax: 0.95, az: 0.45, dx: -0.13, cy: 0.5 },     // portique 3 : la vente enregistrée
+  { p: 0.78, camZ: 11, camY: 1.2, ax: 0.5, az: 0.7, dx: -0.14, cy: 0.5 },   // plan large du parcours
+  { p: 0.87, camZ: 12, camY: 0.5, ax: 0.22, az: 0.75, dx: -0.14, cy: 0.5 },   // le parcours se défait en grains
+  { p: 1, camZ: 14, camY: 0, ax: 0.2, az: 0.6, dx: -0.17, cy: 0.5 }           // les grains rentrent : la gélule se referme
 ];
 // Courbe de Catmull-Rom : passe par chaque plan sans à-coup
 const cr = (a: number, b: number, c: number, d: number, t: number) =>
@@ -101,8 +98,8 @@ interface Grain { brin: boolean; y: number; s: number; j: number; t: number; ang
 
 /**
  * Scène « Qu'y a-t-il dedans ? » en vraie 3D (three.js / WebGL) : une gélule de verre clair (petit ADN nacré, bulles) ; la caméra plonge dedans,
- * ses grains s'assemblent en hélice d'ADN de verre, la caméra plonge entre les anneaux lumineux,
- * puis l'hélice se défait et ses grains rentrent dans la gélule, sur fond pastel de studio. Verre réaliste (transmission), lueur (bloom),
+ * s'ouvre en deux, ses grains tracent le parcours de contrôle d'une vente (3 portiques de verre : ordonnance, quota, vente),
+ * puis le parcours se défait et ses grains rentrent dans la gélule, sur fond pastel de studio. Verre réaliste (transmission), lueur (bloom),
  * flou de profondeur (bokeh). Tout est piloté par le défilement : sans scroll, rien ne bouge.
  */
 @Component({
@@ -114,6 +111,8 @@ interface Grain { brin: boolean; y: number; s: number; j: number; t: number; ang
 export class AdnScene implements OnDestroy {
   /** Teinte de la lumière (0-360) selon la catégorie du médicament */
   teinte = input(212);
+  /** Part du quota restante ce mois-ci pour ce médicament (0 à 1) : remplit la jauge du 2e portique */
+  quota = input(0.6);
 
   private cv = viewChild.required<ElementRef<HTMLCanvasElement>>('cv');
   private zone = inject(NgZone);
@@ -138,9 +137,15 @@ export class AdnScene implements OnDestroy {
   private camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
   private pivot = new THREE.Group();       // incline l'hélice (plans de caméra)
   private helice = new THREE.Group();      // tourne sur elle-même et glisse le long de son axe
-  private brins: THREE.Mesh[] = [];
-  private barreaux!: THREE.InstancedMesh;
-  private anneaux!: THREE.InstancedMesh;
+  private rail!: THREE.Mesh;                      // le rail de lumière, au centre
+  private portiques: { g: THREE.Group; y: number; fil: THREE.Mesh }[] = [];
+  private jauge!: THREE.Mesh;                     // arc du quota (2e portique)
+  private jaugeMat!: THREE.MeshBasicMaterial;
+  private coche!: THREE.Mesh;                     // coche de la vente enregistrée (3e portique)
+  private ondes: THREE.Mesh[] = [];
+  private pilules!: THREE.InstancedMesh;          // petites gélules dorées qui avancent le long du rail
+  private moitieH = new THREE.Group();            // les deux moitiés de la gélule
+  private moitieB = new THREE.Group();
   private adnMini = new THREE.Group();     // petit brin d'ADN nacré dans la gélule (il devient la grande hélice)
   private matAdnMini!: THREE.MeshPhysicalMaterial;
   private studio!: THREE.Texture;          // reflets « photo de studio » (boîtes à lumière) pour le verre de la gélule
@@ -164,8 +169,6 @@ export class AdnScene implements OnDestroy {
   private poussiere: { base: THREE.Vector3; derive: THREE.Vector3; ph: number }[] = [];
   private lumRimA = new THREE.PointLight('#5b8df5', 3, 0, 0);
   private lumRimB = new THREE.PointLight('#2cc5b5', 2, 0, 0);
-  private anneauxInfos: { y: number; pos: THREE.Vector3; quat: THREE.Quaternion }[] = [];
-  private barreauxInfos: { y: number; pos: THREE.Vector3; quat: THREE.Quaternion; long: number }[] = [];
   private lueur = new THREE.Color();
   private matBrin!: THREE.MeshPhysicalMaterial;
   private cle = new THREE.DirectionalLight('#ffffff', 2.2);
@@ -220,7 +223,7 @@ export class AdnScene implements OnDestroy {
     this.douceur.position.set(-6, -2, 4);
     this.scene.add(cle, this.lumRimA, this.lumRimB, this.ambiance, this.douceur);
 
-    this.construireHelice();
+    this.construireParcours();
     this.construireGrains();      // avant la gélule : ses granules reprennent la place des grains
     this.construireGelule();
     this.construireDecor();
@@ -264,11 +267,6 @@ export class AdnScene implements OnDestroy {
     this.raf = requestAnimationFrame(boucle);
   }
 
-  private point(y: number, s: number, rayon = 1) {
-    const th = y * OMEGA + s * DECAL;
-    return new THREE.Vector3(Math.cos(th) * rayon, y, Math.sin(th) * rayon);
-  }
-
   private verre(couleur: string, attenuation: string, distance: number) {
     return new THREE.MeshPhysicalMaterial({
       color: couleur, metalness: 0, roughness: 0.16, transmission: 1, thickness: 0.45, ior: 1.45,
@@ -277,42 +275,88 @@ export class AdnScene implements OnDestroy {
     });
   }
 
-  private construireHelice() {
-    // 1. Les deux brins : un tube de verre par moitié (du centre vers chaque bout),
-    //    pour les faire « pousser » depuis le centre pendant l'assemblage.
-    const matBrin = this.matBrin = this.verre('#e4efff', '#4f86f7', 1.6);
-    for (let s = 0; s < 2; s++) {
-      for (const sens of [1, -1]) {
-        const pts: THREE.Vector3[] = [];
-        for (let y = 0; y <= L + 1e-6; y += 0.05) pts.push(this.point(y * sens, s));
-        const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 320, RT, 28, false);
-        const m = new THREE.Mesh(geo, matBrin);
-        this.brins.push(m);
-        this.helice.add(m);
-      }
+  private construireParcours() {
+    this.matBrin = this.verre('#e4efff', '#4f86f7', 1.6);       // verre bleuté des portiques
+    const lueur = (c: string, k = 1.6) => new THREE.Color(c).multiplyScalar(k);
+    const basic = (c: THREE.Color, opacity = 1) => new THREE.MeshBasicMaterial({ color: c, toneMapped: false, transparent: opacity < 1, opacity, depthWrite: opacity >= 1 });
+
+    // le rail de lumière : il pousse depuis le centre
+    this.rail = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 2 * L, 12, 1, true), basic(lueur('#9cc4ff', 0.95)));
+    this.helice.add(this.rail);
+
+    // les 3 portiques : un anneau de verre, un fil lumineux, un halo fin, et le contenu de l'étape
+    const anneau = new THREE.TorusGeometry(RAYON_PORTIQUE, 0.085, 28, 160);
+    const fil = new THREE.TorusGeometry(RAYON_PORTIQUE, 0.016, 12, 160);
+    const aura = new THREE.TorusGeometry(RAYON_PORTIQUE + 0.3, 0.007, 8, 160);
+    PORTIQUES.forEach((y, k) => {
+      const g = new THREE.Group(); g.position.y = y;
+      const plan = new THREE.Group(); plan.rotation.x = Math.PI / 2; g.add(plan);   // anneaux « couchés » autour du rail
+      const filMesh = new THREE.Mesh(fil, basic(lueur('#bcd4ff')));
+      plan.add(new THREE.Mesh(anneau, this.matBrin), filMesh, new THREE.Mesh(aura, basic(lueur('#7fb2ff', 1.1), 0.45)));
+      if (k === 0) this.contenuOrdonnance(plan, basic);
+      if (k === 1) this.contenuQuota(plan, basic);
+      if (k === 2) this.contenuVente(plan, basic);
+      this.helice.add(g);
+      this.portiques.push({ g, y, fil: filMesh });
+    });
+
+    // petites gélules dorées : le médicament qui circule le long du rail
+    this.pilules = new THREE.InstancedMesh(new THREE.CapsuleGeometry(0.07, 0.24, 6, 16), basic(lueur('#ffdca0', 1.4)), 18);
+    this.pilules.frustumCulled = false;
+    this.helice.add(this.pilules);
+  }
+
+  /** Portique 1 : une ordonnance en verre (feuille, lignes de texte, sceau) */
+  private contenuOrdonnance(plan: THREE.Group, basic: (c: THREE.Color, o?: number) => THREE.MeshBasicMaterial) {
+    const w = 0.55, h = 0.75, r = 0.12, f = new THREE.Shape();
+    f.moveTo(-w + r, -h); f.lineTo(w - r, -h); f.quadraticCurveTo(w, -h, w, -h + r); f.lineTo(w, h - r); f.quadraticCurveTo(w, h, w - r, h);
+    f.lineTo(-w + r, h); f.quadraticCurveTo(-w, h, -w, h - r); f.lineTo(-w, -h + r); f.quadraticCurveTo(-w, -h, -w + r, -h);
+    const geo = new THREE.ExtrudeGeometry(f, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 4, curveSegments: 16 });
+    geo.translate(0, 0, -0.025);
+    const papier = this.verre('#cfdcf5', '#6fa8ff', 0.8);      // verre légèrement bleuté : les lignes de texte ressortent dessus
+    papier.transmission = 0.8; papier.emissive = new THREE.Color('#2f56b0'); papier.emissiveIntensity = 0.14;
+    const feuille = new THREE.Mesh(geo, papier);
+    feuille.rotation.z = 0.12;
+    const ligne = (x: number, y: number, long: number, c: string, e: number) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(long, e, 0.012), basic(new THREE.Color(c).multiplyScalar(1.7)));
+      m.position.set(x, y, 0.075); feuille.add(m);
+    };
+    ligne(-0.05, 0.5, 0.6, '#ffffff', 0.045);                                  // le titre
+    [0.28, 0.12, -0.04, -0.2].forEach((y, i) => ligne(-0.1 + (i % 2) * 0.05, y, 0.74 - i * 0.1, '#9cc4ff', 0.022));
+    const sceau = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.022, 12, 48), basic(TEAL.clone().multiplyScalar(1.3)));
+    sceau.position.set(0.2, -0.53, 0.075); feuille.add(sceau);
+    plan.add(feuille);
+  }
+
+  /** Portique 2 : une jauge de quota (l'arc se remplit à hauteur du quota restant) */
+  private contenuQuota(plan: THREE.Group, basic: (c: THREE.Color, o?: number) => THREE.MeshBasicMaterial) {
+    plan.add(new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.045, 12, 120), basic(new THREE.Color('#9cc4ff').multiplyScalar(0.6), 0.35)));
+    this.jaugeMat = basic(TEAL.clone().multiplyScalar(1.25));
+    this.jauge = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.085, 16, 120), this.jaugeMat);
+    this.jauge.rotation.z = Math.PI / 2;                                        // l'arc part du haut
+    const grad = new THREE.InstancedMesh(new THREE.BoxGeometry(0.012, 0.1, 0.012), basic(new THREE.Color('#bcd4ff').multiplyScalar(1.2), 0.6), 40);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), un = new THREE.Vector3(1, 1, 1);
+    for (let i = 0; i < 40; i++) {
+      const a = (i / 40) * Math.PI * 2;
+      q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), a);
+      grad.setMatrixAt(i, m.compose(pos.set(-Math.sin(a) * 1.22, Math.cos(a) * 1.22, 0), q, un));
     }
-    // 2. Les barreaux (paires de bases) : deux moitiés de couleur différente
-    const Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
-    const teintes = ['#a9c4f5', '#a8e3dc', '#bcd6f7', '#9fd9d1'];
-    this.barreaux = new THREE.InstancedMesh(new THREE.CylinderGeometry(RB, RB, 1, 18, 1), this.verre('#ffffff', '#3b6fe6', 1.4), NB_BARREAUX * 2);
-    this.anneaux = new THREE.InstancedMesh(new THREE.TorusGeometry(0.24, 0.022, 16, 72), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }), Math.ceil(NB_BARREAUX / 3) * 2);
-    let k = 0, a = 0;
-    for (let j = 0; j < NB_BARREAUX; j++) {
-      const y = Y_BARREAU(j), P0 = this.point(y, 0), P1 = this.point(y, 1), mil = P0.clone().lerp(P1, 0.5);
-      for (const [A, B, c] of [[P0, mil, teintes[(j * 7) % 4]], [mil, P1, teintes[(j * 7 + 1) % 4]]] as [THREE.Vector3, THREE.Vector3, string][]) {
-        const dir = B.clone().sub(A);
-        this.barreauxInfos.push({ y, pos: A.clone().lerp(B, 0.5), quat: new THREE.Quaternion().setFromUnitVectors(Y, dir.clone().normalize()), long: dir.length() });
-        this.barreaux.setColorAt(k++, new THREE.Color(c));
-      }
-      if (j % 3 === 0) {
-        const dir = P1.clone().sub(P0).normalize(), q = new THREE.Quaternion().setFromUnitVectors(Z, dir);
-        for (const t of [0.2, 0.8]) this.anneauxInfos.push({ y, pos: P0.clone().lerp(P1, t), quat: q });
-        a += 2;
-      }
+    const centre = new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 16), basic(new THREE.Color('#ffffff').multiplyScalar(1.1)));
+    plan.add(this.jauge, grad, centre);
+  }
+
+  /** Portique 3 : la coche de la vente enregistrée, avec des ondes qui s'étendent */
+  private contenuVente(plan: THREE.Group, basic: (c: THREE.Color, o?: number) => THREE.MeshBasicMaterial) {
+    const a = new THREE.Vector3(-0.5, 0.02, 0), b = new THREE.Vector3(-0.2, -0.3, 0), c = new THREE.Vector3(0.52, 0.4, 0);
+    const chemin = new THREE.CatmullRomCurve3([a, a.clone().lerp(b, 0.9), b, b.clone().lerp(c, 0.1), c], false, 'catmullrom', 0.3);
+    const vert = basic(TEAL.clone().multiplyScalar(1.25));
+    this.coche = new THREE.Mesh(new THREE.TubeGeometry(chemin, 60, 0.1, 14, false), vert);
+    this.coche.scale.setScalar(1.3);
+    plan.add(this.coche);
+    for (let i = 0; i < 3; i++) {
+      const o = new THREE.Mesh(new THREE.TorusGeometry(1, 0.012, 8, 120), basic(TEAL.clone().multiplyScalar(1.1), 0.5));
+      this.ondes.push(o); plan.add(o);
     }
-    this.anneaux.count = a;
-    this.anneaux.setColorAt(0, new THREE.Color());
-    this.helice.add(this.barreaux, this.anneaux);
   }
 
   /** Un studio photo virtuel : fond dégradé bleu-gris + grandes boîtes à lumière. Le verre y prend ses reflets nets et ses bords sombres. */
@@ -347,19 +391,37 @@ export class AdnScene implements OnDestroy {
       attenuationColor: new THREE.Color('#d6efec'), attenuationDistance: 9, specularIntensity: 1,
       clearcoat: 1, clearcoatRoughness: 0, envMap: this.studio, envMapIntensity: 1.35, depthWrite: false, transparent: true
     }), 0.72, 2.4);
-    const coque = new THREE.Mesh(new THREE.CapsuleGeometry(1, 2.3, 48, 128), verre);
-    coque.renderOrder = 3;
-    // paroi épaisse : liseré clair sur le bord intérieur + jointure fine des deux moitiés
-    const lisere = new THREE.Mesh(new THREE.CapsuleGeometry(0.9, 2.3, 32, 96), new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, toneMapped: false, uniforms: { opacity: { value: 1 } },
+    // paroi épaisse : liseré clair sur le bord intérieur + bord fin à la coupe
+    const matLisere = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, uniforms: { opacity: { value: 1 } },
       vertexShader: `varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
       fragmentShader: `uniform float opacity; varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(vN, vV)), 5.0); gl_FragColor = vec4(1.0, 1.0, 1.0, f * 0.8 * opacity); }`
-    }));
-    lisere.renderOrder = 4;
-    const jointure = new THREE.Mesh(new THREE.TorusGeometry(1.003, 0.008, 8, 192), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5, depthWrite: false }));
-    jointure.rotation.x = Math.PI / 2; jointure.position.y = 0.4; jointure.renderOrder = 4;
-    this.gelule.add(coque, lisere, jointure);
-    this.fondus.push({ m: verre, max: 1 }, { m: lisere.material as THREE.Material, max: 1 }, { m: jointure.material as THREE.Material, max: 0.5 });
+    });
+    const matBord = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.5, depthWrite: false });
+    // la gélule = 2 moitiés (coupe à y = COUPE) : elles s'écartent pour l'ouvrir
+    const COUPE = 0.4, DEMI = 1.15;
+    const profil = (rayon: number, haut: boolean) => {
+      const pts: THREE.Vector2[] = [], n = 24;
+      if (haut) {
+        pts.push(new THREE.Vector2(rayon, COUPE), new THREE.Vector2(rayon, DEMI));
+        for (let i = 1; i <= n; i++) { const t = (i / n) * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(t) * rayon, DEMI + Math.sin(t) * rayon)); }
+      } else {
+        for (let i = 0; i < n; i++) { const t = (i / n) * Math.PI / 2; pts.push(new THREE.Vector2(Math.sin(t) * rayon, -DEMI - Math.cos(t) * rayon)); }
+        pts.push(new THREE.Vector2(rayon, -DEMI), new THREE.Vector2(rayon, COUPE));
+      }
+      return pts;
+    };
+    for (const haut of [true, false]) {
+      const coque = new THREE.Mesh(new THREE.LatheGeometry(profil(1, haut), 160), verre);
+      coque.renderOrder = 3;
+      const lisere = new THREE.Mesh(new THREE.LatheGeometry(profil(0.9, haut), 96), matLisere);
+      lisere.renderOrder = 4;
+      const bord = new THREE.Mesh(new THREE.TorusGeometry(0.998, 0.01, 8, 192), matBord);
+      bord.rotation.x = Math.PI / 2; bord.position.y = COUPE; bord.renderOrder = 4;
+      (haut ? this.moitieH : this.moitieB).add(coque, lisere, bord);
+    }
+    this.gelule.add(this.moitieH, this.moitieB);
+    this.fondus.push({ m: verre, max: 1 }, { m: matLisere, max: 1 }, { m: matBord, max: 0.5 });
 
     // 2. à l'intérieur : un petit brin d'ADN nacré
     this.matAdnMini = new THREE.MeshPhysicalMaterial({
@@ -479,8 +541,8 @@ export class AdnScene implements OnDestroy {
   private construireGrains() {
     const a = graine(11);
     for (let i = 0; i < 900; i++) {
-      const brin = a() < 0.72, y = (a() * 2 - 1) * L, j = Math.floor(a() * NB_BARREAUX);
-      const yy = brin ? y : Y_BARREAU(j);
+      const brin = a() < 0.5, y = (a() * 2 - 1) * L, j = Math.floor(a() * PORTIQUES.length);
+      const yy = brin ? y : PORTIQUES[j];
       const r = Math.sqrt(a()) * 0.75, th = a() * 6.2832;
       this.grains.push({
         brin, y, s: a() < 0.5 ? 0 : 1, j, t: a(), ang: a() * 6.2832,
@@ -500,7 +562,7 @@ export class AdnScene implements OnDestroy {
     // poussière de lumière qui se détache du haut de l'hélice
     for (let i = 0; i < 260; i++) {
       const y = L - 2.6 + a() * 3.2, s = a() < 0.5 ? 0 : 1;
-      this.poussiere.push({ base: this.point(y, s, 0.6 + a() * 0.9), derive: new THREE.Vector3(a() * 2 - 1, 0.5 + a() * 1.3, a() * 2 - 1), ph: a() * 6.2832 });
+      this.poussiere.push({ base: new THREE.Vector3(Math.cos(s * 3 + a() * 4) * (0.3 + a() * 1.3), y, Math.sin(s * 3 + a() * 4) * (0.3 + a() * 1.3)), derive: new THREE.Vector3(a() * 2 - 1, 0.5 + a() * 1.3, a() * 2 - 1), ph: a() * 6.2832 });
     }
     const m = this.poussiere.length;
     this.geoPoussiere.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m * 3), 3));
@@ -618,7 +680,7 @@ export class AdnScene implements OnDestroy {
 
     this.pivot.rotation.set(v('ax'), 0, v('az'));
     this.helice.position.y = -v('camY');
-    this.helice.rotation.y = -p * 7.2;
+    this.helice.rotation.y = -p * 0.5;
     this.scene.updateMatrixWorld(true);
 
     // ---- ambiance : clair (la gélule) puis nuit jusqu'à la fin
@@ -640,7 +702,7 @@ export class AdnScene implements OnDestroy {
     this.matBrin.envMapIntensity = mix(1.5, 0.75, nuit);
     this.matBrin.attenuationDistance = mix(2.2, 0.9, nuit);
     this.matBrin.color.set('#eef5ff').lerp(new THREE.Color('#bcd4ff'), nuit);
-    this.bloom.strength = mix(0.22, 0.95, nuit);                         // fond clair : presque pas de lueur, rendu net
+    this.bloom.strength = mix(0.22, 0.7, nuit);                         // fond clair : presque pas de lueur, rendu net
     this.bloom.threshold = mix(0.97, 0.72, nuit);
     this.matAdnMini.sheenColor.setHSL(hue / 360, 0.55, 0.8, THREE.SRGBColorSpace);
     // flou de profondeur : fort en gros plan, nul en plan large
@@ -652,49 +714,53 @@ export class AdnScene implements OnDestroy {
     this.ambiance.intensity = mix(0.06, 0.35, nuit);                    // fond clair : de vraies ombres, du relief
     this.douceur.intensity = mix(0.45, 0, nuit);
 
-    // ---- assemblage
+    // ---- assemblage : le rail pousse depuis le centre, puis les 3 portiques s'allument l'un après l'autre
     const forme = borne((p - 0.07) / 0.33);
     const assemble = (y: number) => douce((forme - 0.42 * Math.abs(y) / L - 0.25) / 0.3);
-    const haut = (y: number) => 1 - douce((y - (L - 1.6)) / 1.6);       // le haut se dissout en poussière
-    for (const m of this.brins) {
-      const idx = m.geometry.index!.count, seg = 28 * 6;
-      // un brin pousse depuis le centre : part visible = jusqu'où l'assemblage est arrivé
-      let k = 0; while (k < 1 && assemble(k * L) > 0.5) k += 0.01;
-      const part = Math.min(forme >= 1 ? 1 : borne(k), 1 - defait);
-      const n = Math.floor((idx / seg) * part) * seg;
-      m.geometry.setDrawRange(0, n);
-      m.visible = n > 0;
+    const partRail = Math.min(forme >= 1 ? 1 : douce(forme / 0.75), 1 - defait);
+    this.rail.scale.y = Math.max(0.0001, partRail);
+    this.rail.visible = partRail > 0.002;
+    const vague = mix(-L, L, borne((p - 0.2) / 0.62));                    // l'éclat qui suit la caméra le long du rail
+    const ratio = borne(this.quota());
+    const couleurJauge = ratio > 0.5 ? TEAL : ratio > 0.2 ? AMBRE : ROSE;
+    this.portiques.forEach(pt => {
+      const s = assemble(pt.y) * (1 - defait);
+      pt.g.scale.setScalar(Math.max(0.0001, s)); pt.g.visible = s > 0.002;
+      const I = 0.45 + 0.9 * Math.exp(-((pt.y - vague) ** 2) / (2 * 1.7 * 1.7));
+      (pt.fil.material as THREE.MeshBasicMaterial).color.copy(this.lueur).multiplyScalar(I);
+    });
+    // jauge du quota : elle se remplit au passage du 2e portique, à hauteur du quota restant
+    const remplissage = ratio * douce((p - 0.4) / 0.1);
+    this.jauge.geometry.setDrawRange(0, Math.floor(remplissage * 120) * 16 * 6);
+    this.jaugeMat.color.copy(couleurJauge).multiplyScalar(1.25);
+    // coche de la vente + ondes qui s'étendent (3e portique)
+    const faite = douce((p - 0.58) / 0.08);
+    this.coche.geometry.setDrawRange(0, Math.floor(faite * 60) * 14 * 6);
+    this.ondes.forEach((o, i) => {
+      const ph = (((p - 0.6) * 3.2 + i / 3) % 1 + 1) % 1;
+      o.scale.setScalar(0.35 + ph * 1.2);
+      (o.material as THREE.MeshBasicMaterial).opacity = (1 - ph) * 0.45 * faite;
+    });
+    // les petites gélules dorées avancent avec le défilement
+    const mat = new THREE.Matrix4(), sc = new THREE.Vector3(), qI = new THREE.Quaternion(), pv = new THREE.Vector3();
+    for (let i = 0; i < 18; i++) {
+      const ph = (i / 18 + p * 2.4) % 1, y = mix(-L, L, ph), e = assemble(y) * partRail;
+      this.pilules.setMatrixAt(i, mat.compose(pv.set(0, y, 0), qI, sc.setScalar(Math.max(0.0001, e))));
     }
-    const mat = new THREE.Matrix4(), sc = new THREE.Vector3();
-    this.barreauxInfos.forEach((b, k) => {
-      const s = assemble(b.y) * haut(b.y) * (1 - defait);
-      sc.set(s, b.long * (s > 0.001 ? 1 : 0), s);
-      this.barreaux.setMatrixAt(k, mat.compose(b.pos, b.quat, sc));
-    });
-    this.barreaux.instanceMatrix.needsUpdate = true;
-
-    const vague = mix(-L, L, borne((p - 0.28) / 0.6));
-    const cAnneau = new THREE.Color(), sombreBleu = new THREE.Color().setHSL(hue / 360, 0.8, 0.42);
-    this.anneauxInfos.forEach((a, k) => {
-      const s = assemble(a.y) * haut(a.y) * (1 - defait);
-      this.anneaux.setMatrixAt(k, mat.compose(a.pos, a.quat, sc.set(s, s, s)));
-      const I = 0.3 + 1.7 * Math.exp(-((a.y - vague) ** 2) / (2 * 1.3 * 1.3));
-      cAnneau.copy(sombreBleu).lerp(this.lueur.clone().multiplyScalar(I), nuit);
-      this.anneaux.setColorAt(k, cAnneau);
-    });
-    this.anneaux.instanceMatrix.needsUpdate = true;
-    if (this.anneaux.instanceColor) this.anneaux.instanceColor.needsUpdate = true;
+    this.pilules.instanceMatrix.needsUpdate = true;
 
     // ---- la gélule de verre : la caméra plonge dedans au début, en ressort à la fin
-    let plonge: number, adn: number;
+    let plonge: number, adn: number, ouv: number;
     if (p < 0.5) {
-      plonge = douce((p - 0.055) / 0.17);
+      ouv = douce((p - 0.035) / 0.09);                       // les deux moitiés s'écartent
+      plonge = douce((p - 0.1) / 0.15);
       this.gelule.visible = plonge < 0.999;
       this.gelule.scale.setScalar((large ? 1.8 : 1.5) * (1 + plonge * plonge * 5));
       this.gelule.rotation.set(0.12, -0.25 + p * 2.4, -0.62);
       this.gelule.position.set(0, large ? -0.05 : -1.3, plonge * 6);
-      adn = 1 - douce((p - 0.08) / 0.1);                      // le petit ADN se défait en grains
+      adn = 1 - douce((p - 0.11) / 0.1);                      // le petit ADN se défait en grains
     } else {
+      ouv = 1 - douce((retour - 0.72) / 0.28);               // la gélule se referme
       plonge = 1 - retour;
       this.gelule.visible = retour > 0.001;
       this.gelule.scale.setScalar((large ? 1.6 : 1.15) * (1 + plonge * plonge * 5));
@@ -703,6 +769,8 @@ export class AdnScene implements OnDestroy {
       adn = douce((retour - 0.55) / 0.4);
     }
     const taille = 1 - plonge;
+    this.moitieH.position.y = ouv * 1.5;
+    this.moitieB.position.y = -ouv * 2;
     this.adnMini.visible = adn > 0.01;
     this.adnMini.scale.setScalar(Math.max(0.001, adn));
     this.adnMini.rotation.set(0, p * 4, 0.08);
@@ -752,8 +820,11 @@ export class AdnScene implements OnDestroy {
     this.grains.forEach((g, k) => {
       const e = douce((forme - g.retard) / 0.38);
       depart.copy(g.depart).applyMatrix4(this.gelule.matrixWorld);
-      if (g.brin) arrivee.copy(this.point(g.y, g.s)).add(tmp.set(Math.cos(g.ang) * RT * 0.5, 0, Math.sin(g.ang) * RT * 0.5));
-      else arrivee.copy(this.point(Y_BARREAU(g.j), 0)).lerp(this.point(Y_BARREAU(g.j), 1), g.t);
+      if (g.brin) arrivee.set(Math.cos(g.ang) * 0.1 * (0.3 + g.t), g.y, Math.sin(g.ang) * 0.1 * (0.3 + g.t));        // le rail
+      else {                                                                                                          // les portiques
+        const r = RAYON_PORTIQUE + (g.t - 0.5) * 0.12;
+        arrivee.set(Math.cos(g.ang) * r, PORTIQUES[g.j], Math.sin(g.ang) * r);
+      }
       arrivee.applyMatrix4(this.helice.matrixWorld);
       if (retour > 0) {
         // fin : le grain quitte l'hélice et rentre dans la gélule

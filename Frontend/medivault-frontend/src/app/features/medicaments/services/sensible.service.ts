@@ -3,7 +3,8 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Observable, catchError, forkJoin, map, of, shareReplay, tap, throwError, timeout } from 'rxjs';
 import {
   Attribution, Bilan, Disponibilite, LotRequest, MedicamentSensible, NouveauMedicament, Pharmacie,
-  ResultatLot, ResultatVente, StatutAttribution, VenteSensible, EtapeVente, moisDe
+  ResultatLot, ResultatVente, StatutAttribution, VenteSensible, EtapeVente, moisDe,
+  PrevisionMedicament, RisquePharmacie, TentativeRefusee
 } from '../models/sensible.model';
 
 // ---------------------------------------------------------------------------
@@ -113,6 +114,10 @@ export class SensibleService {
   readonly medicaments = signal<MedicamentSensible[]>(MEDICAMENTS);
   readonly attributions = signal<Attribution[]>(attributionsDemo());
   readonly ventes = signal<VenteSensible[]>(ventesDemo(this.attributions()));
+  // surveillance (venue du back : vide en mode démonstration)
+  readonly risques = signal<RisquePharmacie[]>([]);
+  readonly refus = signal<TentativeRefusee[]>([]);
+  readonly previsions = signal<PrevisionMedicament[]>([]);
 
   private pret$?: Observable<void>;
 
@@ -122,7 +127,18 @@ export class SensibleService {
   }
   private rafraichirQuotas() {
     this.http.get<Attribution[]>('/api/attributions').pipe(catchError(() => of(null))).subscribe(a => a && this.attributions.set(a.map(x => this.deApi(x))));
+    this.rafraichirSurveillance();
   }
+
+  /** Score de risque, historique des refus et prévisions : chacun se recharge seul, et reste vide s'il ne répond pas */
+  private rafraichirSurveillance() {
+    this.http.get<RisquePharmacie[]>('/api/risques').pipe(catchError(() => of(null))).subscribe(r => r && this.risques.set(r.map(x => this.deApi(x))));
+    this.http.get<TentativeRefusee[]>('/api/tentatives-refusees').pipe(catchError(() => of(null))).subscribe(t => t && this.refus.set(t.map(x => this.deApi(x))));
+    this.http.get<PrevisionMedicament[]>('/api/previsions/medicaments').pipe(catchError(() => of(null))).subscribe(p => p && this.previsions.set(p));
+  }
+
+  /** La prévision d'épuisement de ce médicament ce mois-ci (s'il a des quotas) */
+  prevision(medicamentId: number) { return this.previsions().find(p => p.medicamentId === medicamentId); }
 
   // ---------- Chiffres utiles aux pages ----------
   readonly attributionsDuMois = computed(() => this.attributions().filter(a => a.mois === this.moisCourant));
@@ -155,6 +171,7 @@ export class SensibleService {
         this.attributions.set(a.map(x => this.deApi(x)));
         this.ventes.set(v.map(x => this.deApi(x)));
         this.enLigne.set(true);
+        this.rafraichirSurveillance();
       }),
       map(() => void 0),
       catchError(() => {

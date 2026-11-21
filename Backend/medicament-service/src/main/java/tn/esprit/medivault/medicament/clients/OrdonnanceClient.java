@@ -12,7 +12,7 @@ import tn.esprit.medivault.medicament.dto.ExterneDtos;
 @FeignClient(name = "ordonnance-service", fallbackFactory = OrdonnanceClientFallbackFactory.class)
 public interface OrdonnanceClient {
 
-    // GET /api/ordonnances/ORD-2026-0123 : l'ordonnance avec son statut et ses lignes (médicament, quantité)
-    @GetMapping("/api/ordonnances/{code}")
+    // GET /api/ordonnances/code/ORD-2026-0123 : l'ordonnance avec son statut et ses lignes (médicament, quantité)
+    @GetMapping("/api/ordonnances/code/{code}")
     ExterneDtos.Ordonnance parCode(@PathVariable("code") String code);
 }

@@ -13,6 +13,7 @@ import tn.esprit.medivault.medicament.entities.Categorie;
 import tn.esprit.medivault.medicament.entities.MedicamentSensible;
 import tn.esprit.medivault.medicament.repositories.AttributionRepository;
 import tn.esprit.medivault.medicament.repositories.MedicamentSensibleRepository;
+import tn.esprit.medivault.medicament.repositories.TentativeRefuseeRepository;
 import tn.esprit.medivault.medicament.repositories.VenteSensibleRepository;
 
 import java.time.YearMonth;
@@ -39,6 +40,8 @@ abstract class ApiTestBase {
     @Autowired
     protected VenteSensibleRepository ventes;
     @Autowired
+    protected TentativeRefuseeRepository tentatives;
+    @Autowired
     private JdbcTemplate jdbc;
 
     // RabbitMQ n'est pas disponible pendant les tests : on vérifie seulement ce qui serait publié
@@ -49,6 +52,7 @@ abstract class ApiTestBase {
     // (les ordonnances simulées parlent des médicaments 1, 2, 3...)
     @BeforeEach
     void viderLaBase() {
+        tentatives.deleteAll();
         ventes.deleteAll();
         attributions.deleteAll();
         medicaments.deleteAll();

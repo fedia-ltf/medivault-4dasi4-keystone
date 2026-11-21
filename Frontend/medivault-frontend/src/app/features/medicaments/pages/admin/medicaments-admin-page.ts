@@ -9,8 +9,7 @@ import { SidePanel } from '../../components/side-panel';
 import { QuotaBar } from '../../components/quota-bar';
 import { CategorieBadge } from '../../components/categorie-badge';
 import {
-  Attribution, CATEGORIES, Categorie, MedicamentSensible, ResultatLot, VenteSensible, categorieInfo, libelleMois
-} from '../../models/sensible.model';
+  Attribution, CATEGORIES, Categorie, MedicamentSensible, ResultatLot, VenteSensible, categorieInfo, libelleMois, MotifRefus, NiveauPrevision, NiveauRisque } from '../../models/sensible.model';
 import { SensibleService } from '../../services/sensible.service';
 
 type Onglet = 'catalogue' | 'quotas' | 'ventes';
@@ -93,6 +92,17 @@ export class MedicamentsAdminPage {
       };
     }).filter(l => l.quotas.length)
   );
+
+  // ---------- Surveillance : pharmacies à surveiller, ventes refusées, prévision ----------
+  protected aSurveiller = computed(() => this.s.risques().filter(r => r.niveau !== 'FAIBLE'));
+  protected refusRecents = computed(() => this.s.refus().slice(0, 10));
+  protected libelleMotif(m: MotifRefus) {
+    return { PHARMACIE_INACTIVE: 'Pharmacie inactive', AUCUN_QUOTA: 'Aucun quota', PHARMACIE_SUSPENDUE: 'Pharmacie suspendue',
+      ORDONNANCE_NON_JUSTIFIEE: 'Ordonnance non justifiée', QUOTA_EPUISE: 'Quota épuisé' }[m];
+  }
+  protected tonRisque(n: NiveauRisque) { return n === 'ELEVE' ? 'bg-rose-50 text-rose-700' : n === 'MOYEN' ? 'bg-sky-50 text-sky-700' : 'bg-emerald-50 text-emerald-700'; }
+  protected libelleRisque(n: NiveauRisque) { return { FAIBLE: 'Faible', MOYEN: 'À surveiller', ELEVE: 'Risque élevé' }[n]; }
+  protected tonPrevision(n: NiveauPrevision) { return n === 'ALERTE' || n === 'EPUISE' ? 'bg-rose-50 text-rose-800' : n === 'A_SURVEILLER' ? 'bg-sky-50 text-sky-900' : 'bg-emerald-50 text-emerald-800'; }
 
   protected fPharma = signal(0);
   protected fMed = signal(0);

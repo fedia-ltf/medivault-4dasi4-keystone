@@ -11,7 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import tn.esprit.medivault.medicament.dto.VenteDtos;
 import tn.esprit.medivault.medicament.entities.Attribution;
+import tn.esprit.medivault.medicament.entities.MedicamentSensible;
+import tn.esprit.medivault.medicament.entities.MotifRefus;
 import tn.esprit.medivault.medicament.entities.VenteSensible;
+import tn.esprit.medivault.medicament.events.QuotaBientotEpuise;
 import tn.esprit.medivault.medicament.events.SanctionPharmacie;
 import tn.esprit.medivault.medicament.events.VenteSensibleEnregistree;
 import tn.esprit.medivault.medicament.exceptions.RessourceIntrouvableException;
@@ -46,6 +49,7 @@ public class VenteService {
     private final AttributionRepository attributions;
     private final VenteSensibleRepository ventes;
     private final VerificationExterne verification;
+    private final TentativeRefuseeService tentatives;
     private final ApplicationEventPublisher evenements;
     private final TransactionTemplate transaction;
     private final Clock clock;
@@ -54,39 +58,41 @@ public class VenteService {
     // AVANT la transaction, pour ne pas garder une connexion à la base ouverte pendant l'attente.
     public ResultatVente declarer(VenteDtos.Requete requete) {
         String pharmacieId = requete.pharmacieId().trim();
-        if (!medicaments.existsById(requete.medicamentId())) {
-            throw new RessourceIntrouvableException("Médicament sensible introuvable : " + requete.medicamentId());
-        }
+        MedicamentSensible medicament = medicaments.findById(requete.medicamentId())
+                .orElseThrow(() -> new RessourceIntrouvableException("Médicament sensible introuvable : " + requete.medicamentId()));
         if (!verification.pharmacieActive(pharmacieId)) {
-            return ResultatVente.refus(HttpStatus.FORBIDDEN, "Pharmacie inactive",
-                    "Cette pharmacie n'est pas active : aucune vente n'est autorisée.", null);
+            String motif = "Cette pharmacie n'est pas active : aucune vente n'est autorisée.";
+            tracer(medicament, pharmacieId, requete, MotifRefus.PHARMACIE_INACTIVE, motif);
+            return ResultatVente.refus(HttpStatus.FORBIDDEN, "Pharmacie inactive", motif, null);
         }
         OrdonnanceVerifiee ordonnance = verification.ordonnance(requete.ordonnanceCode().trim());
-        return transaction.execute(statut -> enregistrer(requete, pharmacieId, ordonnance));
+        return transaction.execute(statut -> enregistrer(requete, medicament, pharmacieId, ordonnance));
     }
 
     // Tout ce qui suit est une seule transaction : vente, quota et avertissement sont enregistrés ensemble.
-    private ResultatVente enregistrer(VenteDtos.Requete requete, String pharmacieId, OrdonnanceVerifiee ordonnance) {
+    private ResultatVente enregistrer(VenteDtos.Requete requete, MedicamentSensible medicament, String pharmacieId, OrdonnanceVerifiee ordonnance) {
         YearMonth mois = YearMonth.now(clock);
         // Le quota est verrouillé : deux ventes simultanées ne peuvent pas dépasser le quota (RG2)
         Attribution quota = attributions.trouverPourVente(pharmacieId, requete.medicamentId(), mois).orElse(null);
         if (quota == null) {
-            return ResultatVente.refus(HttpStatus.FORBIDDEN, "Aucun quota",
-                    "Aucun quota n'est attribué à cette pharmacie pour ce médicament ce mois-ci.", null);
+            String motif = "Aucun quota n'est attribué à cette pharmacie pour ce médicament ce mois-ci.";
+            tracer(medicament, pharmacieId, requete, MotifRefus.AUCUN_QUOTA, motif);
+            return ResultatVente.refus(HttpStatus.FORBIDDEN, "Aucun quota", motif, null);
         }
         if (quota.estSuspendue()) {
-            return ResultatVente.refus(HttpStatus.FORBIDDEN, "Pharmacie suspendue",
-                    "Cette pharmacie est suspendue pour " + quota.getMedicament().getNomCommercial() + " : vente impossible.", quota);
+            String motif = "Cette pharmacie est suspendue pour " + quota.getMedicament().getNomCommercial() + " : vente impossible.";
+            tracer(medicament, pharmacieId, requete, MotifRefus.PHARMACIE_SUSPENDUE, motif);
+            return ResultatVente.refus(HttpStatus.FORBIDDEN, "Pharmacie suspendue", motif, quota);
         }
 
         // RG1 : justification par une ordonnance
         String motifOrdonnance = motifOrdonnanceRefusee(ordonnance, requete);
         if (motifOrdonnance != null) {
-            return faute(quota, "Vente non justifiée", motifOrdonnance);
+            return faute(quota, requete, MotifRefus.ORDONNANCE_NON_JUSTIFIEE, "Vente non justifiée", motifOrdonnance);
         }
         // RG2 : quota du mois
         if (requete.quantite() > quota.reste()) {
-            return faute(quota, "Quota épuisé", "Quota du mois insuffisant : il reste " + Math.max(0, quota.reste())
+            return faute(quota, requete, MotifRefus.QUOTA_EPUISE, "Quota épuisé", "Quota du mois insuffisant : il reste " + Math.max(0, quota.reste())
                     + " boîte(s) pour " + requete.quantite() + " demandée(s).");
         }
 
@@ -98,7 +104,13 @@ public class VenteService {
                 .date(LocalDateTime.now(clock))
                 .attribution(quota)
                 .build());
+        int pourcentageAvant = quota.pourcentageUtilise();
         quota.ajouterVente(requete.quantite());
+        // Alerte à 80 % : UNE seule fois, au moment où la vente fait passer le quota sous puis au-dessus du seuil
+        if (pourcentageAvant < Attribution.SEUIL_ALERTE && quota.pourcentageUtilise() >= Attribution.SEUIL_ALERTE) {
+            evenements.publishEvent(new QuotaBientotEpuise(pharmacieId, medicament.getId(), medicament.getNomCommercial(),
+                    quota.pourcentageUtilise(), quota.reste(), LocalDateTime.now(clock)));
+        }
         // Publié APRES la validation de la transaction (voir EvenementsPublisher)
         evenements.publishEvent(new VenteSensibleEnregistree(ordonnance.id(), requete.medicamentId(),
                 requete.quantite(), pharmacieId, vente.getDate()));
@@ -128,14 +140,21 @@ public class VenteService {
     }
 
     // RG3 : une faute = 1 avertissement ; au 2e, SUSPENDUE. Le pharmacien est prévenu (SanctionPharmacie).
-    private ResultatVente faute(Attribution quota, String titre, String motif) {
+    private ResultatVente faute(Attribution quota, VenteDtos.Requete requete, MotifRefus type, String titre, String motif) {
         quota.ajouterAvertissement();
+        tracer(quota.getMedicament(), quota.getPharmacieId(), requete, type, motif);
         SanctionPharmacie.Niveau niveau = quota.estSuspendue() ? SanctionPharmacie.Niveau.SUSPENSION : SanctionPharmacie.Niveau.AVERTISSEMENT;
         evenements.publishEvent(new SanctionPharmacie(quota.getPharmacieId(), niveau,
                 titre + " (" + quota.getMedicament().getNomCommercial() + ") : " + motif, LocalDateTime.now(clock)));
         log.warn("Faute de la pharmacie {} : {} -> {} avertissement(s), statut {}", quota.getPharmacieId(), motif,
                 quota.getAvertissements(), quota.getStatut());
         return ResultatVente.refus(HttpStatus.CONFLICT, titre, motif, quota);
+    }
+
+    // Historique des refus : chaque refus laisse une trace (qui, quoi, quand, pourquoi)
+    private void tracer(MedicamentSensible medicament, String pharmacieId, VenteDtos.Requete requete, MotifRefus type, String motif) {
+        tentatives.tracer(pharmacieId, medicament.getId(), medicament.getNomCommercial(), requete.ordonnanceCode().trim(),
+                requete.quantite(), type, motif);
     }
 
     // GET /ventes : qui a acheté, avec quelle ordonnance (filtres facultatifs)

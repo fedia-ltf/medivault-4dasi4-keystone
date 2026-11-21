@@ -60,7 +60,8 @@ public class DonneesDemo implements ApplicationRunner {
 
         YearMonth mois = YearMonth.now(clock);
         int compteur = 0;
-        // 8 pharmacies d'exemple ("1" à "8") ; chaque médicament est attribué à 5 d'entre elles
+        // 8 pharmacies d'exemple : "pharmacie-centrale" (le compte de démonstration du user-service) puis "2" à "8" ;
+        // chaque médicament est attribué à 5 d'entre elles
         for (MedicamentSensible m : liste) {
             for (int p = 1; p <= 8; p++) {
                 if ((p + m.getId().intValue()) % 8 >= 5) {
@@ -68,7 +69,7 @@ public class DonneesDemo implements ApplicationRunner {
                 }
                 int quota = 40 + ((p * 7 + m.getId().intValue() * 13) % 8) * 10;
                 Attribution a = attributions.save(Attribution.builder()
-                        .pharmacieId(String.valueOf(p)).medicament(m).mois(mois).quantiteAttribuee(quota).build());
+                        .pharmacieId(p == 1 ? "pharmacie-centrale" : String.valueOf(p)).medicament(m).mois(mois).quantiteAttribuee(quota).build());
                 // quelques ventes passées, cohérentes avec la quantité vendue du quota
                 int vendu = 0;
                 for (int v = 0; v < 3; v++) {

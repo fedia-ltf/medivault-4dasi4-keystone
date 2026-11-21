@@ -12,6 +12,18 @@ import {
 // (RG1 ordonnance validée, RG2 quota, RG3 avertissements → suspension), en mémoire.
 // ---------------------------------------------------------------------------
 
+/**
+ * Identifiants des pharmacies côté back : « Pharmacie Centrale » est le compte de démonstration du user-service
+ * (id texte « pharmacie-centrale »). Les autres gardent leur numéro. Le front, lui, compare des nombres.
+ */
+const ID_BACK: Record<number, string> = { 1: 'pharmacie-centrale' };
+const versBack = (id: number): string => ID_BACK[id] ?? String(id);
+const depuisBack = (id: unknown): unknown => {
+  if (typeof id !== 'string') return id;
+  const connu = Object.entries(ID_BACK).find(([, texte]) => texte === id);
+  return connu ? Number(connu[0]) : /^\d+$/.test(id) ? Number(id) : id;
+};
+
 export const PHARMACIES: Pharmacie[] = [
   { id: 1, nom: 'Pharmacie Centrale', ville: 'Tunis' },
   { id: 2, nom: 'Pharmacie de la Marsa', ville: 'La Marsa' },
@@ -101,10 +113,9 @@ export class SensibleService {
 
   private pret$?: Observable<void>;
 
-  /** Le back (user-service) identifie les pharmacies par un texte ("1") ; le front les compare comme des nombres */
+  /** Le back identifie les pharmacies par un texte ("pharmacie-centrale", "2"…) ; le front les compare comme des nombres */
   private deApi<T extends { pharmacieId: unknown }>(x: T): T {
-    const id = x.pharmacieId;
-    return { ...x, pharmacieId: typeof id === 'string' && /^\d+$/.test(id) ? Number(id) : id };
+    return { ...x, pharmacieId: depuisBack(x.pharmacieId) };
   }
   private rafraichirQuotas() {
     this.http.get<Attribution[]>('/api/attributions').pipe(catchError(() => of(null))).subscribe(a => a && this.attributions.set(a.map(x => this.deApi(x))));
@@ -181,9 +192,9 @@ export class SensibleService {
   // ---------- Quotas (attributions) ----------
   attribuerLot(req: LotRequest): Observable<ResultatLot> {
     if (!this.demo()) {
-      const corps = { medicamentId: req.medicamentId, mois: req.mois, quantiteAttribuee: req.quantite, pharmacieIds: req.pharmacieIds.map(String) };
+      const corps = { medicamentId: req.medicamentId, mois: req.mois, quantiteAttribuee: req.quantite, pharmacieIds: req.pharmacieIds.map(versBack) };
       return this.http.post<{ attributions: Attribution[]; pharmaciesIgnorees: string[] }>('/api/attributions/lot', corps).pipe(
-        map(r => ({ creees: r.attributions.map(x => this.deApi(x)), ignorees: r.pharmaciesIgnorees.map(Number) } as ResultatLot)),
+        map(r => ({ creees: r.attributions.map(x => this.deApi(x)), ignorees: r.pharmaciesIgnorees.map(i => depuisBack(i) as number) } as ResultatLot)),
         tap(r => this.attributions.update(l => [...l, ...r.creees]))
       );
     }
@@ -262,7 +273,7 @@ export class SensibleService {
     ];
 
     if (!this.demo()) {
-      return this.http.post<VenteSensible>('/api/ventes', { pharmacieId: String(pid), ...req }).pipe(
+      return this.http.post<VenteSensible>('/api/ventes', { pharmacieId: versBack(pid), ...req }).pipe(
         map(v => this.deApi(v)),
         map(v => {
           this.ventes.update(l => [v, ...l]);

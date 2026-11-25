@@ -30,6 +30,12 @@ public class InfirmierServiceImpl implements IInfirmierService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Infirmier> rechercher(String pharmacieId, String texte) {
+        return repo.rechercher(pharmacieId, texte == null ? "" : texte.trim());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Infirmier getById(Long id) {
         return repo.findById(id).orElseThrow(() -> new RessourceIntrouvableException("Infirmier " + id + " introuvable"));
     }

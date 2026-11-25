@@ -10,7 +10,10 @@ import tn.esprit.medivault.soindomicile.clients.MedicamentClient;
 import tn.esprit.medivault.soindomicile.messaging.SoinEventPublisher;
 import tn.esprit.medivault.soindomicile.repositories.InfirmierRepository;
 import tn.esprit.medivault.soindomicile.repositories.VisiteRepository;
+import tn.esprit.medivault.soindomicile.specifications.VisiteSpecifications;
+import org.springframework.data.domain.Sort;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -54,6 +57,17 @@ public class VisiteServiceImpl implements IVisiteService {
         }
         if (patientId != null) return repo.findByPatientIdOrderByDateAsc(patientId);
         return repo.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Visite> rechercher(String patientId, String pharmacieId, StatutVisite statut, TypeSoin typeSoin,
+                                   String texte, LocalDate du, LocalDate au) {
+        if (du != null && au != null && au.isBefore(du)) {
+            throw new RegleMetierException("La date de fin de recherche doit être après la date de début");
+        }
+        return repo.findAll(VisiteSpecifications.recherche(patientId, pharmacieId, statut, typeSoin, texte, du, au),
+                Sort.by("date"));
     }
 
     @Override

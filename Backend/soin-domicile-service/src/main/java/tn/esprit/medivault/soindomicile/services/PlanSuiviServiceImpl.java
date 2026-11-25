@@ -7,6 +7,8 @@ import tn.esprit.medivault.soindomicile.dto.*;
 import tn.esprit.medivault.soindomicile.entities.*;
 import tn.esprit.medivault.soindomicile.exceptions.*;
 import tn.esprit.medivault.soindomicile.repositories.*;
+import tn.esprit.medivault.soindomicile.specifications.PlanSuiviSpecifications;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,6 +41,13 @@ public class PlanSuiviServiceImpl implements IPlanSuiviService {
         if (patientId != null) return planRepo.findByPatientId(patientId);
         if (medecinId != null) return planRepo.findByMedecinId(medecinId);
         return planRepo.findAll();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlanSuivi> rechercher(String medecinId, String patientId, TypeSoin typeSoin, String texte, Boolean enCours) {
+        return planRepo.findAll(PlanSuiviSpecifications.recherche(medecinId, patientId, typeSoin, texte, enCours),
+                Sort.by(Sort.Direction.DESC, "dateDebut"));
     }
 
     @Override

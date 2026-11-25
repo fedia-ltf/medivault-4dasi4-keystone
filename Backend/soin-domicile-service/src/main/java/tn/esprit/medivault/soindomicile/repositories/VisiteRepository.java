@@ -1,6 +1,7 @@
 package tn.esprit.medivault.soindomicile.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import tn.esprit.medivault.soindomicile.entities.StatutVisite;
 import tn.esprit.medivault.soindomicile.entities.TypeSoin;
 import tn.esprit.medivault.soindomicile.entities.Visite;
@@ -9,7 +10,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
-public interface VisiteRepository extends JpaRepository<Visite, Long> {
+public interface VisiteRepository extends JpaRepository<Visite, Long>, JpaSpecificationExecutor<Visite> {
 
     List<Visite> findByPatientIdOrderByDateAsc(String patientId);
 

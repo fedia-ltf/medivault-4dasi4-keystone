@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { EMPTY, Subject, catchError, debounceTime, switchMap } from 'rxjs';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -7,7 +9,8 @@ import { AuthService } from '../../../core/auth.service';
 import { PlanService } from '../services/plan.service';
 import { messageErreur } from '../services/soin.service';
 import {
-  FREQUENCES, PHARMACIES, PlanSuivi, PlanSuiviRequest, STATUTS, TYPES_SOIN, Visite, estAnormale, libelleSoin, nomPharmacie
+  FREQUENCES, PHARMACIES, PlanSuivi, PlanSuiviRequest, RecherchePlans, STATUTS, TYPES_SOIN, Visite, estAnormale, libelleSoin,
+  nomPharmacie
 } from '../models/visite.model';
 
 // Espace médecin : prescrire un suivi à domicile régulier et consulter les mesures relevées
@@ -20,6 +23,7 @@ import {
 export class EspaceMedecin implements OnInit {
   private plans = inject(PlanService);
   private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
 
   protected readonly typesSoin = TYPES_SOIN;
   protected readonly frequences = FREQUENCES;
@@ -29,7 +33,13 @@ export class EspaceMedecin implements OnInit {
   protected readonly nomPharmacie = nomPharmacie;
   protected readonly estAnormale = estAnormale;
 
-  protected readonly mesPlans = signal<PlanSuivi[]>([]);
+  protected readonly tousMesPlans = signal<PlanSuivi[]>([]);
+
+  // ---------- Recherche des plans (/api/plans/recherche?medecinId=...) ----------
+  protected filtre: RecherchePlans = this.filtreVide();
+  protected readonly resultats = signal<PlanSuivi[] | null>(null);   // null = pas de recherche
+  private readonly recherche$ = new Subject<RecherchePlans>();
+  protected readonly mesPlans = computed(() => this.resultats() ?? this.tousMesPlans());
   protected readonly ouvert = signal<number | null>(null);
   protected readonly visites = signal<Visite[]>([]);
   protected readonly message = signal('');
@@ -41,14 +51,36 @@ export class EspaceMedecin implements OnInit {
 
   private get medecinId(): string { return this.auth.utilisateur()?.email ?? ''; }
 
-  ngOnInit(): void { this.charger(); }
+  ngOnInit(): void {
+    this.recherche$.pipe(
+      debounceTime(300),
+      switchMap(f => this.plans.rechercher(f).pipe(catchError(e => { this.afficherErreur(e); return EMPTY; }))),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(p => this.resultats.set(p));
+    this.charger();
+  }
 
   protected charger(): void {
     this.plans.lister(this.medecinId).subscribe({
-      next: p => this.mesPlans.set([...p].reverse()),
+      next: p => this.tousMesPlans.set([...p].reverse()),
       error: e => this.afficherErreur(e)
     });
+    this.rechercher();
   }
+
+  /** Recherche parmi MES plans : le medecinId est toujours envoyé. */
+  protected rechercher(): void {
+    const { q, typeSoin, enCours } = this.filtre;
+    if (!q?.trim() && !typeSoin && !enCours) { this.resultats.set(null); return; }
+    this.recherche$.next({ ...this.filtre, medecinId: this.medecinId });
+  }
+
+  protected effacerRecherche(): void {
+    this.filtre = this.filtreVide();
+    this.resultats.set(null);
+  }
+
+  private filtreVide(): RecherchePlans { return { q: '', typeSoin: '', enCours: '' }; }
 
   protected creer(): void {
     const seuils = [

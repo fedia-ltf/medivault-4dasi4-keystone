@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { EMPTY, Subject, catchError, debounceTime, switchMap } from 'rxjs';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -7,7 +9,8 @@ import { AuthService } from '../../../core/auth.service';
 import { SoinService, messageErreur } from '../services/soin.service';
 import { InfirmierService } from '../services/infirmier.service';
 import {
-  Infirmier, InfirmierRequest, PHARMACIE_DU_PHARMACIEN, lienCarte, RapportRequest, STATUTS, Visite, libelleSoin, nomPharmacie
+  Infirmier, InfirmierRequest, PHARMACIE_DU_PHARMACIEN, lienCarte, RapportRequest, RechercheVisites, STATUTS, TYPES_SOIN,
+  Visite, libelleSoin, nomPharmacie
 } from '../models/visite.model';
 
 type Onglet = 'attente' | 'arealiser' | 'historique' | 'infirmiers';
@@ -23,6 +26,7 @@ export class EspacePharmacien implements OnInit {
   private soin = inject(SoinService);
   private auth = inject(AuthService);
   private infirmierApi = inject(InfirmierService);
+  private destroyRef = inject(DestroyRef);
 
   protected readonly statuts = STATUTS;
   protected readonly infirmiers = signal<Infirmier[]>([]);
@@ -41,8 +45,26 @@ export class EspacePharmacien implements OnInit {
   protected readonly aRealiser = computed(() => this.trier(this.visites().filter(v => v.statut === 'ACCEPTEE')));
   protected readonly historique = computed(() =>
     this.trier(this.visites().filter(v => v.statut === 'REALISEE' || v.statut === 'ANNULEE')).reverse());
+
+  // ---------- Recherche (côté serveur : /api/visites/recherche et /api/infirmiers/recherche) ----------
+  protected readonly typesSoin = TYPES_SOIN;
+  protected filtre: RechercheVisites = this.filtreVide();
+  protected rechercheInfirmier = '';
+  /** null = pas de recherche en cours : on affiche toutes les visites / tous les infirmiers. */
+  protected readonly resultats = signal<Visite[] | null>(null);
+  protected readonly infirmiersTrouves = signal<Infirmier[] | null>(null);
+  private readonly rechercheVisites$ = new Subject<RechercheVisites>();
+  private readonly rechercheInfirmiers$ = new Subject<string>();
+
+  // Les onglets montrent le résultat de la recherche ; les compteurs du haut restent sur toutes les visites
+  private readonly source = computed(() => this.resultats() ?? this.visites());
+  protected readonly fAttente = computed(() => this.trier(this.source().filter(v => v.statut === 'DEMANDEE')));
+  protected readonly fARealiser = computed(() => this.trier(this.source().filter(v => v.statut === 'ACCEPTEE')));
+  protected readonly fHistorique = computed(() =>
+    this.trier(this.source().filter(v => v.statut === 'REALISEE' || v.statut === 'ANNULEE')).reverse());
   protected readonly liste = computed(() =>
-    this.onglet() === 'attente' ? this.enAttente() : this.onglet() === 'arealiser' ? this.aRealiser() : this.historique());
+    this.onglet() === 'attente' ? this.fAttente() : this.onglet() === 'arealiser' ? this.fARealiser() : this.fHistorique());
+  protected readonly infirmiersAffiches = computed(() => this.infirmiersTrouves() ?? this.infirmiers());
 
   protected infirmierChoisi: Infirmier | null = null;
   protected readonly enEdition = signal<number | 'nouveau' | null>(null);
@@ -51,7 +73,23 @@ export class EspacePharmacien implements OnInit {
 
   private get pharmacienId(): string { return this.auth.utilisateur()?.email ?? ''; }
 
-  ngOnInit(): void { this.charger(); }
+  ngOnInit(): void {
+    // On attend 300 ms après la dernière frappe, et seule la dernière recherche compte (switchMap)
+    this.rechercheVisites$.pipe(
+      debounceTime(300),
+      switchMap(f => this.soin.rechercher(f).pipe(catchError(e => { this.afficherErreur(e); return EMPTY; }))),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(v => this.resultats.set(v));
+
+    this.rechercheInfirmiers$.pipe(
+      debounceTime(300),
+      switchMap(q => this.infirmierApi.rechercher(PHARMACIE_DU_PHARMACIEN, q)
+        .pipe(catchError(e => { this.afficherErreur(e); return EMPTY; }))),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(l => this.infirmiersTrouves.set(l));
+
+    this.charger();
+  }
 
   protected charger(): void {
     this.soin.lister({ pharmacieId: PHARMACIE_DU_PHARMACIEN }).subscribe({
@@ -59,7 +97,34 @@ export class EspacePharmacien implements OnInit {
       error: e => this.afficherErreur(e)
     });
     this.chargerInfirmiers();
+    this.rechercher();             // garde le résultat de la recherche à jour après une action
+    this.rechercherInfirmiers();
   }
+
+  /** Lance la recherche des visites, ou l'annule si aucun critère n'est rempli. */
+  protected rechercher(): void {
+    const { q, typeSoin, du, au } = this.filtre;
+    if (!q?.trim() && !typeSoin && !du && !au) { this.resultats.set(null); return; }
+    this.rechercheVisites$.next({ ...this.filtre, pharmacieId: PHARMACIE_DU_PHARMACIEN });
+  }
+
+  protected effacerRecherche(): void {
+    this.filtre = this.filtreVide();
+    this.resultats.set(null);
+  }
+
+  protected rechercherInfirmiers(): void {
+    const q = this.rechercheInfirmier.trim();
+    if (!q) { this.infirmiersTrouves.set(null); return; }
+    this.rechercheInfirmiers$.next(q);
+  }
+
+  protected effacerRechercheInfirmiers(): void {
+    this.rechercheInfirmier = '';
+    this.infirmiersTrouves.set(null);
+  }
+
+  private filtreVide(): RechercheVisites { return { q: '', typeSoin: '', du: '', au: '' }; }
 
   // ---------- Mes infirmiers : ajouter, modifier, supprimer ----------
   private chargerInfirmiers(): void {

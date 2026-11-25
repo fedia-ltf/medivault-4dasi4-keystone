@@ -28,9 +28,9 @@
       <p class="text-sm text-ink-400">Demandes, soins confirmés et infirmiers.</p>
     </div>
     <div class="flex flex-wrap gap-1.5 rounded-full bg-ink-50 p-1">
-      <button type="button" (click)="onglet.set('attente')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'attente' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">En attente ({{ enAttente().length }})</button>
-      <button type="button" (click)="onglet.set('arealiser')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'arealiser' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">À réaliser ({{ aRealiser().length }})</button>
-      <button type="button" (click)="onglet.set('historique')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'historique' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">Historique</button>
+      <button type="button" (click)="onglet.set('attente')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'attente' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">En attente ({{ fAttente().length }})</button>
+      <button type="button" (click)="onglet.set('arealiser')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'arealiser' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">À réaliser ({{ fARealiser().length }})</button>
+      <button type="button" (click)="onglet.set('historique')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'historique' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">Historique ({{ fHistorique().length }})</button>
       <button type="button" (click)="onglet.set('infirmiers')" class="rounded-full px-3.5 py-1.5 text-xs font-bold transition {{ onglet() === 'infirmiers' ? 'bg-white text-ink-900 shadow' : 'text-ink-500 hover:text-ink-900' }}">Infirmiers ({{ infirmiers().length }})</button>
     </div>
     <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="charger()"><mv-icon name="refresh" [size]="15" /> Actualiser</button>
@@ -41,6 +41,19 @@
   <div class="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
     <p class="text-sm text-ink-400">Les infirmiers n'ont pas de compte : vous les gérez ici et les affectez aux soins.</p>
     <button class="btn btn-primary px-4 py-2 text-sm" type="button" (click)="nouvelInfirmier()"><mv-icon name="plus" [size]="15" /> Ajouter un infirmier</button>
+  </div>
+  <!-- Recherche d'un infirmier -->
+  <div class="flex flex-wrap items-center gap-3 px-5 pt-4">
+    <label class="relative min-w-64 flex-1">
+      <span class="sr-only">Rechercher un infirmier</span>
+      <mv-icon name="search" [size]="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+      <input class="field pl-9" type="search" name="rechercheInfirmier" [(ngModel)]="rechercheInfirmier"
+             (ngModelChange)="rechercherInfirmiers()" placeholder="Rechercher par prénom, nom ou téléphone">
+    </label>
+    @if (infirmiersTrouves(); as trouves) {
+      <span class="text-sm text-ink-500">{{ trouves.length }} résultat(s)</span>
+      <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="effacerRechercheInfirmiers()"><mv-icon name="x" [size]="15" /> Effacer</button>
+    }
   </div>
 
   @if (enEdition() !== null) {
@@ -74,7 +87,7 @@
   }
 
   <ul class="mt-2 divide-y divide-ink-100">
-    @for (i of infirmiers(); track i.id) {
+    @for (i of infirmiersAffiches(); track i.id) {
       <li class="flex flex-wrap items-center justify-between gap-3 p-5">
         <div class="flex items-center gap-3">
           <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-aqua-50 text-aqua-600"><mv-icon name="user" [size]="18" /></span>
@@ -90,10 +103,40 @@
         </div>
       </li>
     } @empty {
-      <li class="p-6 text-sm text-ink-400">Aucun infirmier : ajoutez-en un pour pouvoir confirmer les soins.</li>
+      <li class="p-6 text-sm text-ink-400">
+        @if (infirmiersTrouves()) { Aucun infirmier ne correspond à « {{ rechercheInfirmier }} ». }
+        @else { Aucun infirmier : ajoutez-en un pour pouvoir confirmer les soins. }
+      </li>
     }
   </ul>
   } @else {
+  <!-- Recherche des demandes : patient, adresse ou infirmier + type de soin + période -->
+  <div class="flex flex-wrap items-end gap-3 border-b border-ink-100 px-5 py-4">
+    <label class="relative min-w-64 flex-1 text-sm text-ink-500">
+      <span class="sr-only">Rechercher une demande</span>
+      <mv-icon name="search" [size]="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+      <input class="field pl-9" type="search" name="q" [(ngModel)]="filtre.q" (ngModelChange)="rechercher()"
+             placeholder="Patient, adresse ou infirmier">
+    </label>
+    <label class="text-sm text-ink-500">Type de soin
+      <select class="field mt-1" name="typeSoin" [(ngModel)]="filtre.typeSoin" (ngModelChange)="rechercher()">
+        <option value="">Tous</option>
+        @for (t of typesSoin; track t.valeur) { <option [value]="t.valeur">{{ t.libelle }}</option> }
+      </select>
+    </label>
+    <label class="text-sm text-ink-500">Du
+      <input class="field mt-1" type="date" name="du" [(ngModel)]="filtre.du" (ngModelChange)="rechercher()">
+    </label>
+    <label class="text-sm text-ink-500">Au
+      <input class="field mt-1" type="date" name="au" [(ngModel)]="filtre.au" (ngModelChange)="rechercher()">
+    </label>
+    @if (resultats(); as r) {
+      <div class="flex items-center gap-3">
+        <span class="text-sm text-ink-500">{{ r.length }} résultat(s)</span>
+        <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="effacerRecherche()"><mv-icon name="x" [size]="15" /> Effacer</button>
+      </div>
+    }
+  </div>
   <ul class="divide-y divide-ink-100">
     @for (v of liste(); track v.id) {
       <li class="p-5">
@@ -185,10 +228,12 @@
       </li>
     } @empty {
       <li class="p-6 text-sm text-ink-400">
+        @if (resultats()) { Aucune demande ne correspond à la recherche dans cet onglet. } @else {
         @switch (onglet()) {
           @case ('attente') { Aucun patient n'attend de confirmation. }
           @case ('arealiser') { Aucun soin confirmé en attente de rapport. }
           @default { Aucun soin terminé. }
+        }
         }
       </li>
     }

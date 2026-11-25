@@ -41,6 +41,33 @@ export interface VisiteRequest {
   dose?: string;
 }
 
+// Critères de recherche (tous facultatifs) : /api/visites/recherche
+export interface RechercheVisites {
+  patientId?: string;
+  pharmacieId?: string;
+  statut?: StatutVisite | '';
+  typeSoin?: TypeSoin | '';
+  q?: string;                     // patient, adresse ou infirmier
+  du?: string;                    // "2026-11-01"
+  au?: string;
+}
+
+// Critères de recherche des plans : /api/plans/recherche
+export interface RecherchePlans {
+  medecinId?: string;
+  patientId?: string;
+  typeSoin?: TypeSoin | '';
+  q?: string;                     // patient ou adresse
+  enCours?: 'true' | 'false' | '';
+}
+
+/** Paramètres HTTP à partir d'un objet : les champs vides ne sont pas envoyés. */
+export function parametres(o: object): Record<string, string> {
+  const p: Record<string, string> = {};
+  Object.entries(o).forEach(([k, v]) => { if (v !== undefined && v !== null && `${v}`.trim() !== '') p[k] = `${v}`.trim(); });
+  return p;
+}
+
 export interface AcceptationRequest {
   pharmacienId: string;
   infirmierId: number;

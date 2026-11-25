@@ -55,6 +55,10 @@ public class VisiteController {
     @GetMapping("/{id}")
     public Visite getById(@PathVariable Long id) { return service.getById(id); }
 
+    /** Message WhatsApp pour l'infirmier affecté : texte + lien wa.me pré-rempli. */
+    @GetMapping("/{id}/whatsapp")
+    public WhatsAppMessage whatsapp(@PathVariable Long id) { return service.messageWhatsApp(id); }
+
     @PutMapping("/{id}")
     public Visite modifier(@PathVariable Long id, @Valid @RequestBody VisiteUpdateRequest r) {
         return service.modifier(id, r);

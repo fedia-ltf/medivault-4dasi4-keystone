@@ -48,6 +48,10 @@ public class Visite {
     private Long medicamentId;        // médicament injecté (vente, MedicamentRetire)
     private boolean medicamentSensible;
 
+    // Non enregistré en base : vrai si le message WhatsApp est parti automatiquement à l'affectation
+    @Transient
+    private Boolean whatsappEnvoye;
+
     // Association « génère » : null pour une demande ponctuelle
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id")

@@ -8,6 +8,7 @@ import tn.esprit.medivault.soindomicile.entities.*;
 import tn.esprit.medivault.soindomicile.exceptions.*;
 import tn.esprit.medivault.soindomicile.clients.MedicamentClient;
 import tn.esprit.medivault.soindomicile.messaging.SoinEventPublisher;
+import tn.esprit.medivault.soindomicile.notifications.WhatsAppNotifier;
 import tn.esprit.medivault.soindomicile.repositories.InfirmierRepository;
 import tn.esprit.medivault.soindomicile.repositories.VisiteRepository;
 import tn.esprit.medivault.soindomicile.specifications.VisiteSpecifications;
@@ -29,6 +30,7 @@ public class VisiteServiceImpl implements IVisiteService {
     private final MedicamentClient medicamentClient;               // étape 8
     private final SoinEventPublisher publisher;                    // étape 9
     private final InfirmierRepository infirmierRepo;
+    private final WhatsAppNotifier whatsApp;
 
     @Override
     @Transactional
@@ -123,7 +125,20 @@ public class VisiteServiceImpl implements IVisiteService {
         v.setInfirmierNom(inf.getNomComplet());                // copié : l'historique reste juste même si l'infirmier est supprimé
         v.setInfirmierTelephone(inf.getTelephone());
         v.setStatut(StatutVisite.ACCEPTEE);
-        return repo.save(v);
+        Visite saved = repo.save(v);
+        // L'infirmier est prévenu sur WhatsApp ; un échec d'envoi n'annule pas l'affectation
+        saved.setWhatsappEnvoye(whatsApp.envoyer(saved));
+        return saved;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public WhatsAppMessage messageWhatsApp(Long id) {
+        Visite v = getById(id);
+        if (v.getInfirmierTelephone() == null || v.getInfirmierTelephone().isBlank()) {
+            throw new RegleMetierException("Aucun infirmier avec un numéro de téléphone n'est affecté à cette visite");
+        }
+        return new WhatsAppMessage(v.getInfirmierTelephone(), whatsApp.message(v), whatsApp.lien(v), whatsApp.estConfigure());
     }
 
     @Override

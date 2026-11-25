@@ -16,6 +16,7 @@ public interface IVisiteService {
     Visite modifier(Long id, VisiteUpdateRequest r);
     void supprimer(Long id);
     Visite accepter(Long id, AcceptationRequest r);
+    WhatsAppMessage messageWhatsApp(Long id);
     Visite saisirRapport(Long id, RapportRequest r);
     Visite annuler(Long id);
     int annulerInjections(Long medicamentId, String motif);

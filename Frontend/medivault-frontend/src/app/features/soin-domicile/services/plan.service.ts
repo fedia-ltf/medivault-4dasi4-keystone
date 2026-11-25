@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { PlanSuivi, PlanSuiviRequest, Visite } from '../models/visite.model';
+import { PlanSuivi, PlanSuiviRequest, RecherchePlans, Visite, parametres } from '../models/visite.model';
 
 // Appels HTTP vers /api/plans du soin-domicile-service (espace médecin)
 @Injectable({ providedIn: 'root' })
@@ -11,6 +11,11 @@ export class PlanService {
 
   lister(medecinId: string): Observable<PlanSuivi[]> {
     return this.http.get<PlanSuivi[]>(this.url, { params: new HttpParams().set('medecinId', medecinId) });
+  }
+
+  /** Recherche des plans par patient, adresse, type de soin ou état (en cours / terminé). */
+  rechercher(f: RecherchePlans): Observable<PlanSuivi[]> {
+    return this.http.get<PlanSuivi[]>(`${this.url}/recherche`, { params: parametres(f) });
   }
 
   creer(r: PlanSuiviRequest): Observable<PlanSuivi> {

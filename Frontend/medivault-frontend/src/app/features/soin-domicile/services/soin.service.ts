@@ -1,7 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AcceptationRequest, RapportRequest, StatutVisite, Visite, VisiteRequest } from '../models/visite.model';
+import {
+  AcceptationRequest, RapportRequest, RechercheVisites, StatutVisite, Visite, VisiteRequest, parametres
+} from '../models/visite.model';
 
 // Tous les appels HTTP vers /api/visites du soin-domicile-service passent par ce service
 @Injectable({ providedIn: 'root' })
@@ -13,6 +15,11 @@ export class SoinService {
     let params = new HttpParams();
     Object.entries(filtre).forEach(([k, v]) => { if (v) params = params.set(k, v); });
     return this.http.get<Visite[]>(this.url, { params });
+  }
+
+  /** Recherche multicritère côté serveur (patient, adresse, infirmier, type, statut, dates). */
+  rechercher(f: RechercheVisites): Observable<Visite[]> {
+    return this.http.get<Visite[]>(`${this.url}/recherche`, { params: parametres(f) });
   }
 
   demander(r: VisiteRequest): Observable<Visite> {

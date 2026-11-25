@@ -25,6 +25,15 @@ export interface Visite {
   dateRapport?: string;
   medicamentId?: number;
   medicamentSensible: boolean;
+  whatsappEnvoye?: boolean;       // renvoyé par /accepter : message WhatsApp parti automatiquement (CallMeBot)
+}
+
+// Message WhatsApp pour l'infirmier affecté : /api/visites/{id}/whatsapp
+export interface WhatsAppMessage {
+  telephone: string;
+  message: string;
+  lien: string;                   // https://wa.me/216...?text=...
+  envoiAutomatiqueActif: boolean;
 }
 
 export interface VisiteRequest {

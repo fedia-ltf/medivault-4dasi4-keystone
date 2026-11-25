@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
-  AcceptationRequest, RapportRequest, RechercheVisites, StatutVisite, Visite, VisiteRequest, parametres
+  AcceptationRequest, RapportRequest, RechercheVisites, StatutVisite, Visite, VisiteRequest, WhatsAppMessage, parametres
 } from '../models/visite.model';
 
 // Tous les appels HTTP vers /api/visites du soin-domicile-service passent par ce service
@@ -24,6 +24,11 @@ export class SoinService {
 
   demander(r: VisiteRequest): Observable<Visite> {
     return this.http.post<Visite>(this.url, r);
+  }
+
+  /** Message WhatsApp (texte + lien wa.me) pour l'infirmier affecté à la visite. */
+  whatsapp(id: number): Observable<WhatsAppMessage> {
+    return this.http.get<WhatsAppMessage>(`${this.url}/${id}/whatsapp`);
   }
 
   /** Le pharmacien accepte et affecte un infirmier. */

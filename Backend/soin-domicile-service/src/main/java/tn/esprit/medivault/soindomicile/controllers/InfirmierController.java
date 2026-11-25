@@ -24,6 +24,13 @@ public class InfirmierController {
         return service.lister(pharmacieId);
     }
 
+    /** Recherche par prénom, nom ou téléphone : /api/infirmiers/recherche?pharmacieId=ph-ennasr&q=ben */
+    @GetMapping("/recherche")
+    public List<Infirmier> rechercher(@RequestParam String pharmacieId,
+                                      @RequestParam(required = false, defaultValue = "") String q) {
+        return service.rechercher(pharmacieId, q);
+    }
+
     @GetMapping("/{id}")
     public Infirmier getById(@PathVariable Long id) { return service.getById(id); }
 

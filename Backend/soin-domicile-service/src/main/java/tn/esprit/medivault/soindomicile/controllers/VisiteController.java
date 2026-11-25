@@ -7,10 +7,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tn.esprit.medivault.soindomicile.dto.*;
+import org.springframework.format.annotation.DateTimeFormat;
 import tn.esprit.medivault.soindomicile.entities.StatutVisite;
+import tn.esprit.medivault.soindomicile.entities.TypeSoin;
 import tn.esprit.medivault.soindomicile.entities.Visite;
 import tn.esprit.medivault.soindomicile.services.IVisiteService;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -32,6 +35,21 @@ public class VisiteController {
                                @RequestParam(required = false) String pharmacieId,
                                @RequestParam(required = false) StatutVisite statut) {
         return service.lister(patientId, pharmacieId, statut);
+    }
+
+    /**
+     * Recherche multicritère, tous les paramètres sont facultatifs.
+     * Ex. : /api/visites/recherche?pharmacieId=ph-ennasr&q=sonia&typeSoin=INJECTION&du=2026-11-01&au=2026-11-30
+     */
+    @GetMapping("/recherche")
+    public List<Visite> rechercher(@RequestParam(required = false) String patientId,
+                                   @RequestParam(required = false) String pharmacieId,
+                                   @RequestParam(required = false) StatutVisite statut,
+                                   @RequestParam(required = false) TypeSoin typeSoin,
+                                   @RequestParam(required = false) String q,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate du,
+                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate au) {
+        return service.rechercher(patientId, pharmacieId, statut, typeSoin, q, du, au);
     }
 
     @GetMapping("/{id}")

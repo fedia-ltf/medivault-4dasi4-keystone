@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tn.esprit.medivault.soindomicile.dto.*;
 import tn.esprit.medivault.soindomicile.entities.PlanSuivi;
+import tn.esprit.medivault.soindomicile.entities.TypeSoin;
 import tn.esprit.medivault.soindomicile.entities.Visite;
 import tn.esprit.medivault.soindomicile.services.IPlanSuiviService;
 
@@ -31,6 +32,16 @@ public class PlanSuiviController {
     public List<PlanSuivi> lister(@RequestParam(required = false) String patientId,
                                   @RequestParam(required = false) String medecinId) {
         return service.lister(patientId, medecinId);
+    }
+
+    /** Recherche : /api/plans/recherche?medecinId=...&q=patient&typeSoin=GLYCEMIE&enCours=true */
+    @GetMapping("/recherche")
+    public List<PlanSuivi> rechercher(@RequestParam(required = false) String medecinId,
+                                      @RequestParam(required = false) String patientId,
+                                      @RequestParam(required = false) TypeSoin typeSoin,
+                                      @RequestParam(required = false) String q,
+                                      @RequestParam(required = false) Boolean enCours) {
+        return service.rechercher(medecinId, patientId, typeSoin, q, enCours);
     }
 
     @GetMapping("/{id}")

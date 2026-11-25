@@ -165,6 +165,10 @@
             }
             @if (v.statut === 'ACCEPTEE') {
               <button class="btn btn-primary px-4 py-2 text-sm" type="button" (click)="ouvrirRapport(v)"><mv-icon name="edit" [size]="15" /> Saisir le rapport</button>
+              @if (v.infirmierTelephone) {
+                <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="envoyerWhatsApp(v)"
+                        title="Envoyer à {{ v.infirmierNom }} les infos du patient et du soin"><mv-icon name="mail" [size]="15" /> WhatsApp</button>
+              }
             }
           </div>
         </div>

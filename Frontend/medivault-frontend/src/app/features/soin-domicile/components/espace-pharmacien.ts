@@ -213,13 +213,35 @@ export class EspacePharmacien implements OnInit {
     const v = this.enAffectation();
     const i = this.infirmierChoisi;
     if (!v || !i) return;
+    // L'onglet WhatsApp est ouvert pendant le clic (sinon le navigateur bloque la popup), puis rempli après la réponse
+    const fenetre = i.telephone ? window.open('', '_blank') : null;
     this.soin.accepter(v.id, { pharmacienId: this.pharmacienId, infirmierId: i.id }).subscribe({
-      next: () => {
+      next: r => {
         this.enAffectation.set(null);
-        this.succes(`Soin confirmé : ${i.nomComplet} se rend chez ${v.patientId}.`);
+        if (r.whatsappEnvoye) {
+          fenetre?.close();                       // déjà envoyé automatiquement par le backend
+          this.succes(`Soin confirmé : ${i.nomComplet} se rend chez ${v.patientId}. Message WhatsApp envoyé à ${i.nomComplet}.`);
+        } else if (fenetre) {
+          this.ouvrirDansWhatsApp(r.id, fenetre); // WhatsApp s'ouvre avec le message prêt : il reste à cliquer sur Envoyer
+          this.succes(`Soin confirmé : ${i.nomComplet} se rend chez ${v.patientId}. WhatsApp est ouvert avec le message pour ${i.nomComplet} : cliquez sur Envoyer.`);
+        } else {
+          this.succes(`Soin confirmé : ${i.nomComplet} se rend chez ${v.patientId}. ${i.nomComplet} n'a pas de numéro : pas de message WhatsApp.`);
+        }
         this.charger();
       },
-      error: e => this.afficherErreur(e)
+      error: e => { fenetre?.close(); this.afficherErreur(e); }
+    });
+  }
+
+  /** Ouvre WhatsApp vers l'infirmier affecté, avec les infos du patient et du soin déjà écrites. */
+  protected envoyerWhatsApp(v: Visite): void {
+    this.ouvrirDansWhatsApp(v.id, window.open('', '_blank'));   // ouverte pendant le clic : sinon la popup est bloquée
+  }
+
+  private ouvrirDansWhatsApp(visiteId: number, fenetre: Window | null): void {
+    this.soin.whatsapp(visiteId).subscribe({
+      next: m => { if (fenetre) fenetre.location.href = m.lien; else window.location.href = m.lien; },
+      error: e => { fenetre?.close(); this.afficherErreur(e); }
     });
   }
 

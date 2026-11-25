@@ -63,6 +63,32 @@
       <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="charger()"><mv-icon name="refresh" [size]="15" /> Actualiser</button>
     </div>
 
+    <!-- Recherche dans mes demandes -->
+    <div class="mt-4 flex flex-wrap items-end gap-3">
+      <label class="relative min-w-56 flex-1">
+        <span class="sr-only">Rechercher dans mes demandes</span>
+        <mv-icon name="search" [size]="16" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+        <input class="field pl-9" type="search" name="q" [(ngModel)]="filtre.q" (ngModelChange)="rechercher()"
+               placeholder="Adresse ou infirmier">
+      </label>
+      <label class="text-sm text-ink-500">Statut
+        <select class="field mt-1" name="statut" [(ngModel)]="filtre.statut" (ngModelChange)="rechercher()">
+          <option value="">Tous</option>
+          @for (s of listeStatuts; track s.valeur) { <option [value]="s.valeur">{{ s.libelle }}</option> }
+        </select>
+      </label>
+      <label class="text-sm text-ink-500">Type de soin
+        <select class="field mt-1" name="typeSoinRecherche" [(ngModel)]="filtre.typeSoin" (ngModelChange)="rechercher()">
+          <option value="">Tous</option>
+          @for (t of typesSoin; track t.valeur) { <option [value]="t.valeur">{{ t.libelle }}</option> }
+        </select>
+      </label>
+      @if (resultats(); as r) {
+        <span class="text-sm text-ink-500">{{ r.length }} résultat(s)</span>
+        <button class="btn btn-soft px-4 py-2 text-sm" type="button" (click)="effacerRecherche()"><mv-icon name="x" [size]="15" /> Effacer</button>
+      }
+    </div>
+
     <ul class="mt-4 grid gap-3">
       @for (v of mesVisites(); track v.id) {
         <li class="rounded-2xl border border-ink-100 p-4">
@@ -106,7 +132,10 @@
           }
         </li>
       } @empty {
-        <li class="py-6 text-sm text-ink-400">Vous n'avez encore demandé aucun soin à domicile.</li>
+        <li class="py-6 text-sm text-ink-400">
+          @if (resultats()) { Aucune demande ne correspond à votre recherche. }
+          @else { Vous n'avez encore demandé aucun soin à domicile. }
+        </li>
       }
     </ul>
   </section>

@@ -21,6 +21,7 @@ class EmailApiClientTest {
     private int statut = 201;
     private final AtomicReference<String> chemin = new AtomicReference<>();
     private final AtomicReference<String> cleRecue = new AtomicReference<>();
+    private final AtomicReference<String> autorisationRecue = new AtomicReference<>();
     private final AtomicReference<String> corps = new AtomicReference<>();
 
     @BeforeEach
@@ -29,6 +30,7 @@ class EmailApiClientTest {
         serveur.createContext("/", ex -> {
             chemin.set(ex.getRequestMethod() + " " + ex.getRequestURI().getPath());
             cleRecue.set(ex.getRequestHeaders().getFirst("api-key"));
+            autorisationRecue.set(ex.getRequestHeaders().getFirst("Authorization"));
             corps.set(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             byte[] reponse = "{}".getBytes(StandardCharsets.UTF_8);
             ex.getResponseHeaders().add("Content-Type", "application/json");
@@ -45,7 +47,31 @@ class EmailApiClientTest {
     }
 
     private EmailApiClient client(String cle, String expediteur) {
-        return new EmailApiClient(cle, expediteur, "MediVault", "http://127.0.0.1:" + serveur.getAddress().getPort() + "/v3");
+        return client(cle, expediteur, "brevo");
+    }
+
+    private EmailApiClient client(String cle, String expediteur, String fournisseur) {
+        return new EmailApiClient(cle, expediteur, "MediVault", "http://127.0.0.1:" + serveur.getAddress().getPort() + "/v3", fournisseur);
+    }
+
+    @Test
+    void resend_expediteurParDefaut_etAppelAvecBearer() {
+        EmailApiClient resend = client("re_ma_cle", "", "resend");
+        assertThat(resend.isActif()).isTrue();      // pas besoin d'expéditeur : onboarding@resend.dev
+
+        resend.envoyer("ahmed@test.tn", "Ahmed Ben Ali", "Sujet", "<p>Bonjour</p>");
+
+        assertThat(chemin.get()).isEqualTo("POST /v3/emails");
+        assertThat(autorisationRecue.get()).isEqualTo("Bearer re_ma_cle");
+        assertThat(corps.get()).contains("\"from\":\"MediVault <onboarding@resend.dev>\"").contains("\"to\":[\"ahmed@test.tn\"]")
+                .contains("\"html\":\"<p>Bonjour</p>\"");
+    }
+
+    @Test
+    void resend_refus_leveUneException() {
+        statut = 403;
+        assertThatThrownBy(() -> client("re_cle", "", "resend").envoyer("autre@test.tn", "A", "S", "<p>x</p>"))
+                .isInstanceOf(EmailIndisponibleException.class);
     }
 
     @Test

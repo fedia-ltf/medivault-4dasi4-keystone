@@ -99,4 +99,8 @@ Comptes Keycloak correspondants (mot de passe de **tous** : `Medivault2026!`, d�
       $env:SPRING_PROFILES_ACTIVE='keycloak'; mvn spring-boot:run
       ```
 
-   Sans ces deux variables, le mode 1 (Mailpit) reste actif. Si le service d'e-mail refuse l'envoi, l'erreur est écrite dans les logs du user-service ; l'appelant reçoit toujours la même réponse 202.
+   Ou, plus simple, dans le fichier local `secrets.properties` (copie de `secrets.properties.example`, ignoré par Git).
+
+   **Resend** (https://resend.com) marche aussi (`medivault.mail.provider=resend`, clé `re_...`) et ne demande pas d'activation manuelle du compte : sans domaine à soi, le mail part de `onboarding@resend.dev` et n'est livré qu'à l'adresse du compte Resend.
+
+   Sans clé, le mode 1 (Mailpit) reste actif. Si le service d'e-mail refuse l'envoi, l'erreur est écrite dans les logs du user-service ; l'appelant reçoit toujours la même réponse 202.

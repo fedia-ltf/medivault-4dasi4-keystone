@@ -18,15 +18,19 @@ public interface InfirmierRepository extends JpaRepository<Infirmier, Long> {
 
     /**
      * Recherche : prénom, nom, "prénom nom" ou téléphone contenant le texte (sans tenir compte des majuscules).
-     * Un texte vide renvoie tous les infirmiers de la pharmacie.
+     * Un texte vide renvoie tous les infirmiers ; une pharmacie vide ("") cherche dans toutes les pharmacies (admin).
      */
     @Query("""
             SELECT i FROM Infirmier i
-            WHERE i.pharmacieId = :pharmacieId
+            WHERE (:pharmacieId = '' OR i.pharmacieId = :pharmacieId)
               AND (LOWER(i.prenom) LIKE LOWER(CONCAT('%', :texte, '%'))
                 OR LOWER(i.nom) LIKE LOWER(CONCAT('%', :texte, '%'))
                 OR LOWER(CONCAT(i.prenom, ' ', i.nom)) LIKE LOWER(CONCAT('%', :texte, '%'))
                 OR i.telephone LIKE CONCAT('%', :texte, '%'))
             ORDER BY i.nom, i.prenom""")
     List<Infirmier> rechercher(@Param("pharmacieId") String pharmacieId, @Param("texte") String texte);
+
+    /** Nombre d'infirmiers par pharmacie (tableau de bord admin) : lignes [pharmacieId, nombre]. */
+    @Query("SELECT i.pharmacieId, COUNT(i) FROM Infirmier i GROUP BY i.pharmacieId")
+    List<Object[]> compterParPharmacie();
 }

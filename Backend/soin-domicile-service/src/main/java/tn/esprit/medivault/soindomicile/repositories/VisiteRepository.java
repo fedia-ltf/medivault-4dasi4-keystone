@@ -2,6 +2,7 @@ package tn.esprit.medivault.soindomicile.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 import tn.esprit.medivault.soindomicile.entities.StatutVisite;
 import tn.esprit.medivault.soindomicile.entities.TypeSoin;
 import tn.esprit.medivault.soindomicile.entities.Visite;
@@ -39,4 +40,21 @@ public interface VisiteRepository extends JpaRepository<Visite, Long>, JpaSpecif
 
     /** Visites futures d'un plan, à annuler quand le plan change ou s'arrête. */
     List<Visite> findByPlan_IdAndDateAfterAndStatutIn(Long planId, LocalDateTime date, Collection<StatutVisite> statuts);
+
+    // ---------- Statistiques du back-office (JPQL avec GROUP BY) : chaque ligne = [clé, nombre] ----------
+    @Query("SELECT v.statut, COUNT(v) FROM Visite v GROUP BY v.statut")
+    List<Object[]> compterParStatut();
+
+    @Query("SELECT v.typeSoin, COUNT(v) FROM Visite v GROUP BY v.typeSoin")
+    List<Object[]> compterParType();
+
+    @Query("SELECT v.pharmacieId, COUNT(v) FROM Visite v GROUP BY v.pharmacieId")
+    List<Object[]> compterParPharmacie();
+
+    /** Infirmiers ayant réalisé le plus de soins. */
+    @Query("""
+            SELECT v.infirmierNom, COUNT(v) FROM Visite v
+            WHERE v.statut = tn.esprit.medivault.soindomicile.entities.StatutVisite.REALISEE AND v.infirmierNom IS NOT NULL
+            GROUP BY v.infirmierNom ORDER BY COUNT(v) DESC""")
+    List<Object[]> compterSoinsRealisesParInfirmier();
 }

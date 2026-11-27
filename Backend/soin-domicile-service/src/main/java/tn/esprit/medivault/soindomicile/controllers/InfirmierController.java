@@ -24,9 +24,12 @@ public class InfirmierController {
         return service.lister(pharmacieId);
     }
 
-    /** Recherche par prénom, nom ou téléphone : /api/infirmiers/recherche?pharmacieId=ph-ennasr&q=ben */
+    /**
+     * Recherche par prénom, nom ou téléphone : /api/infirmiers/recherche?pharmacieId=ph-ennasr&q=ben
+     * Sans pharmacieId, la recherche porte sur toutes les pharmacies (back-office admin).
+     */
     @GetMapping("/recherche")
-    public List<Infirmier> rechercher(@RequestParam String pharmacieId,
+    public List<Infirmier> rechercher(@RequestParam(required = false, defaultValue = "") String pharmacieId,
                                       @RequestParam(required = false, defaultValue = "") String q) {
         return service.rechercher(pharmacieId, q);
     }

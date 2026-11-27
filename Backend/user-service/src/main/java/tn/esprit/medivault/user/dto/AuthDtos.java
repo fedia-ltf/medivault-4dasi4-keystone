@@ -43,6 +43,14 @@ public final class AuthDtos {
             @NotBlank(message = "l'email est obligatoire") @Email(message = "email invalide") String email) {
     }
 
+    /** Le lien reçu par e-mail (« token » dans l'adresse) et le nouveau mot de passe choisi. */
+    public record ReinitialiserMotDePasseRequest(
+            @NotBlank(message = "le lien est obligatoire") String token,
+            @NotBlank(message = "le nouveau mot de passe est obligatoire")
+            @Size(min = 8, max = 72, message = "8 caractères minimum")
+            @Pattern(regexp = MOT_DE_PASSE, message = MESSAGE_MOT_DE_PASSE) String nouveauMotDePasse) {
+    }
+
     public record ChangerMotDePasseRequest(
             @NotBlank(message = "le mot de passe actuel est obligatoire") String ancienMotDePasse,
             @NotBlank(message = "le nouveau mot de passe est obligatoire")

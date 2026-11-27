@@ -21,6 +21,9 @@ public interface IAuthService {
     /** Envoie l'e-mail de réinitialisation. Même réponse que le compte existe ou non (on ne révèle pas les comptes). */
     MessageResponse motDePasseOublie(String email);
 
+    /** Choisit un nouveau mot de passe grâce au lien reçu par e-mail (à usage unique, 30 minutes). */
+    MessageResponse reinitialiserMotDePasse(String lien, String nouveauMotDePasse);
+
     UtilisateurResponse moi(String email);
 
     MessageResponse changerMotDePasse(String email, String ancienMotDePasse, String nouveauMotDePasse);

@@ -8,7 +8,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import tn.esprit.medivault.user.clients.EmailApiClient;
 import tn.esprit.medivault.user.clients.KeycloakAdminClient;
+import tn.esprit.medivault.user.entities.JetonReinitialisation;
+import tn.esprit.medivault.user.exceptions.EmailIndisponibleException;
+import tn.esprit.medivault.user.exceptions.LienInvalideException;
+import tn.esprit.medivault.user.repositories.JetonReinitialisationRepository;
+import java.time.Instant;
 import tn.esprit.medivault.user.dto.AuthDtos.InscriptionRequest;
 import tn.esprit.medivault.user.dto.AuthDtos.LoginRequest;
 import tn.esprit.medivault.user.dto.AuthDtos.MessageResponse;
@@ -33,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,12 +54,16 @@ class AuthServiceImplTest {
     private UtilisateurRepository repository;
     @Mock
     private IUtilisateurService utilisateurService;
+    @Mock
+    private JetonReinitialisationRepository jetons;
+    @Mock
+    private EmailApiClient emailApi;
 
     private AuthServiceImpl service;
 
     @BeforeEach
     void preparer() {
-        service = new AuthServiceImpl(keycloak, repository, utilisateurService, new ObjectMapper());
+        service = new AuthServiceImpl(keycloak, repository, utilisateurService, new ObjectMapper(), jetons, emailApi);
         ReflectionTestUtils.setField(service, "urlRetourApresReinitialisation", "http://localhost:4301/login");
     }
 
@@ -205,6 +216,92 @@ class AuthServiceImplTest {
         service.motDePasseOublie("ahmed@test.tn");
 
         verify(keycloak).envoyerEmailReinitialisation("kc-trouve", "http://localhost:4301/login");
+    }
+
+    // ---------------------------------------------------------------- mot de passe oublié par l'API d'e-mail
+
+    @Test
+    void motDePasseOublie_apiActive_envoieUnLienAUsageUniqueSansPasserParKeycloak() {
+        when(emailApi.isActif()).thenReturn(true);
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, "kc-1")));
+
+        service.motDePasseOublie("ahmed@test.tn");
+
+        ArgumentCaptor<JetonReinitialisation> sauve = ArgumentCaptor.forClass(JetonReinitialisation.class);
+        verify(jetons).save(sauve.capture());
+        ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
+        verify(emailApi).envoyer(eq("ahmed@test.tn"), anyString(), anyString(), html.capture());
+        // le lien est dans l'e-mail, mais la base ne garde que son empreinte SHA-256 (64 caractères), jamais le lien
+        String lien = html.getValue().replaceAll("(?s).*reinitialiser-mot-de-passe\\?token=([A-Za-z0-9_-]+).*", "$1");
+        assertThat(lien).hasSizeGreaterThan(30);
+        assertThat(sauve.getValue().getEmpreinte()).hasSize(64).doesNotContain(lien);
+        assertThat(sauve.getValue().getExpiration()).isAfter(Instant.now().plusSeconds(25 * 60));
+        verify(keycloak, never()).envoyerEmailReinitialisation(anyString(), anyString());
+    }
+
+    @Test
+    void motDePasseOublie_apiActive_compteDesactive_rienEnvoye() {
+        when(emailApi.isActif()).thenReturn(true);
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(false, "kc-1")));
+
+        service.motDePasseOublie("ahmed@test.tn");
+
+        verify(emailApi, never()).envoyer(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void motDePasseOublie_apiActive_echecDEnvoi_neRevelePasLeCompte() {
+        when(emailApi.isActif()).thenReturn(true);
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, "kc-1")));
+        org.mockito.Mockito.doThrow(new EmailIndisponibleException("refusé", null))
+                .when(emailApi).envoyer(anyString(), anyString(), anyString(), anyString());
+
+        MessageResponse reponse = service.motDePasseOublie("ahmed@test.tn");
+
+        assertThat(reponse.message()).contains("Si un compte existe");
+    }
+
+    @Test
+    void reinitialiser_lienValide_changeLeMotDePasseEtInvalideLesLiens() {
+        String lien = "abc";
+        when(jetons.findByEmpreinte(empreinteDe(lien))).thenReturn(Optional.of(JetonReinitialisation.builder()
+                .utilisateurId("u1").expiration(Instant.now().plusSeconds(600)).build()));
+        when(repository.findById("u1")).thenReturn(Optional.of(patient(true, "kc-1")));
+
+        MessageResponse reponse = service.reinitialiserMotDePasse(lien, "Nouveau123");
+
+        verify(keycloak).changerMotDePasse("kc-1", "Nouveau123");
+        verify(jetons).deleteByUtilisateurId("u1");
+        assertThat(reponse.message()).contains("modifié");
+    }
+
+    @Test
+    void reinitialiser_lienInconnuOuExpire_400() {
+        when(jetons.findByEmpreinte(empreinteDe("inconnu"))).thenReturn(Optional.empty());
+        when(jetons.findByEmpreinte(empreinteDe("vieux"))).thenReturn(Optional.of(JetonReinitialisation.builder()
+                .utilisateurId("u1").expiration(Instant.now().minusSeconds(5)).build()));
+
+        assertThatThrownBy(() -> service.reinitialiserMotDePasse("inconnu", "Nouveau123")).isInstanceOf(LienInvalideException.class);
+        assertThatThrownBy(() -> service.reinitialiserMotDePasse("vieux", "Nouveau123")).isInstanceOf(LienInvalideException.class);
+        verify(keycloak, never()).changerMotDePasse(anyString(), anyString());
+    }
+
+    @Test
+    void reinitialiser_compteDesactive_403() {
+        when(jetons.findByEmpreinte(empreinteDe("abc"))).thenReturn(Optional.of(JetonReinitialisation.builder()
+                .utilisateurId("u1").expiration(Instant.now().plusSeconds(600)).build()));
+        when(repository.findById("u1")).thenReturn(Optional.of(patient(false, "kc-1")));
+
+        assertThatThrownBy(() -> service.reinitialiserMotDePasse("abc", "Nouveau123")).isInstanceOf(CompteInaccessibleException.class);
+        verify(keycloak, never()).changerMotDePasse(anyString(), anyString());
+    }
+
+    private static String empreinteDe(String lien) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(lien.getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     // ---------------------------------------------------------------- changer le mot de passe

@@ -50,6 +50,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return probleme(HttpStatus.UNAUTHORIZED, "Identifiants invalides", ex.getMessage());
     }
 
+    @ExceptionHandler(LienInvalideException.class)
+    public ProblemDetail handleLienInvalide(LienInvalideException ex) {
+        return probleme(HttpStatus.BAD_REQUEST, "Lien invalide", ex.getMessage());
+    }
+
     @ExceptionHandler(CompteInaccessibleException.class)
     public ProblemDetail handleCompteInaccessible(CompteInaccessibleException ex) {
         return probleme(HttpStatus.FORBIDDEN, "Compte inaccessible", ex.getMessage());

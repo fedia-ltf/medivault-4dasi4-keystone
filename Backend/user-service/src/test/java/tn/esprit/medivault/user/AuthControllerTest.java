@@ -143,6 +143,23 @@ class AuthControllerTest {
     }
 
     @Test
+    void reinitialiser_200_lienInvalide400_motDePasseFaible400() throws Exception {
+        when(service.reinitialiserMotDePasse("lien-ok", "Nouveau123")).thenReturn(new MessageResponse("modifié"));
+        when(service.reinitialiserMotDePasse("lien-mort", "Nouveau123"))
+                .thenThrow(new tn.esprit.medivault.user.exceptions.LienInvalideException("Ce lien est invalide ou a expiré"));
+
+        mockMvc.perform(post("/api/auth/reinitialiser-mot-de-passe").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"lien-ok\",\"nouveauMotDePasse\":\"Nouveau123\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.message").value("modifié"));
+        mockMvc.perform(post("/api/auth/reinitialiser-mot-de-passe").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"lien-mort\",\"nouveauMotDePasse\":\"Nouveau123\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/auth/reinitialiser-mot-de-passe").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"lien-ok\",\"nouveauMotDePasse\":\"abc\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void logout_204() throws Exception {
         mockMvc.perform(post("/api/auth/logout").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"r\"}"))

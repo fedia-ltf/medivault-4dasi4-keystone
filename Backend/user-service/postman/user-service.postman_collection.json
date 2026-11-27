@@ -473,6 +473,45 @@
           ]
         },
         {
+          "name": "Réinitialiser le mot de passe (lien reçu par e-mail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reinitialiser-mot-de-passe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "reinitialiser-mot-de-passe"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<le token du lien de l'e-mail>\",\n  \"nouveauMotDePasse\": \"Nouveau456\"\n}"
+            },
+            "description": "Le token est le paramètre « token » du lien (mode API d'e-mail). Usage unique, 30 minutes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 ou 400 (lien expiré)', () => pm.expect(pm.response.code).to.be.oneOf([200, 400]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Changer mon mot de passe",
           "request": {
             "method": "POST",

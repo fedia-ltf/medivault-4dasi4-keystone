@@ -20,6 +20,7 @@ import tn.esprit.medivault.user.dto.AuthDtos.LoginRequest;
 import tn.esprit.medivault.user.dto.AuthDtos.MessageResponse;
 import tn.esprit.medivault.user.dto.AuthDtos.MotDePasseOublieRequest;
 import tn.esprit.medivault.user.dto.AuthDtos.RefreshRequest;
+import tn.esprit.medivault.user.dto.AuthDtos.ReinitialiserMotDePasseRequest;
 import tn.esprit.medivault.user.dto.AuthDtos.SessionResponse;
 import tn.esprit.medivault.user.dto.UtilisateurResponse;
 import tn.esprit.medivault.user.exceptions.IdentifiantsInvalidesException;
@@ -76,6 +77,15 @@ public class AuthController {
     @ApiResponse(responseCode = "202", description = "Demande prise en compte")
     public MessageResponse motDePasseOublie(@Valid @RequestBody MotDePasseOublieRequest request) {
         return authService.motDePasseOublie(request.email());
+    }
+
+    @PostMapping("/reinitialiser-mot-de-passe")
+    @Operation(summary = "Choisir un nouveau mot de passe avec le lien reçu par e-mail (lien à usage unique)")
+    @ApiResponse(responseCode = "200", description = "Mot de passe modifié")
+    @ApiResponse(responseCode = "400", description = "Lien invalide ou expiré, ou mot de passe trop faible")
+    @ApiResponse(responseCode = "403", description = "Compte désactivé")
+    public MessageResponse reinitialiser(@Valid @RequestBody ReinitialiserMotDePasseRequest request) {
+        return authService.reinitialiserMotDePasse(request.token(), request.nouveauMotDePasse());
     }
 
     @GetMapping("/moi")

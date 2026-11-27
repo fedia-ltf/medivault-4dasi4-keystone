@@ -70,6 +70,11 @@ export class AuthService {
     return this.http.post<{ message: string }>('/api/auth/mot-de-passe-oublie', { email }).pipe(map(r => r.message));
   }
 
+  /** Choisit un nouveau mot de passe avec le lien reçu par e-mail (à usage unique). */
+  reinitialiserMotDePasse(token: string, nouveauMotDePasse: string): Observable<string> {
+    return this.http.post<{ message: string }>('/api/auth/reinitialiser-mot-de-passe', { token, nouveauMotDePasse }).pipe(map(r => r.message));
+  }
+
   // ---------------------------------------------------------------- jetons
 
   /** Le jeton à envoyer dans l'en-tête « Authorization » (absent en mode démonstration) */

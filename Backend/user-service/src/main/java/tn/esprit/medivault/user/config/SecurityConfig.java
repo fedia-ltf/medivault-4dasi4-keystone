@@ -51,7 +51,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // connexion, inscription, mot de passe oublié : ouverts à tous
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
-                                "/api/auth/inscription", "/api/auth/mot-de-passe-oublie").permitAll()
+                                "/api/auth/inscription", "/api/auth/mot-de-passe-oublie", "/api/auth/reinitialiser-mot-de-passe").permitAll()
                         .requestMatchers("/actuator/health/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         // lectures appelées par les autres services (pharmacie active ? horaires ? signature ?)
                         .requestMatchers(HttpMethod.GET, "/api/utilisateurs/*").permitAll()

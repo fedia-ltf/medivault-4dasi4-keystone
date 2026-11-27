@@ -6,7 +6,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tn.esprit.medivault.user.clients.EmailApiClient;
 import tn.esprit.medivault.user.clients.KeycloakAdminClient;
+import tn.esprit.medivault.user.entities.JetonReinitialisation;
+import tn.esprit.medivault.user.exceptions.LienInvalideException;
+import tn.esprit.medivault.user.repositories.JetonReinitialisationRepository;
 import tn.esprit.medivault.user.dto.AuthDtos.InscriptionRequest;
 import tn.esprit.medivault.user.dto.AuthDtos.LoginRequest;
 import tn.esprit.medivault.user.dto.AuthDtos.MessageResponse;
@@ -21,7 +25,14 @@ import tn.esprit.medivault.user.exceptions.KeycloakIndisponibleException;
 import tn.esprit.medivault.user.exceptions.UtilisateurNotFoundException;
 import tn.esprit.medivault.user.repositories.UtilisateurRepository;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Map;
 
 /**
@@ -38,10 +49,21 @@ public class AuthServiceImpl implements IAuthService {
     private final UtilisateurRepository utilisateurRepository;
     private final IUtilisateurService utilisateurService;
     private final ObjectMapper objectMapper;
+    private final JetonReinitialisationRepository jetonRepository;
+    private final EmailApiClient emailApi;
 
-    /** Page où Keycloak renvoie la personne après avoir changé son mot de passe. */
+    /** Page où Keycloak renvoie la personne après avoir changé son mot de passe (flux Keycloak / Mailpit). */
     @Value("${medivault.auth.reset-redirect-uri:http://localhost:4301/login}")
     private String urlRetourApresReinitialisation;
+
+    /** Page du front qui reçoit le lien envoyé par e-mail (flux par API d'e-mail) : <url>?token=... */
+    @Value("${medivault.auth.reset-front-url:http://localhost:4301/reinitialiser-mot-de-passe}")
+    private String urlPageReinitialisation = "http://localhost:4301/reinitialiser-mot-de-passe";
+
+    @Value("${medivault.auth.reset-minutes:30}")
+    private long dureeLienMinutes = 30;
+
+    private final SecureRandom hasard = new SecureRandom();
 
     @Override
     public SessionResponse connexion(LoginRequest request) {
@@ -97,7 +119,15 @@ public class AuthServiceImpl implements IAuthService {
         String courriel = normaliser(email);
         utilisateurRepository.findByEmailIgnoreCase(courriel).ifPresent(compte -> {
             try {
-                keycloak.envoyerEmailReinitialisation(identifiantKeycloak(compte), urlRetourApresReinitialisation);
+                if (emailApi.isActif()) {
+                    // API d'e-mail configurée : on envoie nous-mêmes un lien à usage unique, dans la vraie boîte mail
+                    if (compte.isActif()) {
+                        envoyerLienParApi(compte);
+                    }
+                } else {
+                    // sinon : Keycloak envoie l'e-mail (visible dans Mailpit)
+                    keycloak.envoyerEmailReinitialisation(identifiantKeycloak(compte), urlRetourApresReinitialisation);
+                }
                 log.info("E-mail de réinitialisation envoyé à {}", courriel);
             } catch (RuntimeException e) {
                 // on ne révèle rien à l'appelant (même réponse dans tous les cas) : on trace seulement l'échec
@@ -105,6 +135,22 @@ public class AuthServiceImpl implements IAuthService {
             }
         });
         return new MessageResponse("Si un compte existe avec cette adresse, un e-mail de réinitialisation vient d'être envoyé.");
+    }
+
+    @Override
+    public MessageResponse reinitialiserMotDePasse(String lien, String nouveauMotDePasse) {
+        JetonReinitialisation jeton = jetonRepository.findByEmpreinte(empreinte(lien == null ? "" : lien))
+                .filter(j -> j.getExpiration().isAfter(Instant.now()))
+                .orElseThrow(() -> new LienInvalideException("Ce lien est invalide ou a expiré : refaites une demande « Mot de passe oublié »."));
+        Utilisateur compte = utilisateurRepository.findById(jeton.getUtilisateurId())
+                .orElseThrow(() -> new LienInvalideException("Ce lien est invalide ou a expiré : refaites une demande « Mot de passe oublié »."));
+        if (!compte.isActif()) {
+            throw new CompteInaccessibleException("Ce compte est désactivé. Contactez l'administrateur.");
+        }
+        keycloak.changerMotDePasse(identifiantKeycloak(compte), nouveauMotDePasse);
+        jetonRepository.deleteByUtilisateurId(compte.getId());    // à usage unique : le lien (et les anciens) ne servent plus
+        log.info("Mot de passe réinitialisé pour {}", compte.getEmail());
+        return new MessageResponse("Votre mot de passe a été modifié. Vous pouvez vous connecter.");
     }
 
     @Override
@@ -128,6 +174,37 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     // ---------------------------------------------------------------- outils
+
+    /** Crée un lien à usage unique (seule son empreinte est gardée) et l'envoie par l'API d'e-mail. */
+    private void envoyerLienParApi(Utilisateur compte) {
+        byte[] octets = new byte[32];
+        hasard.nextBytes(octets);
+        String lien = Base64.getUrlEncoder().withoutPadding().encodeToString(octets);
+        jetonRepository.deleteByUtilisateurId(compte.getId());     // une seule demande valable à la fois
+        jetonRepository.save(JetonReinitialisation.builder().empreinte(empreinte(lien)).utilisateurId(compte.getId())
+                .expiration(Instant.now().plus(dureeLienMinutes, ChronoUnit.MINUTES)).build());
+        String adresse = urlPageReinitialisation + "?token=" + lien;
+        String prenom = echapper(compte.getPrenom());
+        String html = "<div style=\"font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#0a1a2a\">"
+                + "<h2>MediVault</h2><p>Bonjour " + prenom + ",</p>"
+                + "<p>Vous avez demandé à changer votre mot de passe. Ce lien est valable " + dureeLienMinutes + " minutes et ne sert qu'une fois.</p>"
+                + "<p><a href=\"" + adresse + "\" style=\"display:inline-block;padding:12px 22px;background:#0a1a2a;color:#fff;"
+                + "border-radius:10px;text-decoration:none\">Choisir un nouveau mot de passe</a></p>"
+                + "<p style=\"font-size:12px;color:#667\">Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe ne change pas.</p></div>";
+        emailApi.envoyer(compte.getEmail(), compte.getPrenom() + " " + compte.getNom(), "MediVault : nouveau mot de passe", html);
+    }
+
+    private static String empreinte(String lien) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(lien.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static String echapper(String texte) {
+        return texte == null ? "" : texte.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+    }
 
     private String identifiantKeycloak(Utilisateur compte) {
         String id = compte.getKeycloakId() != null ? compte.getKeycloakId() : keycloak.trouverIdParEmail(compte.getEmail());

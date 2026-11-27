@@ -33,6 +33,7 @@ Microservice **commun** de MediVault : comptes, rôles Keycloak, profils et hora
 | POST | `/api/auth/logout` | 204 | fermer la session Keycloak |
 | POST | `/api/auth/inscription` | 201 · 400 · 409 | s'inscrire : **toujours PATIENT** (le rôle demandé est ignoré) |
 | POST | `/api/auth/mot-de-passe-oublie` | 202 | envoie l'e-mail de réinitialisation (même réponse si le compte n'existe pas) |
+| POST | `/api/auth/reinitialiser-mot-de-passe` | 200 · 400 · 403 | choisit le nouveau mot de passe avec le lien de l'e-mail (`token`, usage unique, 30 min) |
 | GET | `/api/auth/moi` | 200 · 401 | profil du compte connecté |
 | POST | `/api/auth/changer-mot-de-passe` | 200 · 401 | changer son mot de passe (ancien requis) |
 
@@ -83,4 +84,19 @@ Comptes Keycloak correspondants (mot de passe de **tous** : `Medivault2026!`, d�
 2. Lancer le service avec le profil `keycloak` : `SPRING_PROFILES_ACTIVE=keycloak` (PowerShell : `$env:SPRING_PROFILES_ACTIVE='keycloak'`)
 3. Tout effacer et repartir de zéro : `docker compose down -v`
 
-Mot de passe oublié : `POST /api/auth/mot-de-passe-oublie` → e-mail visible dans Mailpit → lien → page Keycloak en français → nouveau mot de passe → retour sur `/login` du front.
+### Mot de passe oublié : deux modes
+
+1. **Sans rien configurer** : Keycloak envoie l'e-mail, visible dans **Mailpit** (http://localhost:8025) → lien → page Keycloak en français → nouveau mot de passe.
+2. **Vraie boîte mail, par l'API d'un service d'e-mail (Brevo, offre gratuite)** : le user-service envoie lui-même le mail, avec un lien à usage unique (30 min) vers la page `/reinitialiser-mot-de-passe` du front. Seule l'empreinte SHA-256 du lien est gardée en base (`jetons_reinitialisation`, supprimée automatiquement à l'expiration).
+
+   Mise en route (la clé reste dans une variable d'environnement, jamais dans un fichier) :
+   1. Créer un compte sur https://www.brevo.com, puis *SMTP & API → API Keys* : créer une clé d'API (`xkeysib-...`).
+   2. *Senders, Domains* : ajouter et **vérifier** l'adresse qui enverra les e-mails (ex. ton Gmail : Brevo envoie un code de confirmation).
+   3. Lancer le service avec ces variables (PowerShell) :
+
+      ```powershell
+      $env:BREVO_API_KEY='xkeysib-...'; $env:MAIL_EXPEDITEUR='ton.adresse@gmail.com'
+      $env:SPRING_PROFILES_ACTIVE='keycloak'; mvn spring-boot:run
+      ```
+
+   Sans ces deux variables, le mode 1 (Mailpit) reste actif. Si le service d'e-mail refuse l'envoi, l'erreur est écrite dans les logs du user-service ; l'appelant reçoit toujours la même réponse 202.

@@ -13,7 +13,12 @@ export class InfirmierService {
     return this.http.get<Infirmier[]>(this.url, { params: new HttpParams().set('pharmacieId', pharmacieId) });
   }
 
-  /** Recherche par prénom, nom ou téléphone. */
+  /** Tous les infirmiers de toutes les pharmacies (back-office). */
+  listerTous(): Observable<Infirmier[]> {
+    return this.http.get<Infirmier[]>(this.url);
+  }
+
+  /** Recherche par prénom, nom ou téléphone ; pharmacieId vide = toutes les pharmacies. */
   rechercher(pharmacieId: string, q: string): Observable<Infirmier[]> {
     return this.http.get<Infirmier[]>(`${this.url}/recherche`, { params: { pharmacieId, q } });
   }

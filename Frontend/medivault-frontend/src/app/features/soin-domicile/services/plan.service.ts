@@ -13,6 +13,11 @@ export class PlanService {
     return this.http.get<PlanSuivi[]>(this.url, { params: new HttpParams().set('medecinId', medecinId) });
   }
 
+  /** Tous les plans de suivi (back-office). */
+  listerTous(): Observable<PlanSuivi[]> {
+    return this.http.get<PlanSuivi[]>(this.url);
+  }
+
   /** Recherche des plans par patient, adresse, type de soin ou état (en cours / terminé). */
   rechercher(f: RecherchePlans): Observable<PlanSuivi[]> {
     return this.http.get<PlanSuivi[]>(`${this.url}/recherche`, { params: parametres(f) });

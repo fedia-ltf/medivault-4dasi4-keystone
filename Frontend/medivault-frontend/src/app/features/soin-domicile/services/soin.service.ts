@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
-  AcceptationRequest, RapportRequest, RechercheVisites, StatutVisite, Visite, VisiteRequest, WhatsAppMessage, parametres
+  AcceptationRequest, RapportRequest, RechercheVisites, StatistiquesSoin, StatutVisite, Visite, VisiteRequest, WhatsAppMessage, parametres
 } from '../models/visite.model';
 
 // Tous les appels HTTP vers /api/visites du soin-domicile-service passent par ce service
@@ -20,6 +20,11 @@ export class SoinService {
   /** Recherche multicritère côté serveur (patient, adresse, infirmier, type, statut, dates). */
   rechercher(f: RechercheVisites): Observable<Visite[]> {
     return this.http.get<Visite[]>(`${this.url}/recherche`, { params: parametres(f) });
+  }
+
+  /** Chiffres du back-office administrateur. */
+  statistiques(): Observable<StatistiquesSoin> {
+    return this.http.get<StatistiquesSoin>(`${this.url}/statistiques`);
   }
 
   demander(r: VisiteRequest): Observable<Visite> {

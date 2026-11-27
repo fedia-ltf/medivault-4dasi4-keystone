@@ -128,6 +128,24 @@ export interface PlanSuivi {
 
 export type PlanSuiviRequest = Omit<PlanSuivi, 'id'>;
 
+// Tableau de bord du back-office : GET /api/visites/statistiques
+export interface StatistiquesSoin {
+  totalDemandes: number;
+  enAttente: number;
+  confirmees: number;
+  realisees: number;
+  annulees: number;
+  tauxRealisation: number;
+  totalInfirmiers: number;
+  totalPlans: number;
+  plansEnCours: number;
+  parStatut: Record<string, number>;
+  parType: Record<string, number>;
+  demandesParPharmacie: Record<string, number>;
+  infirmiersParPharmacie: Record<string, number>;
+  topInfirmiers: Record<string, number>;
+}
+
 export const TYPES_SOIN: { valeur: TypeSoin; libelle: string }[] = [
   { valeur: 'INJECTION', libelle: 'Injection' },
   { valeur: 'MESURE_TENSION', libelle: 'Mesure de tension' },

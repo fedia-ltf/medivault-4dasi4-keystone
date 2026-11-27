@@ -24,7 +24,13 @@ import { AuthLayout } from './auth-layout';
         <div class="enter mt-8 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-emerald-800">
           <p class="flex items-center gap-2 font-semibold"><mv-icon name="check" [size]="18" [stroke]="3" /> Demande envoyée</p>
           <p class="mt-2 text-sm leading-relaxed">{{ message() }}</p>
-          <p class="mt-2 text-sm leading-relaxed">Le lien est valable 30 minutes. Pensez à regarder dans vos courriers indésirables.</p>
+          <p class="mt-2 text-sm leading-relaxed">
+            @if (canal() === 'WHATSAPP') {
+              Le lien est valable 30 minutes. Sans numéro WhatsApp enregistré sur votre compte, il est envoyé par e-mail.
+            } @else {
+              Le lien est valable 30 minutes. Pensez à regarder dans vos courriers indésirables.
+            }
+          </p>
         </div>
         <a routerLink="/login" class="btn btn-ink mt-6 w-full py-4 text-[15px]">Retour à la connexion <mv-icon name="arrow-right" [size]="18" /></a>
       } @else {
@@ -36,6 +42,18 @@ import { AuthLayout } from './auth-layout';
               <input class="field pl-11" type="email" name="email" autocomplete="email" placeholder="prenom.nom&#64;medivault.tn" [(ngModel)]="email" />
             </span>
           </label>
+
+          <div>
+            <span class="mb-1.5 block text-sm font-semibold text-ink-700">Recevoir le lien par</span>
+            <div class="grid grid-cols-2 gap-1.5 rounded-2xl border border-white bg-white/70 p-1.5">
+              @for (c of canaux; track c.valeur) {
+                <button type="button" (click)="canal.set(c.valeur)" [attr.aria-pressed]="canal() === c.valeur"
+                        class="rounded-xl py-2.5 text-sm font-semibold transition-colors"
+                        [class.bg-ink-950]="canal() === c.valeur" [class.text-white]="canal() === c.valeur"
+                        [class.text-ink-500]="canal() !== c.valeur">{{ c.libelle }}</button>
+              }
+            </div>
+          </div>
 
           @if (erreur()) {
             <p class="enter flex items-center gap-2 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
@@ -63,6 +81,11 @@ export class MotDePasseOubliePage {
   private auth = inject(AuthService);
 
   protected email = '';
+  protected readonly canaux = [
+    { valeur: 'EMAIL' as const, libelle: 'E-mail' },
+    { valeur: 'WHATSAPP' as const, libelle: 'WhatsApp' }
+  ];
+  protected canal = signal<'EMAIL' | 'WHATSAPP'>('EMAIL');
   protected chargement = signal(false);
   protected message = signal('');
   protected erreur = signal('');
@@ -77,7 +100,7 @@ export class MotDePasseOubliePage {
     }
     this.erreur.set('');
     this.chargement.set(true);
-    this.auth.motDePasseOublie(this.email.trim()).subscribe({
+    this.auth.motDePasseOublie(this.email.trim(), this.canal()).subscribe({
       next: m => { this.chargement.set(false); this.message.set(m); },
       error: (e: HttpErrorResponse) => {
         this.chargement.set(false);

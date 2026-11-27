@@ -66,8 +66,8 @@ export class AuthService {
   }
 
   /** « Mot de passe oublié » : le serveur envoie l'e-mail (même réponse si le compte n'existe pas). */
-  motDePasseOublie(email: string): Observable<string> {
-    return this.http.post<{ message: string }>('/api/auth/mot-de-passe-oublie', { email }).pipe(map(r => r.message));
+  motDePasseOublie(email: string, canal: 'EMAIL' | 'WHATSAPP' = 'EMAIL'): Observable<string> {
+    return this.http.post<{ message: string }>('/api/auth/mot-de-passe-oublie', { email, canal }).pipe(map(r => r.message));
   }
 
   /** Choisit un nouveau mot de passe avec le lien reçu par e-mail (à usage unique). */

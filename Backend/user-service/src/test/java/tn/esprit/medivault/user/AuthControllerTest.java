@@ -131,12 +131,19 @@ class AuthControllerTest {
 
     @Test
     void motDePasseOublie_202_etEmailInvalide_400() throws Exception {
-        when(service.motDePasseOublie("a@b.tn")).thenReturn(new MessageResponse("Si un compte existe…"));
+        when(service.motDePasseOublie("a@b.tn", null)).thenReturn(new MessageResponse("Si un compte existe…"));
+        when(service.motDePasseOublie("a@b.tn", "WHATSAPP")).thenReturn(new MessageResponse("message WhatsApp"));
 
         mockMvc.perform(post("/api/auth/mot-de-passe-oublie").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"a@b.tn\"}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.message").value("Si un compte existe…"));
+        mockMvc.perform(post("/api/auth/mot-de-passe-oublie").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"a@b.tn\",\"canal\":\"WHATSAPP\"}"))
+                .andExpect(status().isAccepted()).andExpect(jsonPath("$.message").value("message WhatsApp"));
+        mockMvc.perform(post("/api/auth/mot-de-passe-oublie").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"a@b.tn\",\"canal\":\"PIGEON\"}"))
+                .andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/auth/mot-de-passe-oublie").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"nimporte quoi\"}"))
                 .andExpect(status().isBadRequest());

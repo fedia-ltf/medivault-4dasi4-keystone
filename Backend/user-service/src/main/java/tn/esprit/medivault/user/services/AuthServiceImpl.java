@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tn.esprit.medivault.user.clients.EmailApiClient;
+import tn.esprit.medivault.user.clients.WhatsAppApiClient;
 import tn.esprit.medivault.user.clients.KeycloakAdminClient;
 import tn.esprit.medivault.user.entities.JetonReinitialisation;
 import tn.esprit.medivault.user.exceptions.EmailIndisponibleException;
@@ -52,6 +53,7 @@ public class AuthServiceImpl implements IAuthService {
     private final ObjectMapper objectMapper;
     private final JetonReinitialisationRepository jetonRepository;
     private final EmailApiClient emailApi;
+    private final WhatsAppApiClient whatsApp;
 
     /** Page où Keycloak renvoie la personne après avoir changé son mot de passe (flux Keycloak / Mailpit). */
     @Value("${medivault.auth.reset-redirect-uri:http://localhost:4301/login}")
@@ -116,9 +118,23 @@ public class AuthServiceImpl implements IAuthService {
     }
 
     @Override
-    public MessageResponse motDePasseOublie(String email) {
+    public MessageResponse motDePasseOublie(String email, String canal) {
         String courriel = normaliser(email);
+        boolean veutWhatsApp = "WHATSAPP".equalsIgnoreCase(canal);
         utilisateurRepository.findByEmailIgnoreCase(courriel).ifPresent(compte -> {
+            // canal WhatsApp : le lien part au téléphone du compte (si WhatsApp est configuré et le compte a un numéro)
+            String numero = numeroInternational(compte.getTelephone());
+            if (veutWhatsApp && whatsApp.isActif() && compte.isActif() && numero != null) {
+                try {
+                    envoyerLienParWhatsApp(compte, numero);
+                    log.info("Lien de réinitialisation envoyé par WhatsApp à {}", courriel);
+                    return;
+                } catch (RuntimeException e) {
+                    log.warn("WhatsApp non envoyé à {} ({}) : repli sur l'e-mail", courriel, e.getMessage());
+                }
+            } else if (veutWhatsApp) {
+                log.warn("WhatsApp demandé pour {} mais impossible (non configuré, compte inactif ou sans numéro) : e-mail", courriel);
+            }
             try {
                 if (emailApi.isActif()) {
                     // API d'e-mail configurée : on envoie nous-mêmes un lien à usage unique, dans la vraie boîte mail
@@ -142,7 +158,9 @@ public class AuthServiceImpl implements IAuthService {
                 log.warn("E-mail de réinitialisation non envoyé à {} : {}", courriel, e.getMessage());
             }
         });
-        return new MessageResponse("Si un compte existe avec cette adresse, un e-mail de réinitialisation vient d'être envoyé.");
+        return new MessageResponse(veutWhatsApp
+                ? "Si un compte existe avec cette adresse, un message de réinitialisation vient d'être envoyé."
+                : "Si un compte existe avec cette adresse, un e-mail de réinitialisation vient d'être envoyé.");
     }
 
     @Override
@@ -185,13 +203,7 @@ public class AuthServiceImpl implements IAuthService {
 
     /** Crée un lien à usage unique (seule son empreinte est gardée) et l'envoie par l'API d'e-mail. */
     private void envoyerLienParApi(Utilisateur compte) {
-        byte[] octets = new byte[32];
-        hasard.nextBytes(octets);
-        String lien = Base64.getUrlEncoder().withoutPadding().encodeToString(octets);
-        jetonRepository.deleteByUtilisateurId(compte.getId());     // une seule demande valable à la fois
-        jetonRepository.save(JetonReinitialisation.builder().empreinte(empreinte(lien)).utilisateurId(compte.getId())
-                .expiration(Instant.now().plus(dureeLienMinutes, ChronoUnit.MINUTES)).build());
-        String adresse = urlPageReinitialisation + "?token=" + lien;
+        String adresse = creerLien(compte);
         String prenom = echapper(compte.getPrenom());
         String html = "<div style=\"font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#0a1a2a\">"
                 + "<h2>MediVault</h2><p>Bonjour " + prenom + ",</p>"
@@ -200,6 +212,41 @@ public class AuthServiceImpl implements IAuthService {
                 + "border-radius:10px;text-decoration:none\">Choisir un nouveau mot de passe</a></p>"
                 + "<p style=\"font-size:12px;color:#667\">Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe ne change pas.</p></div>";
         emailApi.envoyer(compte.getEmail(), compte.getPrenom() + " " + compte.getNom(), "MediVault : nouveau mot de passe", html);
+    }
+
+    /** Crée le lien à usage unique (seule son empreinte est gardée en base) et renvoie son adresse complète. */
+    private String creerLien(Utilisateur compte) {
+        byte[] octets = new byte[32];
+        hasard.nextBytes(octets);
+        String lien = Base64.getUrlEncoder().withoutPadding().encodeToString(octets);
+        jetonRepository.deleteByUtilisateurId(compte.getId());     // une seule demande valable à la fois
+        jetonRepository.save(JetonReinitialisation.builder().empreinte(empreinte(lien)).utilisateurId(compte.getId())
+                .expiration(Instant.now().plus(dureeLienMinutes, ChronoUnit.MINUTES)).build());
+        return urlPageReinitialisation + "?token=" + lien;
+    }
+
+    private void envoyerLienParWhatsApp(Utilisateur compte, String numero) {
+        String adresse = creerLien(compte);
+        whatsApp.envoyer(numero, "MediVault : bonjour " + compte.getPrenom() + ", pour choisir un nouveau mot de passe ouvrez ce lien ("
+                + dureeLienMinutes + " minutes, usage unique) : " + adresse + "\nSi ce n'est pas vous, ignorez ce message.");
+    }
+
+    /** « 22 123 456 » -> « +21622123456 » (8 chiffres = numéro tunisien) ; « +33 6 12… » est gardé ; null si inutilisable. */
+    public static String numeroInternational(String telephone) {
+        if (telephone == null) {
+            return null;
+        }
+        String chiffres = telephone.replaceAll("[^0-9+]", "");
+        if (chiffres.isBlank()) {
+            return null;
+        }
+        if (chiffres.startsWith("+")) {
+            return chiffres.length() >= 9 ? chiffres : null;
+        }
+        if (chiffres.startsWith("00")) {
+            return "+" + chiffres.substring(2);
+        }
+        return chiffres.length() == 8 ? "+216" + chiffres : "+" + chiffres;
     }
 
     private static String empreinte(String lien) {

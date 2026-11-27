@@ -103,4 +103,15 @@ Comptes Keycloak correspondants (mot de passe de **tous** : `Medivault2026!`, d�
 
    **Resend** (https://resend.com) marche aussi (`medivault.mail.provider=resend`, clé `re_...`) et ne demande pas d'activation manuelle du compte : sans domaine à soi, le mail part de `onboarding@resend.dev` et n'est livré qu'à l'adresse du compte Resend.
 
-   Sans clé, le mode 1 (Mailpit) reste actif. Si le service d'e-mail refuse l'envoi, l'erreur est écrite dans les logs du user-service ; l'appelant reçoit toujours la même réponse 202.
+   Sans clé, le mode 1 (Mailpit) reste actif. Si le service d'e-mail refuse un envoi, la demande retombe sur Keycloak / Mailpit au lieu de se perdre.
+
+### Mot de passe oublié par WhatsApp (Twilio, sandbox gratuit)
+
+`POST /api/auth/mot-de-passe-oublie` accepte `{ "email": "...", "canal": "WHATSAPP" }` (`EMAIL` par défaut). Le lien à usage unique est envoyé au **téléphone du compte** (8 chiffres = numéro tunisien, `+216` ajouté). Sans WhatsApp configuré, sans numéro ou si Twilio refuse : repli sur l'e-mail.
+
+Mise en route :
+1. Compte gratuit sur https://www.twilio.com, puis *Messaging → Try it out → Send a WhatsApp message* (sandbox).
+2. Depuis ton téléphone, envoie le message `join <mot-du-sandbox>` au numéro WhatsApp du sandbox (+1 415 523 8886). La session dure 72 h, puis renvoie `join`.
+3. Dans `secrets.properties` : `medivault.whatsapp.account-sid` (commence par `AC`) et `medivault.whatsapp.auth-token` (page d'accueil de la console Twilio). Relance le service.
+
+Le sandbox n'envoie qu'aux numéros qui ont fait `join`. Si le service d'e-mail refuse l'envoi, l'erreur est écrite dans les logs du user-service ; l'appelant reçoit toujours la même réponse 202.

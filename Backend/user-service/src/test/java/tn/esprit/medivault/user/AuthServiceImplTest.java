@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import tn.esprit.medivault.user.clients.EmailApiClient;
+import tn.esprit.medivault.user.clients.WhatsAppApiClient;
 import tn.esprit.medivault.user.clients.KeycloakAdminClient;
 import tn.esprit.medivault.user.entities.JetonReinitialisation;
 import tn.esprit.medivault.user.exceptions.EmailIndisponibleException;
@@ -58,12 +59,14 @@ class AuthServiceImplTest {
     private JetonReinitialisationRepository jetons;
     @Mock
     private EmailApiClient emailApi;
+    @Mock
+    private WhatsAppApiClient whatsApp;
 
     private AuthServiceImpl service;
 
     @BeforeEach
     void preparer() {
-        service = new AuthServiceImpl(keycloak, repository, utilisateurService, new ObjectMapper(), jetons, emailApi);
+        service = new AuthServiceImpl(keycloak, repository, utilisateurService, new ObjectMapper(), jetons, emailApi, whatsApp);
         ReflectionTestUtils.setField(service, "urlRetourApresReinitialisation", "http://localhost:4301/login");
     }
 
@@ -261,6 +264,72 @@ class AuthServiceImplTest {
         assertThat(reponse.message()).contains("Si un compte existe");
         // l'API refuse : la demande ne se perd pas, Keycloak envoie l'e-mail (visible dans Mailpit)
         verify(keycloak).envoyerEmailReinitialisation("kc-1", "http://localhost:4301/login");
+    }
+
+    // ---------------------------------------------------------------- mot de passe oublié par WhatsApp
+
+    private static Utilisateur patientAvecTelephone(String telephone) {
+        Utilisateur u = patient(true, "kc-1");
+        u.setTelephone(telephone);
+        return u;
+    }
+
+    @Test
+    void whatsApp_envoieLeLienAuNumeroInternationalSansPasserParEmail() {
+        when(whatsApp.isActif()).thenReturn(true);
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patientAvecTelephone("22 123 456")));
+
+        MessageResponse reponse = service.motDePasseOublie("ahmed@test.tn", "whatsapp");
+
+        ArgumentCaptor<String> texte = ArgumentCaptor.forClass(String.class);
+        verify(whatsApp).envoyer(eq("+21622123456"), texte.capture());
+        assertThat(texte.getValue()).contains("reinitialiser-mot-de-passe?token=");
+        verify(jetons).save(any(JetonReinitialisation.class));
+        verify(emailApi, never()).envoyer(anyString(), anyString(), anyString(), anyString());
+        verify(keycloak, never()).envoyerEmailReinitialisation(anyString(), anyString());
+        assertThat(reponse.message()).contains("message");
+    }
+
+    @Test
+    void whatsApp_compteSansNumero_replieSurLEmail() {
+        when(whatsApp.isActif()).thenReturn(true);
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patientAvecTelephone(null)));
+
+        service.motDePasseOublie("ahmed@test.tn", "WHATSAPP");
+
+        verify(whatsApp, never()).envoyer(anyString(), anyString());
+        verify(keycloak).envoyerEmailReinitialisation("kc-1", "http://localhost:4301/login");
+    }
+
+    @Test
+    void whatsApp_nonConfigure_replieSurLEmail() {
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patientAvecTelephone("22123456")));
+
+        service.motDePasseOublie("ahmed@test.tn", "WHATSAPP");
+
+        verify(whatsApp, never()).envoyer(anyString(), anyString());
+        verify(keycloak).envoyerEmailReinitialisation("kc-1", "http://localhost:4301/login");
+    }
+
+    @Test
+    void whatsApp_refuseParTwilio_replieSurLEmail() {
+        when(whatsApp.isActif()).thenReturn(true);
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patientAvecTelephone("22123456")));
+        org.mockito.Mockito.doThrow(new EmailIndisponibleException("refusé", null)).when(whatsApp).envoyer(anyString(), anyString());
+
+        service.motDePasseOublie("ahmed@test.tn", "WHATSAPP");
+
+        verify(keycloak).envoyerEmailReinitialisation("kc-1", "http://localhost:4301/login");
+    }
+
+    @Test
+    void numeroInternational_formatsUsuels() {
+        assertThat(AuthServiceImpl.numeroInternational("22 123 456")).isEqualTo("+21622123456");
+        assertThat(AuthServiceImpl.numeroInternational("+216 22 123 456")).isEqualTo("+21622123456");
+        assertThat(AuthServiceImpl.numeroInternational("0021622123456")).isEqualTo("+21622123456");
+        assertThat(AuthServiceImpl.numeroInternational("+33612345678")).isEqualTo("+33612345678");
+        assertThat(AuthServiceImpl.numeroInternational(null)).isNull();
+        assertThat(AuthServiceImpl.numeroInternational("abc")).isNull();
     }
 
     @Test

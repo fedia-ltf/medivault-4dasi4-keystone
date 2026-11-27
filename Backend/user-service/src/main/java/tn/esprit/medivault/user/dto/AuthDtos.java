@@ -39,8 +39,10 @@ public final class AuthDtos {
             @Pattern(regexp = MOT_DE_PASSE, message = MESSAGE_MOT_DE_PASSE) String motDePasse) {
     }
 
+    /** « canal » est facultatif : EMAIL (par défaut) ou WHATSAPP (le lien est envoyé au téléphone du compte). */
     public record MotDePasseOublieRequest(
-            @NotBlank(message = "l'email est obligatoire") @Email(message = "email invalide") String email) {
+            @NotBlank(message = "l'email est obligatoire") @Email(message = "email invalide") String email,
+            @Pattern(regexp = "^(?i)(EMAIL|WHATSAPP)$", message = "canal invalide : EMAIL ou WHATSAPP") String canal) {
     }
 
     /** Le lien reçu par e-mail (« token » dans l'adresse) et le nouveau mot de passe choisi. */

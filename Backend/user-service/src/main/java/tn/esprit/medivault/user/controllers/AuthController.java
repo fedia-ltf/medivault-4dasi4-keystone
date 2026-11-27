@@ -76,7 +76,7 @@ public class AuthController {
     @Operation(summary = "Mot de passe oublié : envoie un e-mail avec un lien pour en choisir un nouveau (même réponse si le compte n'existe pas)")
     @ApiResponse(responseCode = "202", description = "Demande prise en compte")
     public MessageResponse motDePasseOublie(@Valid @RequestBody MotDePasseOublieRequest request) {
-        return authService.motDePasseOublie(request.email());
+        return authService.motDePasseOublie(request.email(), request.canal());
     }
 
     @PostMapping("/reinitialiser-mot-de-passe")

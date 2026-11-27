@@ -19,7 +19,12 @@ public interface IAuthService {
     UtilisateurResponse inscription(InscriptionRequest request);
 
     /** Envoie l'e-mail de réinitialisation. Même réponse que le compte existe ou non (on ne révèle pas les comptes). */
-    MessageResponse motDePasseOublie(String email);
+    MessageResponse motDePasseOublie(String email, String canal);
+
+    /** Par e-mail (canal par défaut). */
+    default MessageResponse motDePasseOublie(String email) {
+        return motDePasseOublie(email, null);
+    }
 
     /** Choisit un nouveau mot de passe grâce au lien reçu par e-mail (à usage unique, 30 minutes). */
     MessageResponse reinitialiserMotDePasse(String lien, String nouveauMotDePasse);

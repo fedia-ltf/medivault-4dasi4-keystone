@@ -13,6 +13,12 @@ public interface RendezVousRepository extends JpaRepository<RendezVous, Long> {
 
     List<RendezVous> findByPatientId(String patientId);
 
+    List<RendezVous> findByPatientIdOrderByCreneauDateDebutDesc(String patientId);
+
+    List<RendezVous> findByCreneauProfessionnelId(String professionnelId);
+
+    List<RendezVous> findByCreneauProfessionnelIdOrderByCreneauDateDebutDesc(String professionnelId);
+
     Optional<RendezVous> findTopByPatientIdAndCreneauProfessionnelIdAndStatutOrderByCreneauDateDebutDesc(
             String patientId, String professionnelId, StatutRdv statut);
 }

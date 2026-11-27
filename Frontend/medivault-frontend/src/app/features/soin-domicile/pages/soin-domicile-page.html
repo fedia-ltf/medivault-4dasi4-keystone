@@ -20,6 +20,7 @@
   @default {
     <p class="card mt-4 p-6 text-sm text-ink-500">
       Connectez-vous en tant que <b>patient</b>, <b>pharmacien</b> ou <b>médecin</b> pour utiliser le soin à domicile.
+      @if (role() === 'ADMIN') { <a routerLink="/app/soin-domicile/gestion" class="ml-1 font-semibold text-aqua-700 underline">Ouvrir le back-office</a> }
     </p>
   }
 }

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Icon } from '../../../shared/icon';
 import { AuthService } from '../../../core/auth.service';
 import { SoinDomicileScene } from '../components/soin-domicile-scene';
@@ -10,7 +11,7 @@ import { EspaceMedecin } from '../components/espace-medecin';
 @Component({
   selector: 'mv-soin-domicile-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, SoinDomicileScene, EspacePatient, EspacePharmacien, EspaceMedecin],
+  imports: [RouterLink, Icon, SoinDomicileScene, EspacePatient, EspacePharmacien, EspaceMedecin],
   templateUrl: './soin-domicile-page.html'
 })
 export class SoinDomicilePage {

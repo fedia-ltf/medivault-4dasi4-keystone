@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import tn.esprit.medivault.user.clients.EmailApiClient;
 import tn.esprit.medivault.user.clients.KeycloakAdminClient;
 import tn.esprit.medivault.user.entities.JetonReinitialisation;
+import tn.esprit.medivault.user.exceptions.EmailIndisponibleException;
 import tn.esprit.medivault.user.exceptions.LienInvalideException;
 import tn.esprit.medivault.user.repositories.JetonReinitialisationRepository;
 import tn.esprit.medivault.user.dto.AuthDtos.InscriptionRequest;
@@ -122,7 +123,14 @@ public class AuthServiceImpl implements IAuthService {
                 if (emailApi.isActif()) {
                     // API d'e-mail configurée : on envoie nous-mêmes un lien à usage unique, dans la vraie boîte mail
                     if (compte.isActif()) {
-                        envoyerLienParApi(compte);
+                        try {
+                            envoyerLienParApi(compte);
+                        } catch (EmailIndisponibleException e) {
+                            // le service d'e-mail refuse (compte non activé, adresse non autorisée en mode test…) :
+                            // repli sur Keycloak, dont l'e-mail est visible dans Mailpit, pour que la demande ne se perde pas
+                            log.warn("API d'e-mail indisponible pour {} ({}) : repli sur Keycloak / Mailpit", courriel, e.getMessage());
+                            keycloak.envoyerEmailReinitialisation(identifiantKeycloak(compte), urlRetourApresReinitialisation);
+                        }
                     }
                 } else {
                     // sinon : Keycloak envoie l'e-mail (visible dans Mailpit)

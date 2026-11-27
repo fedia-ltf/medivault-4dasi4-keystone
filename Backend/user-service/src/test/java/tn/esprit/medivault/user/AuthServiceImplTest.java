@@ -250,7 +250,7 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void motDePasseOublie_apiActive_echecDEnvoi_neRevelePasLeCompte() {
+    void motDePasseOublie_apiActive_echecDEnvoi_replieSurKeycloakSansRevelerLeCompte() {
         when(emailApi.isActif()).thenReturn(true);
         when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, "kc-1")));
         org.mockito.Mockito.doThrow(new EmailIndisponibleException("refusé", null))
@@ -259,6 +259,8 @@ class AuthServiceImplTest {
         MessageResponse reponse = service.motDePasseOublie("ahmed@test.tn");
 
         assertThat(reponse.message()).contains("Si un compte existe");
+        // l'API refuse : la demande ne se perd pas, Keycloak envoie l'e-mail (visible dans Mailpit)
+        verify(keycloak).envoyerEmailReinitialisation("kc-1", "http://localhost:4301/login");
     }
 
     @Test

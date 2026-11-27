@@ -45,10 +45,12 @@ public class DonneesDemo implements ApplicationRunner {
         if (!adresseUserService.isBlank()) {
             try {
                 List<Map<String, Object>> comptes = RestClient.create().get()
-                        .uri(adresseUserService + "/api/utilisateurs?role=PHARMACIEN").retrieve()
+                        .uri(adresseUserService + "/api/professionnels?type=PHARMACIEN").retrieve()
                         .body(new ParameterizedTypeReference<>() { });
                 if (comptes != null && !comptes.isEmpty()) {
-                    return comptes.stream().map(c -> String.valueOf(c.get("id"))).toList();
+                    // ordre stable (l'API n'en garantit aucun) : la Pharmacie Centrale d'abord, puis par identifiant
+                    return comptes.stream().map(c -> String.valueOf(c.get("id")))
+                            .sorted((a, b) -> a.equals("pharmacie-centrale") ? -1 : b.equals("pharmacie-centrale") ? 1 : a.compareTo(b)).toList();
                 }
             } catch (Exception e) {
                 log.warn("Pharmacies du user-service introuvables ({}) : pharmacies d'exemple", e.toString());

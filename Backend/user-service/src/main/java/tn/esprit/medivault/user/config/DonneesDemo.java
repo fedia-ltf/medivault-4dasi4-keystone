@@ -77,8 +77,30 @@ public class DonneesDemo implements CommandLineRunner {
                 .nomEtablissement("Pharmacie Centrale").numeroAgrement("PH-2026-042")
                 .adresse("30 avenue de la Liberté").ville("Tunis").build();
 
-        utilisateurRepository.saveAll(List.of(ahmed, admin, karim, bioLab, pharmacie));
-        log.info("Données de démonstration créées : patient-ahmed, medecin-karim, labo-biolab, pharmacie-centrale, admin");
+        List<Utilisateur> tous = new java.util.ArrayList<>(List.of(ahmed, admin, karim, bioLab, pharmacie));
+        tous.add(pharmacie("pharmacie-marsa", "Trabelsi", "Leila", "marsa@medivault.tn", "+216 71 740 100",
+                "Pharmacie de la Marsa", "PH-2026-043", "12 avenue Habib Bourguiba", "La Marsa", maintenant));
+        tous.add(pharmacie("pharmacie-manar", "Gharbi", "Karim", "manar@medivault.tn", "+216 71 750 200",
+                "Pharmacie El Manar", "PH-2026-044", "5 rue des Orangers", "Tunis", maintenant));
+        tous.add(pharmacie("pharmacie-ibnsina", "Jaziri", "Nadia", "ibnsina@medivault.tn", "+216 74 260 300",
+                "Pharmacie Ibn Sina", "PH-2026-045", "21 avenue Hedi Chaker", "Sfax", maintenant));
+        tous.add(pharmacie("pharmacie-jasmins", "Mejri", "Walid", "jasmins@medivault.tn", "+216 73 270 400",
+                "Pharmacie Les Jasmins", "PH-2026-046", "8 boulevard du 14 Janvier", "Sousse", maintenant));
+        tous.add(pharmacie("pharmacie-carthage", "Hamdi", "Sonia", "carthage@medivault.tn", "+216 71 730 500",
+                "Pharmacie Carthage", "PH-2026-047", "3 rue d'Hannibal", "Carthage", maintenant));
+        tous.add(pharmacie("pharmacie-menzah", "Dridi", "Amine", "menzah@medivault.tn", "+216 71 760 600",
+                "Pharmacie El Menzah", "PH-2026-048", "17 avenue de l'Environnement", "Tunis", maintenant));
+        tous.add(pharmacie("pharmacie-bizerte", "Chaabane", "Rim", "bizerte@medivault.tn", "+216 72 440 700",
+                "Pharmacie Bizerte Centre", "PH-2026-049", "10 rue de Palestine", "Bizerte", maintenant));
+        utilisateurRepository.saveAll(tous);
+        log.info("Données de démonstration créées : {} comptes (patient, admin, médecin, laboratoire, 8 pharmacies)", tous.size());
+    }
+
+    private Professionnel pharmacie(String id, String nom, String prenom, String email, String telephone,
+                                    String etablissement, String agrement, String adresse, String ville, Instant creation) {
+        return Professionnel.builder().id(id).nom(nom).prenom(prenom).email(email).telephone(telephone)
+                .role(Role.PHARMACIEN).actif(true).dateCreation(creation).type(TypeProfessionnel.PHARMACIEN)
+                .nomEtablissement(etablissement).numeroAgrement(agrement).adresse(adresse).ville(ville).build();
     }
 
     private String signatureDemo() {

@@ -45,6 +45,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return probleme(HttpStatus.BAD_REQUEST, "Requête invalide", ex.getMessage());
     }
 
+    @ExceptionHandler(IdentifiantsInvalidesException.class)
+    public ProblemDetail handleIdentifiants(IdentifiantsInvalidesException ex) {
+        return probleme(HttpStatus.UNAUTHORIZED, "Identifiants invalides", ex.getMessage());
+    }
+
+    @ExceptionHandler(CompteInaccessibleException.class)
+    public ProblemDetail handleCompteInaccessible(CompteInaccessibleException ex) {
+        return probleme(HttpStatus.FORBIDDEN, "Compte inaccessible", ex.getMessage());
+    }
+
     @ExceptionHandler(KeycloakIndisponibleException.class)
     public ProblemDetail handleKeycloak(KeycloakIndisponibleException ex) {
         log.error("Keycloak indisponible", ex);

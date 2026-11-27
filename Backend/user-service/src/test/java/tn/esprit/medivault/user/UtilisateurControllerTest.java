@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UtilisateurController.class)
+@org.springframework.context.annotation.Import(tn.esprit.medivault.user.config.SecurityConfig.class)
 class UtilisateurControllerTest {
 
     @Autowired

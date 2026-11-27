@@ -1,0 +1,334 @@
+{
+  "realm": "medivault",
+  "enabled": true,
+  "sslRequired": "none",
+  "displayName": "MediVault",
+  "displayNameHtml": "<b>MediVault</b>",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "fr",
+    "en"
+  ],
+  "defaultLocale": "fr",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "registrationEmailAsUsername": true,
+  "rememberMe": true,
+  "bruteForceProtected": true,
+  "failureFactor": 8,
+  "passwordPolicy": "length(8) and digits(1)",
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply@medivault.tn",
+    "fromDisplayName": "MediVault",
+    "auth": "false",
+    "ssl": "false",
+    "starttls": "false"
+  },
+  "roles": {
+    "realm": [
+      {
+        "name": "PATIENT",
+        "description": "Rôle MediVault : PATIENT"
+      },
+      {
+        "name": "MEDECIN",
+        "description": "Rôle MediVault : MEDECIN"
+      },
+      {
+        "name": "PHARMACIEN",
+        "description": "Rôle MediVault : PHARMACIEN"
+      },
+      {
+        "name": "LABORANTIN",
+        "description": "Rôle MediVault : LABORANTIN"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Rôle MediVault : ADMIN"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "medivault-frontend",
+      "name": "MediVault (front Angular)",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": [
+        "http://localhost:4301/*",
+        "http://localhost:4200/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      }
+    },
+    {
+      "clientId": "user-service",
+      "name": "user-service",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "clientAuthenticatorType": "client-secret",
+      "secret": "user-service-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "ahmed.benali@medivault.tn",
+      "email": "ahmed.benali@medivault.tn",
+      "firstName": "Ahmed",
+      "lastName": "Ben Ali",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PATIENT"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "admin@medivault.tn",
+      "email": "admin@medivault.tn",
+      "firstName": "MediVault",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ADMIN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "karim.trabelsi@medivault.tn",
+      "email": "karim.trabelsi@medivault.tn",
+      "firstName": "Karim",
+      "lastName": "Trabelsi",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "MEDECIN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "contact@biolab.tn",
+      "email": "contact@biolab.tn",
+      "firstName": "Laboratoire",
+      "lastName": "BioLab",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "LABORANTIN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "pharmacie.centrale@medivault.tn",
+      "email": "pharmacie.centrale@medivault.tn",
+      "firstName": "Sami",
+      "lastName": "Mansour",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PHARMACIEN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "marsa@medivault.tn",
+      "email": "marsa@medivault.tn",
+      "firstName": "Leila",
+      "lastName": "Trabelsi",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PHARMACIEN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "manar@medivault.tn",
+      "email": "manar@medivault.tn",
+      "firstName": "Karim",
+      "lastName": "Gharbi",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PHARMACIEN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "ibnsina@medivault.tn",
+      "email": "ibnsina@medivault.tn",
+      "firstName": "Nadia",
+      "lastName": "Jaziri",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PHARMACIEN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "jasmins@medivault.tn",
+      "email": "jasmins@medivault.tn",
+      "firstName": "Walid",
+      "lastName": "Mejri",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PHARMACIEN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "carthage@medivault.tn",
+      "email": "carthage@medivault.tn",
+      "firstName": "Sonia",
+      "lastName": "Hamdi",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PHARMACIEN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "menzah@medivault.tn",
+      "email": "menzah@medivault.tn",
+      "firstName": "Amine",
+      "lastName": "Dridi",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PHARMACIEN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "bizerte@medivault.tn",
+      "email": "bizerte@medivault.tn",
+      "firstName": "Rim",
+      "lastName": "Chaabane",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Medivault2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "PHARMACIEN"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "service-account-user-service",
+      "enabled": true,
+      "serviceAccountClientId": "user-service",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users",
+          "view-realm"
+        ]
+      }
+    }
+  ]
+}

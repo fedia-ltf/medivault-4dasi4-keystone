@@ -9,6 +9,8 @@ import { roleGuard } from './core/role.guard';
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./features/landing/landing').then(m => m.LandingPage) },
   { path: 'login', loadComponent: () => import('./features/auth/login').then(m => m.LoginPage) },
+  { path: 'inscription', loadComponent: () => import('./features/auth/inscription').then(m => m.InscriptionPage) },
+  { path: 'mot-de-passe-oublie', loadComponent: () => import('./features/auth/mot-de-passe-oublie').then(m => m.MotDePasseOubliePage) },
   {
     path: 'app',
     canActivate: [authGuard],

@@ -24,6 +24,20 @@ Microservice **commun** de MediVault : comptes, rôles Keycloak, profils et hora
 | GET | `/api/professionnels/{id}/signature` | 200 · 404 | signature du médecin (appelé par ordonnance-service) |
 | PUT | `/api/professionnels/{id}/signature` | 200 · 400 · 404 | envoyer la signature (multipart, champ `fichier`, PNG/JPEG, 200 Ko max) |
 
+### Authentification (ajouté : connexion, inscription, mot de passe oublié)
+
+| Méthode | Endpoint | Codes | Rôle |
+|---|---|---|---|
+| POST | `/api/auth/login` | 200 · 400 · 401 · 403 · 503 | connexion e-mail + mot de passe → jetons JWT Keycloak + profil (le **rôle vient du compte**) |
+| POST | `/api/auth/refresh` | 200 · 401 | renouveler le jeton |
+| POST | `/api/auth/logout` | 204 | fermer la session Keycloak |
+| POST | `/api/auth/inscription` | 201 · 400 · 409 | s'inscrire : **toujours PATIENT** (le rôle demandé est ignoré) |
+| POST | `/api/auth/mot-de-passe-oublie` | 202 | envoie l'e-mail de réinitialisation (même réponse si le compte n'existe pas) |
+| GET | `/api/auth/moi` | 200 · 401 | profil du compte connecté |
+| POST | `/api/auth/changer-mot-de-passe` | 200 · 401 | changer son mot de passe (ancien requis) |
+
+Sécurité (profil Spring `keycloak`) : jeton JWT vérifié sur toutes les routes sauf login, inscription, mot de passe oublié, Swagger, santé, `GET /api/utilisateurs/{id}` et `GET /api/professionnels/**` (lus par les autres services). Créer un compte / lister / activer-désactiver = **ADMIN** ; envoyer une signature = **MEDECIN** ou **ADMIN**.
+
 Les erreurs suivent le format Problem Details (RFC 9457), comme `medicament-service`.
 
 ## Communications
@@ -43,10 +57,30 @@ Créées au démarrage si la collection est vide (`medivault.seed.enabled=true`)
 | `medecin-karim` | MEDECIN | Dr Karim Trabelsi, Tunis, lun.–ven. 8 h–16 h, avec signature |
 | `labo-biolab` | LABORANTIN | Laboratoire BioLab, Ariana, lun.–sam. 7 h–13 h |
 | `pharmacie-centrale` | PHARMACIEN | Pharmacie Centrale, Tunis |
+| `pharmacie-marsa`, `-manar`, `-ibnsina`, `-jasmins`, `-carthage`, `-menzah`, `-bizerte` | PHARMACIEN | 7 autres pharmacies (ajouté : le medicament-service leur attribue des quotas) |
 | `admin` | ADMIN | administrateur |
+
+Comptes Keycloak correspondants (mot de passe de **tous** : `Medivault2026!`, développement seulement) :
+`ahmed.benali@medivault.tn`, `karim.trabelsi@medivault.tn`, `pharmacie.centrale@medivault.tn`, `contact@biolab.tn`, `admin@medivault.tn`, + `marsa@`, `manar@`, `ibnsina@`, `jasmins@`, `carthage@`, `menzah@`, `bizerte@medivault.tn`.
 
 ## Lancer
 
+**Version simple (comme avant, sans connexion réelle)** :
 1. MongoDB sur `localhost:27017` (ex. `docker run -d -p 27017:27017 mongo:7`)
 2. Optionnel : RabbitMQ (`5672`), Eureka (`8761`), Config Server (`8888`) — le service démarre sans eux
 3. Lancer `UserServiceApplication` puis ouvrir Swagger
+
+**Version complète (ajouté : Keycloak + e-mails + MongoDB visible)** :
+1. `docker compose up -d` dans ce dossier. Cela lance :
+
+   | Outil | Adresse | Rôle |
+   |---|---|---|
+   | MongoDB | `localhost:27017` | base `user_db` (volume : les données restent) |
+   | mongo-express | http://localhost:8082 | **voir les utilisateurs** dans MongoDB |
+   | Keycloak | http://localhost:8180 (admin / admin) | connexion, rôles, JWT — realm `medivault` importé depuis `keycloak/medivault-realm.json` |
+   | Mailpit | http://localhost:8025 | boîte e-mail de test : reçoit les e-mails « mot de passe oublié » |
+
+2. Lancer le service avec le profil `keycloak` : `SPRING_PROFILES_ACTIVE=keycloak` (PowerShell : `$env:SPRING_PROFILES_ACTIVE='keycloak'`)
+3. Tout effacer et repartir de zéro : `docker compose down -v`
+
+Mot de passe oublié : `POST /api/auth/mot-de-passe-oublie` → e-mail visible dans Mailpit → lien → page Keycloak en français → nouveau mot de passe → retour sur `/login` du front.

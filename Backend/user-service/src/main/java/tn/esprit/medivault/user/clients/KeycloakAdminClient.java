@@ -14,6 +14,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import tn.esprit.medivault.user.entities.Role;
 import tn.esprit.medivault.user.exceptions.EmailDejaUtiliseException;
+import tn.esprit.medivault.user.exceptions.CompteInaccessibleException;
+import tn.esprit.medivault.user.exceptions.IdentifiantsInvalidesException;
 import tn.esprit.medivault.user.exceptions.KeycloakIndisponibleException;
 
 import java.net.URI;
@@ -34,17 +36,20 @@ public class KeycloakAdminClient {
     private final String realm;
     private final String clientId;
     private final String clientSecret;
+    private final String frontendClientId;
     private final RestClient restClient;
 
     public KeycloakAdminClient(@Value("${medivault.keycloak.enabled:false}") boolean enabled,
                                @Value("${medivault.keycloak.server-url}") String serverUrl,
                                @Value("${medivault.keycloak.realm}") String realm,
                                @Value("${medivault.keycloak.client-id}") String clientId,
-                               @Value("${medivault.keycloak.client-secret}") String clientSecret) {
+                               @Value("${medivault.keycloak.client-secret}") String clientSecret,
+                               @Value("${medivault.keycloak.frontend-client-id:medivault-frontend}") String frontendClientId) {
         this.enabled = enabled;
         this.realm = realm;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
+        this.frontendClientId = frontendClientId;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(2000);
         factory.setReadTimeout(4000);
@@ -143,6 +148,134 @@ public class KeycloakAdminClient {
                 .body(List.of(representation))
                 .retrieve()
                 .toBodilessEntity();
+    }
+
+    // ------------------------------------------------------------------ connexion (login) et jetons
+
+    /** Vérifie l'email et le mot de passe auprès de Keycloak et renvoie ses jetons (access_token, refresh_token…). */
+    public Map<String, Object> connexion(String email, String motDePasse) {
+        exigerActif();
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "password");
+        form.add("client_id", frontendClientId);
+        form.add("username", email);
+        form.add("password", motDePasse);
+        form.add("scope", "openid");
+        return demanderJeton(form, "Email ou mot de passe incorrect.");
+    }
+
+    /** Échange un refresh_token contre de nouveaux jetons. */
+    public Map<String, Object> renouveler(String refreshToken) {
+        exigerActif();
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "refresh_token");
+        form.add("client_id", frontendClientId);
+        form.add("refresh_token", refreshToken);
+        return demanderJeton(form, "Votre session a expiré : reconnectez-vous.");
+    }
+
+    /** Ferme la session Keycloak (le refresh_token ne sert plus). Sans effet si Keycloak est désactivé ou injoignable. */
+    public void deconnecter(String refreshToken) {
+        if (!enabled || refreshToken == null) {
+            return;
+        }
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("client_id", frontendClientId);
+        form.add("refresh_token", refreshToken);
+        try {
+            restClient.post().uri("/realms/{realm}/protocol/openid-connect/logout", realm)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED).body(form).retrieve().toBodilessEntity();
+        } catch (RestClientException e) {
+            log.warn("Déconnexion Keycloak non confirmée : {}", e.getMessage());
+        }
+    }
+
+    // ------------------------------------------------------------------ mot de passe
+
+    /** L'identifiant Keycloak d'un compte à partir de son email (null s'il n'existe pas). */
+    public String trouverIdParEmail(String email) {
+        exigerActif();
+        try {
+            List<Map<String, Object>> trouves = restClient.get()
+                    .uri(b -> b.path("/admin/realms/{realm}/users").queryParam("email", email).queryParam("exact", true).build(realm))
+                    .header("Authorization", "Bearer " + token())
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {
+                    });
+            return trouves == null || trouves.isEmpty() ? null : trouves.get(0).get("id").toString();
+        } catch (RestClientException e) {
+            throw new KeycloakIndisponibleException("Keycloak indisponible : réessayer plus tard", e);
+        }
+    }
+
+    /** « Mot de passe oublié » : Keycloak envoie lui-même l'e-mail avec le lien pour choisir un nouveau mot de passe (30 minutes). */
+    public void envoyerEmailReinitialisation(String keycloakId, String urlRetour) {
+        exigerActif();
+        try {
+            restClient.put()
+                    .uri(b -> b.path("/admin/realms/{realm}/users/{id}/execute-actions-email")
+                            .queryParam("client_id", frontendClientId).queryParam("redirect_uri", urlRetour)
+                            .queryParam("lifespan", 1800).build(realm, keycloakId))
+                    .header("Authorization", "Bearer " + token())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(List.of("UPDATE_PASSWORD"))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new KeycloakIndisponibleException("L'e-mail n'a pas pu être envoyé : " + e.getMessage(), e);
+        }
+    }
+
+    /** Définit un nouveau mot de passe (non temporaire). */
+    public void changerMotDePasse(String keycloakId, String nouveauMotDePasse) {
+        exigerActif();
+        try {
+            restClient.put()
+                    .uri("/admin/realms/{realm}/users/{id}/reset-password", realm, keycloakId)
+                    .header("Authorization", "Bearer " + token())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("type", "password", "value", nouveauMotDePasse, "temporary", false))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (HttpClientErrorException.BadRequest e) {
+            throw new IdentifiantsInvalidesException("Mot de passe refusé : 8 caractères minimum, avec au moins un chiffre.");
+        } catch (RestClientException e) {
+            throw new KeycloakIndisponibleException("Keycloak indisponible : mot de passe non modifié", e);
+        }
+    }
+
+    private void exigerActif() {
+        if (!enabled) {
+            throw new KeycloakIndisponibleException(
+                    "Connexion indisponible : Keycloak est désactivé (lancer avec le profil « keycloak »).", null);
+        }
+    }
+
+    private Map<String, Object> demanderJeton(MultiValueMap<String, String> form, String messageRefus) {
+        try {
+            Map<String, Object> reponse = restClient.post()
+                    .uri("/realms/{realm}/protocol/openid-connect/token", realm)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                    });
+            if (reponse == null || reponse.get("access_token") == null) {
+                throw new KeycloakIndisponibleException("Jeton Keycloak non obtenu", null);
+            }
+            return reponse;
+        } catch (HttpClientErrorException e) {
+            String corps = e.getResponseBodyAsString();
+            if (corps.contains("Account disabled")) {
+                throw new CompteInaccessibleException("Ce compte est désactivé. Contactez l'administrateur.");
+            }
+            if (corps.contains("temporarily disabled")) {
+                throw new IdentifiantsInvalidesException("Trop de tentatives : compte bloqué quelques minutes.");
+            }
+            throw new IdentifiantsInvalidesException(messageRefus);
+        } catch (RestClientException e) {
+            throw new KeycloakIndisponibleException("Keycloak indisponible : réessayer plus tard", e);
+        }
     }
 
     private String token() {

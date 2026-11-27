@@ -1,0 +1,232 @@
+package tn.esprit.medivault.user;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+import tn.esprit.medivault.user.clients.KeycloakAdminClient;
+import tn.esprit.medivault.user.dto.AuthDtos.InscriptionRequest;
+import tn.esprit.medivault.user.dto.AuthDtos.LoginRequest;
+import tn.esprit.medivault.user.dto.AuthDtos.MessageResponse;
+import tn.esprit.medivault.user.dto.AuthDtos.SessionResponse;
+import tn.esprit.medivault.user.dto.UtilisateurRequest;
+import tn.esprit.medivault.user.dto.UtilisateurResponse;
+import tn.esprit.medivault.user.entities.Role;
+import tn.esprit.medivault.user.entities.Utilisateur;
+import tn.esprit.medivault.user.exceptions.CompteInaccessibleException;
+import tn.esprit.medivault.user.exceptions.IdentifiantsInvalidesException;
+import tn.esprit.medivault.user.exceptions.KeycloakIndisponibleException;
+import tn.esprit.medivault.user.repositories.UtilisateurRepository;
+import tn.esprit.medivault.user.services.AuthServiceImpl;
+import tn.esprit.medivault.user.services.IUtilisateurService;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+// La logique de connexion, sans Keycloak ni MongoDB (ils sont simulés) : on vérifie les décisions du service.
+@ExtendWith(MockitoExtension.class)
+class AuthServiceImplTest {
+
+    @Mock
+    private KeycloakAdminClient keycloak;
+    @Mock
+    private UtilisateurRepository repository;
+    @Mock
+    private IUtilisateurService utilisateurService;
+
+    private AuthServiceImpl service;
+
+    @BeforeEach
+    void preparer() {
+        service = new AuthServiceImpl(keycloak, repository, utilisateurService, new ObjectMapper());
+        ReflectionTestUtils.setField(service, "urlRetourApresReinitialisation", "http://localhost:4301/login");
+    }
+
+    /** Un faux jeton JWT : en-tête.contenu.signature, avec « sub » et « email » dans le contenu. */
+    private static String jwt(String sub, String email) {
+        String contenu = "{\"sub\":\"" + sub + "\",\"email\":\"" + email + "\"}";
+        return "e30." + Base64.getUrlEncoder().withoutPadding().encodeToString(contenu.getBytes(StandardCharsets.UTF_8)) + ".sig";
+    }
+
+    private static Map<String, Object> jetons(String sub, String email) {
+        return Map.of("access_token", jwt(sub, email), "refresh_token", "refresh-1", "expires_in", 900, "refresh_expires_in", 1800);
+    }
+
+    private static Utilisateur patient(boolean actif, String keycloakId) {
+        return Utilisateur.builder().id("u1").keycloakId(keycloakId).nom("Ben Ali").prenom("Ahmed")
+                .email("ahmed@test.tn").role(Role.PATIENT).actif(actif).build();
+    }
+
+    // ---------------------------------------------------------------- connexion
+
+    @Test
+    void connexion_renvoieLesJetonsEtLeProfilAvecSonRole() {
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, "kc-1")));
+        when(keycloak.connexion("ahmed@test.tn", "Secret123")).thenReturn(jetons("kc-1", "ahmed@test.tn"));
+
+        SessionResponse session = service.connexion(new LoginRequest("  Ahmed@Test.tn ", "Secret123"));
+
+        assertThat(session.accessToken()).isNotBlank();
+        assertThat(session.refreshToken()).isEqualTo("refresh-1");
+        assertThat(session.expiresIn()).isEqualTo(900);
+        assertThat(session.tokenType()).isEqualTo("Bearer");
+        assertThat(session.utilisateur().role()).isEqualTo(Role.PATIENT);
+        assertThat(session.utilisateur().email()).isEqualTo("ahmed@test.tn");
+    }
+
+    @Test
+    void connexion_relieLeProfilAKeycloakAuPremierLogin() {
+        Utilisateur compte = patient(true, null);
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(compte));
+        when(keycloak.connexion(anyString(), anyString())).thenReturn(jetons("kc-nouveau", "ahmed@test.tn"));
+        when(repository.save(any(Utilisateur.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.connexion(new LoginRequest("ahmed@test.tn", "Secret123"));
+
+        assertThat(compte.getKeycloakId()).isEqualTo("kc-nouveau");
+        verify(repository).save(compte);
+    }
+
+    @Test
+    void connexion_refuseUnCompteDesactiveSansInterrogerKeycloak() {
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(false, "kc-1")));
+
+        assertThatThrownBy(() -> service.connexion(new LoginRequest("ahmed@test.tn", "Secret123")))
+                .isInstanceOf(CompteInaccessibleException.class).hasMessageContaining("désactivé");
+        verify(keycloak, never()).connexion(anyString(), anyString());
+    }
+
+    @Test
+    void connexion_refuseUnCompteSansProfilEtFermeLaSessionKeycloak() {
+        when(repository.findByEmailIgnoreCase("inconnu@test.tn")).thenReturn(Optional.empty());
+        when(keycloak.connexion(anyString(), anyString())).thenReturn(jetons("kc-9", "inconnu@test.tn"));
+
+        assertThatThrownBy(() -> service.connexion(new LoginRequest("inconnu@test.tn", "Secret123")))
+                .isInstanceOf(CompteInaccessibleException.class);
+        verify(keycloak).deconnecter("refresh-1");
+    }
+
+    @Test
+    void connexion_motDePasseFaux_401() {
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, "kc-1")));
+        when(keycloak.connexion(anyString(), anyString())).thenThrow(new IdentifiantsInvalidesException("Email ou mot de passe incorrect."));
+
+        assertThatThrownBy(() -> service.connexion(new LoginRequest("ahmed@test.tn", "mauvais")))
+                .isInstanceOf(IdentifiantsInvalidesException.class);
+    }
+
+    @Test
+    void connexion_keycloakDesactive_503() {
+        when(repository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(keycloak.connexion(anyString(), anyString())).thenThrow(new KeycloakIndisponibleException("désactivé", null));
+
+        assertThatThrownBy(() -> service.connexion(new LoginRequest("a@b.tn", "Secret123")))
+                .isInstanceOf(KeycloakIndisponibleException.class);
+    }
+
+    // ---------------------------------------------------------------- renouvellement
+
+    @Test
+    void renouveler_refuseUnCompteDevenuInactif() {
+        when(keycloak.renouveler("r")).thenReturn(jetons("kc-1", "ahmed@test.tn"));
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(false, "kc-1")));
+
+        assertThatThrownBy(() -> service.renouveler("r")).isInstanceOf(CompteInaccessibleException.class);
+        verify(keycloak).deconnecter("refresh-1");
+    }
+
+    // ---------------------------------------------------------------- inscription
+
+    @Test
+    void inscription_imposeToujoursLeRolePatient() {
+        when(utilisateurService.creer(any())).thenReturn(UtilisateurResponse.from(patient(true, "kc-1")));
+
+        service.inscription(new InscriptionRequest("Ben Ali", "Ahmed", "ahmed@test.tn", "+21620111222", "Secret123"));
+
+        ArgumentCaptor<UtilisateurRequest> demande = ArgumentCaptor.forClass(UtilisateurRequest.class);
+        verify(utilisateurService).creer(demande.capture());
+        assertThat(demande.getValue().role()).isEqualTo(Role.PATIENT);
+        assertThat(demande.getValue().motDePasse()).isEqualTo("Secret123");
+        assertThat(demande.getValue().nomEtablissement()).isNull();
+    }
+
+    // ---------------------------------------------------------------- mot de passe oublié
+
+    @Test
+    void motDePasseOublie_compteExistant_envoieLEmail() {
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, "kc-1")));
+
+        MessageResponse reponse = service.motDePasseOublie(" AHMED@test.tn ");
+
+        verify(keycloak).envoyerEmailReinitialisation("kc-1", "http://localhost:4301/login");
+        assertThat(reponse.message()).contains("Si un compte existe");
+    }
+
+    @Test
+    void motDePasseOublie_compteInconnu_memeReponseEtRienEnvoye() {
+        when(repository.findByEmailIgnoreCase("inconnu@test.tn")).thenReturn(Optional.empty());
+
+        MessageResponse reponse = service.motDePasseOublie("inconnu@test.tn");
+
+        verify(keycloak, never()).envoyerEmailReinitialisation(anyString(), anyString());
+        assertThat(reponse.message()).contains("Si un compte existe");
+    }
+
+    @Test
+    void motDePasseOublie_echecDEnvoi_neRevelePasLeCompte() {
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, "kc-1")));
+        org.mockito.Mockito.doThrow(new KeycloakIndisponibleException("smtp", null))
+                .when(keycloak).envoyerEmailReinitialisation(anyString(), anyString());
+
+        MessageResponse reponse = service.motDePasseOublie("ahmed@test.tn");
+
+        assertThat(reponse.message()).contains("Si un compte existe");
+    }
+
+    @Test
+    void motDePasseOublie_sansIdentifiantKeycloak_leCherchePaEmail() {
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, null)));
+        when(keycloak.trouverIdParEmail("ahmed@test.tn")).thenReturn("kc-trouve");
+
+        service.motDePasseOublie("ahmed@test.tn");
+
+        verify(keycloak).envoyerEmailReinitialisation("kc-trouve", "http://localhost:4301/login");
+    }
+
+    // ---------------------------------------------------------------- changer le mot de passe
+
+    @Test
+    void changerMotDePasse_ancienFaux_refuse() {
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, "kc-1")));
+        when(keycloak.connexion("ahmed@test.tn", "faux")).thenThrow(new IdentifiantsInvalidesException("x"));
+
+        assertThatThrownBy(() -> service.changerMotDePasse("ahmed@test.tn", "faux", "Nouveau123"))
+                .isInstanceOf(IdentifiantsInvalidesException.class).hasMessageContaining("actuel");
+        verify(keycloak, never()).changerMotDePasse(anyString(), anyString());
+    }
+
+    @Test
+    void changerMotDePasse_ancienJuste_modifie() {
+        when(repository.findByEmailIgnoreCase("ahmed@test.tn")).thenReturn(Optional.of(patient(true, "kc-1")));
+        when(keycloak.connexion("ahmed@test.tn", "Ancien123")).thenReturn(jetons("kc-1", "ahmed@test.tn"));
+
+        MessageResponse reponse = service.changerMotDePasse("ahmed@test.tn", "Ancien123", "Nouveau123");
+
+        verify(keycloak).changerMotDePasse("kc-1", "Nouveau123");
+        assertThat(reponse.message()).contains("modifié");
+    }
+}

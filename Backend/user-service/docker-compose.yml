@@ -1,0 +1,61 @@
+# docker-compose.yml du user-service : tout ce dont il a besoin pour l'identité, en un seul lancement.
+#
+#   Lancer   :  docker compose up -d
+#   Arrêter  :  docker compose down            (les données restent dans les volumes)
+#   Tout effacer, données comprises :  docker compose down -v
+#
+#   mongo          base MongoDB du user-service (base « user_db »), les données sont gardées dans un volume
+#   mongo-express  page web pour VOIR les utilisateurs dans MongoDB      -> http://localhost:8082
+#   keycloak       connexion, rôles et jetons JWT (realm « medivault »)   -> http://localhost:8180  (admin / admin)
+#   mailpit        boîte e-mail de test : reçoit les e-mails « mot de passe oublié » -> http://localhost:8025
+#
+# Le realm Keycloak (5 rôles, comptes de démonstration, clients « medivault-frontend » et « user-service »)
+# est importé depuis keycloak/medivault-realm.json au premier démarrage.
+# Mot de passe de tous les comptes de démonstration : Medivault2026!
+
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    depends_on:
+      - mongo
+    ports:
+      - "8082:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+      ME_CONFIG_BASICAUTH: "false"
+
+  mailpit:
+    image: axllent/mailpit:v1.21.8
+    ports:
+      - "8025:8025"     # interface web
+      - "1025:1025"     # SMTP (Keycloak y envoie ses e-mails)
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    command: start-dev --import-realm
+    user: "0:0"            # développement : le volume Docker est écrit par root (sinon Keycloak ne peut pas écrire sa base)
+    depends_on:
+      - mailpit
+    ports:
+      - "8180:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+      - keycloak-data:/opt/keycloak/data/h2     # garde les comptes créés après l'import
+
+volumes:
+  mongo-data:
+  keycloak-data:

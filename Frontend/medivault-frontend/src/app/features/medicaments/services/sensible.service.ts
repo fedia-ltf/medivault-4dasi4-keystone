@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, catchError, forkJoin, map, of, shareReplay, tap, throwError, timeout } from 'rxjs';
+import { AuthService } from '../../../core/auth.service';
 import {
   Attribution, Bilan, Disponibilite, LotRequest, MedicamentSensible, NouveauMedicament, Pharmacie,
   ResultatLot, ResultatVente, StatutAttribution, VenteSensible, EtapeVente, moisDe,
@@ -103,6 +104,7 @@ function ventesDemo(attributions: Attribution[]): VenteSensible[] {
 @Injectable({ providedIn: 'root' })
 export class SensibleService {
   private http = inject(HttpClient);
+  private auth = inject(AuthService);
 
   /** true : l'API répond · false : mode démonstration · null : pas encore testé */
   readonly enLigne = signal<boolean | null>(null);
@@ -162,7 +164,7 @@ export class SensibleService {
       a: this.http.get<Attribution[]>('/api/attributions'),
       v: this.http.get<VenteSensible[]>('/api/ventes'),
       // les vraies pharmacies viennent du user-service ; s'il ne répond pas, on garde la liste de démonstration
-      p: this.http.get<ComptePharmacie[]>('/api/utilisateurs?role=PHARMACIEN').pipe(catchError(() => of([] as ComptePharmacie[])))
+      p: this.http.get<ComptePharmacie[]>('/api/professionnels?type=PHARMACIEN').pipe(catchError(() => of([] as ComptePharmacie[])))
     }).pipe(
       timeout(3000),
       tap(({ m, a, v, p }) => {
@@ -183,11 +185,20 @@ export class SensibleService {
   }
 
   /** Remplace la liste de démonstration par les vraies pharmacies (numéro 1, 2, 3… pour le front, id du user-service pour le back) */
-  private appliquerPharmacies(comptes: ComptePharmacie[]) {
-    if (!comptes.length) return;
+  private appliquerPharmacies(liste: ComptePharmacie[]) {
+    if (!liste.length) return;
+    // ordre stable : la Pharmacie Centrale d'abord, puis par nom (l'API ne garantit aucun ordre)
+    const comptes = [...liste].sort((a, b) => (a.id === 'pharmacie-centrale' ? -1 : b.id === 'pharmacie-centrale' ? 1
+      : (a.nomEtablissement ?? '').localeCompare(b.nomEtablissement ?? '')));
     Object.keys(ID_BACK).forEach(k => delete ID_BACK[Number(k)]);
     PHARMACIES.splice(0, PHARMACIES.length, ...comptes.map((c, i) => ({ id: i + 1, nom: c.nomEtablissement ?? `${c.prenom} ${c.nom}`, ville: c.ville ?? '' })));
     comptes.forEach((c, i) => (ID_BACK[i + 1] = c.id));
+    // un pharmacien connecté (vrai compte Keycloak) voit SA pharmacie : l'identifiant du compte est celui de la pharmacie
+    const moi = this.auth.utilisateur();
+    if (moi?.role === 'PHARMACIEN' && moi.id) {
+      const n = comptes.findIndex(c => c.id === moi.id);
+      if (n >= 0) this.pharmacieId.set(n + 1);
+    }
   }
 
   private demo() { return this.enLigne() !== true; }

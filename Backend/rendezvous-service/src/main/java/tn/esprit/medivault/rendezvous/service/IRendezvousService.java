@@ -13,9 +13,23 @@ public interface IRendezvousService {
 
     List<CreneauResponse> getCreneauxLibres(String professionnelId, LocalDate date);
 
+    CreneauResponse getCreneauById(Long id);
+
+    void supprimerCreneau(Long id);
+
     RendezVousResponse prendreRendezVous(RendezVousRequest request);
 
     RendezVousResponse annulerRendezVous(Long id);
+
+    RendezVousResponse getRendezVousById(Long id);
+
+    List<RendezVousResponse> getAllRendezVous();
+
+    List<RendezVousResponse> getRendezVousByPatient(String patientId);
+
+    List<RendezVousResponse> getRendezVousByProfessionnel(String professionnelId);
+
+    void supprimerRendezVous(Long id);
 
     void traiterConsultationAjoutee(String patientId, String medecinId);
 }

@@ -26,6 +26,34 @@ public class RendezvousController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @GetMapping
+    @Operation(summary = "Lister tous les rendez-vous")
+    public ResponseEntity<List<RendezVousResponse>> getAllRendezVous() {
+        List<RendezVousResponse> responses = rendezvousService.getAllRendezVous();
+        return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Consulter un rendez-vous par son identifiant")
+    public ResponseEntity<RendezVousResponse> getRendezVousById(@PathVariable("id") Long id) {
+        RendezVousResponse response = rendezvousService.getRendezVousById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/patient/{patientId}")
+    @Operation(summary = "Lister les rendez-vous d'un patient")
+    public ResponseEntity<List<RendezVousResponse>> getRendezVousByPatient(@PathVariable("patientId") String patientId) {
+        List<RendezVousResponse> responses = rendezvousService.getRendezVousByPatient(patientId);
+        return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/professionnel/{professionnelId}")
+    @Operation(summary = "Lister les rendez-vous d'un professionnel")
+    public ResponseEntity<List<RendezVousResponse>> getRendezVousByProfessionnel(@PathVariable("professionnelId") String professionnelId) {
+        List<RendezVousResponse> responses = rendezvousService.getRendezVousByProfessionnel(professionnelId);
+        return ResponseEntity.ok(responses);
+    }
+
     @PatchMapping("/{id}")
     @Operation(summary = "Annuler un rendez-vous (statut ANNULE et publication de RendezVousAnnule)")
     public ResponseEntity<RendezVousResponse> patchRendezVous(@PathVariable("id") Long id) {
@@ -38,5 +66,12 @@ public class RendezvousController {
     public ResponseEntity<RendezVousResponse> annulerRendezVous(@PathVariable("id") Long id) {
         RendezVousResponse response = rendezvousService.annulerRendezVous(id);
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer définitivement un rendez-vous")
+    public ResponseEntity<Void> supprimerRendezVous(@PathVariable("id") Long id) {
+        rendezvousService.supprimerRendezVous(id);
+        return ResponseEntity.noContent().build();
     }
 }

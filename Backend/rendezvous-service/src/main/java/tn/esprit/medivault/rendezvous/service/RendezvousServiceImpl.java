@@ -202,6 +202,74 @@ public class RendezvousServiceImpl implements IRendezvousService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public CreneauResponse getCreneauById(Long id) {
+        Creneau creneau = creneauRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Créneau introuvable"));
+        return mapToCreneauResponse(creneau);
+    }
+
+    @Override
+    @Transactional
+    public void supprimerCreneau(Long id) {
+        Creneau creneau = creneauRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Créneau introuvable"));
+        if (!creneau.estLibre()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Impossible de supprimer un créneau déjà réservé");
+        }
+        creneauRepository.delete(creneau);
+        log.info("Créneau {} supprimé avec succès", id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RendezVousResponse getRendezVousById(Long id) {
+        RendezVous rdv = rendezVousRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rendez-vous introuvable"));
+        return mapToRendezVousResponse(rdv);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RendezVousResponse> getAllRendezVous() {
+        return rendezVousRepository.findAll().stream()
+                .map(this::mapToRendezVousResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RendezVousResponse> getRendezVousByPatient(String patientId) {
+        return rendezVousRepository.findByPatientIdOrderByCreneauDateDebutDesc(patientId).stream()
+                .map(this::mapToRendezVousResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RendezVousResponse> getRendezVousByProfessionnel(String professionnelId) {
+        return rendezVousRepository.findByCreneauProfessionnelIdOrderByCreneauDateDebutDesc(professionnelId).stream()
+                .map(this::mapToRendezVousResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void supprimerRendezVous(Long id) {
+        RendezVous rdv = rendezVousRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rendez-vous introuvable"));
+
+        Creneau creneau = rdv.getCreneau();
+        if (creneau != null) {
+            creneau.setRendezVous(null);
+            creneauRepository.save(creneau);
+        }
+
+        rendezVousRepository.delete(rdv);
+        log.info("Rendez-vous {} supprimé avec succès", id);
+    }
+
+    @Override
     @Transactional
     public void traiterConsultationAjoutee(String patientId, String medecinId) {
         rendezVousRepository.findTopByPatientIdAndCreneauProfessionnelIdAndStatutOrderByCreneauDateDebutDesc(

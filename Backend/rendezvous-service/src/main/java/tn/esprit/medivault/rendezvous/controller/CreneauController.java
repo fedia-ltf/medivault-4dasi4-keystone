@@ -36,4 +36,18 @@ public class CreneauController {
         List<CreneauResponse> creneaux = rendezvousService.getCreneauxLibres(professionnelId, date);
         return ResponseEntity.ok(creneaux);
     }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Consulter un créneau par son identifiant")
+    public ResponseEntity<CreneauResponse> getCreneauById(@PathVariable("id") Long id) {
+        CreneauResponse response = rendezvousService.getCreneauById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer un créneau libre")
+    public ResponseEntity<Void> supprimerCreneau(@PathVariable("id") Long id) {
+        rendezvousService.supprimerCreneau(id);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -13,13 +13,12 @@
     </div>
 
     <div class="relative z-10 max-w-md enter [animation-delay:150ms]">
-      <p class="text-xs font-bold uppercase tracking-[0.3em] text-aqua-300">Espace sécurisé</p>
+      <p class="text-xs font-bold uppercase tracking-[0.3em] text-aqua-300">Espace sécurisé MediVault</p>
       <h1 class="mt-5 font-display text-6xl leading-[1]">
         Chaque donnée,<br /><span class="italic text-gradient">au bon soignant.</span>
       </h1>
       <p class="mt-6 text-white/60 leading-relaxed">
-        Médecins, patients, pharmaciens, laborantins et administrateurs partagent un même coffre,
-        chacun avec ses propres droits.
+        Médecins, patients, pharmaciens, laborantins et administrateurs accèdent directement à leur espace personnalisé.
       </p>
 
       <div class="mt-10 glass-dark rounded-2xl p-5 max-w-sm">
@@ -36,20 +35,16 @@
             <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
           </span>
         </div>
-        <svg viewBox="0 0 300 40" class="mt-3 h-8 w-full">
-          <path class="ecg-draw" d="M0 22 H60 L70 22 L78 6 L86 36 L94 12 L102 22 H170 L180 22 L188 4 L196 38 L204 14 L212 22 H300"
-                fill="none" stroke="#3b6fe6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
       </div>
     </div>
 
     <div class="relative z-10 flex items-center gap-6 text-xs text-white/45 enter [animation-delay:300ms]">
-      <span class="flex items-center gap-2"><mv-icon name="shield-check" [size]="15" class="text-aqua-300" /> OAuth2 · JWT</span>
-      <span class="flex items-center gap-2"><mv-icon name="lock" [size]="15" class="text-aqua-300" /> Données chiffrées</span>
+      <span class="flex items-center gap-2"><mv-icon name="shield-check" [size]="15" class="text-aqua-300" /> Keycloak · OAuth2 / JWT</span>
+      <span class="flex items-center gap-2"><mv-icon name="lock" [size]="15" class="text-aqua-300" /> Données chiffrées & RBAC</span>
     </div>
   </aside>
 
-  <!-- ================= Formulaire ================= -->
+  <!-- ================= Formulaire de Connexion ================= -->
   <main class="relative flex items-center justify-center overflow-hidden aurora-light px-6 py-12">
     <div class="absolute right-[-10%] top-[-10%] h-80 w-80 rounded-full bg-aqua-300/30 blur-3xl"></div>
 
@@ -57,9 +52,9 @@
       <a routerLink="/" class="mb-10 inline-flex lg:hidden"><mv-logo /></a>
 
       <div class="enter">
-        <p class="text-sm font-semibold text-aqua-600">Bon retour parmi nous</p>
+        <p class="text-sm font-semibold text-aqua-600">Portail Médical Sécurisé</p>
         <h2 class="mt-2 font-display text-5xl leading-none text-ink-900">Connexion</h2>
-        <p class="mt-3 text-ink-500">Choisissez votre rôle, puis identifiez-vous.</p>
+        <p class="mt-3 text-sm text-ink-500">Sélectionnez votre profil ou saisissez vos identifiants.</p>
       </div>
 
       <!-- Sélecteur de rôle avec indicateur glissant -->
@@ -68,8 +63,8 @@
              style="width: calc((100% - 0.75rem) / 5)"
              [style.transform]="'translateX(' + roleIndex() * 100 + '%)'"></div>
         @for (r of roles; track r.value) {
-          <button type="button" (click)="role.set(r.value)"
-                  class="relative z-10 flex flex-col items-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-colors duration-300"
+          <button type="button" (click)="choisirRole(r.value)"
+                  class="relative z-10 flex flex-col items-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-colors duration-300 cursor-pointer"
                   [class.text-white]="role() === r.value" [class.text-ink-500]="role() !== r.value"
                   [attr.aria-pressed]="role() === r.value">
             <mv-icon [name]="r.icon" [size]="18" />
@@ -84,7 +79,7 @@
           <span class="relative block">
             <mv-icon name="mail" [size]="18" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
             <input class="field pl-11" type="email" name="email" autocomplete="username"
-                   placeholder="prenom.nom&#64;medivault.tn" [(ngModel)]="email" />
+                   placeholder="prenom.nom@medivault.tn" [(ngModel)]="email" required />
           </span>
         </label>
 
@@ -96,10 +91,10 @@
           <span class="relative block">
             <mv-icon name="lock" [size]="18" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
             <input class="field pl-11 pr-12" [type]="voirMotDePasse() ? 'text' : 'password'" name="password"
-                   autocomplete="current-password" placeholder="••••••••" [(ngModel)]="motDePasse" />
+                   autocomplete="current-password" placeholder="••••••••" [(ngModel)]="motDePasse" required />
             <button type="button" (click)="voirMotDePasse.set(!voirMotDePasse())"
                     class="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-ink-400 hover:bg-ink-50 hover:text-ink-700"
-                    [attr.aria-label]="voirMotDePasse() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'">
+                    [attr.aria-label]="voirMotDePasse() ? 'Masquer' : 'Afficher'">
               <mv-icon [name]="voirMotDePasse() ? 'eye-off' : 'eye'" [size]="18" />
             </button>
           </span>
@@ -115,39 +110,27 @@
           <label class="flex cursor-pointer items-center gap-2 text-ink-500">
             <input type="checkbox" class="h-4 w-4 rounded accent-aqua-500" checked /> Rester connecté
           </label>
-          <button type="button" (click)="remplirDemo()" class="font-semibold text-ink-700 underline decoration-aqua-400 decoration-2 underline-offset-4 hover:text-ink-900">
-            Remplir un compte démo
-          </button>
+          <span class="text-xs text-ink-400 font-medium">
+            Redirection vers le tableau de bord
+          </span>
         </div>
 
         <button type="submit" [disabled]="chargement() || succes()"
                 class="btn btn-ink shine relative mt-2 w-full overflow-hidden py-4 text-[15px] disabled:cursor-wait">
           @if (succes()) {
-            <span class="grid h-6 w-6 place-items-center rounded-full bg-aqua-400 text-ink-950 enter">
-              <mv-icon name="check" [size]="15" [stroke]="3" />
+            <span class="flex items-center justify-center gap-2 text-emerald-400 enter">
+              <mv-icon name="check" [size]="18" /> Rôle reconnu : {{ roleDetecte() }} · Accès au tableau de bord…
             </span>
-            Accès autorisé
           } @else if (chargement()) {
-            <span class="h-5 w-5 animate-spin rounded-full border-2 border-white/25 border-t-aqua-300"></span>
-            Vérification de l'identité…
+            <span class="flex items-center justify-center gap-2">
+              <span class="h-5 w-5 animate-spin rounded-full border-2 border-white/25 border-t-aqua-300"></span>
+              Authentification en cours…
+            </span>
           } @else {
             Se connecter <mv-icon name="arrow-right" [size]="18" />
           }
         </button>
-
-        <div class="flex items-center gap-4 py-2 text-xs uppercase tracking-widest text-ink-300">
-          <span class="h-px flex-1 bg-ink-100"></span> ou <span class="h-px flex-1 bg-ink-100"></span>
-        </div>
-
-        <button type="button" (click)="remplirDemo(); connexion()"
-                class="btn btn-soft w-full py-3.5 text-sm">
-          <mv-icon name="key" [size]="17" class="text-aqua-600" /> Continuer avec Keycloak (SSO)
-        </button>
       </form>
-
-      <p class="enter [animation-delay:300ms] mt-10 text-center text-xs text-ink-400">
-        Mode démonstration : la connexion réelle passera par Keycloak.
-      </p>
     </div>
   </main>
 </div>

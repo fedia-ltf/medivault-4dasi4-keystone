@@ -41,9 +41,11 @@ public class Creneau {
     private RendezVous rendezVous;
 
     /**
-     * RG8 : Un créneau est libre tant qu'aucun rendez-vous CONFIRME ne lui est associé.
+     * RG8 : Un créneau est libre s'il n'a aucun rendez-vous, ou seulement un rendez-vous ANNULE.
+     * Un rendez-vous TERMINE a bien occupé le créneau : il n'est plus réservable
+     * (la base n'accepte qu'un rendez-vous par créneau : creneau_id unique).
      */
     public boolean estLibre() {
-        return rendezVous == null || rendezVous.getStatut() != StatutRdv.CONFIRME;
+        return rendezVous == null || rendezVous.getStatut() == StatutRdv.ANNULE;
     }
 }

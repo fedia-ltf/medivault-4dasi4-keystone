@@ -23,6 +23,9 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+// open-in-view=false : les lectures (GET par id, par code, par patient…) parcourent les lignes de l'ordonnance,
+// il leur faut donc une transaction ; les méthodes d'écriture gardent leur propre @Transactional
+@Transactional(readOnly = true)
 public class OrdonnanceService {
     private final OrdonnanceRepository repository;
     private final DossierClient dossierClient;

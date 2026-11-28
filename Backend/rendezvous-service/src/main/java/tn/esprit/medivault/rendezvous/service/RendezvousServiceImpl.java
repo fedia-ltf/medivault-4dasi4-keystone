@@ -148,16 +148,18 @@ public class RendezvousServiceImpl implements IRendezvousService {
             analyseId = request.getAnalyseId();
         }
 
-        RendezVous rdv = RendezVous.builder()
-                .patientId(request.getPatientId())
-                .motif(request.getMotif())
-                .description(request.getDescription())
-                .statut(StatutRdv.CONFIRME)
-                .analyseId(analyseId)
-                .creneau(creneau)
-                .build();
-
-        creneau.setRendezVous(rdv);
+        // Un seul rendez-vous par créneau (creneau_id unique) : si le créneau avait un rendez-vous ANNULE,
+        // on réutilise cette ligne pour la nouvelle réservation au lieu d'en insérer une seconde.
+        RendezVous rdv = creneau.getRendezVous();
+        if (rdv == null) {
+            rdv = RendezVous.builder().creneau(creneau).build();
+            creneau.setRendezVous(rdv);
+        }
+        rdv.setPatientId(request.getPatientId());
+        rdv.setMotif(request.getMotif());
+        rdv.setDescription(request.getDescription());
+        rdv.setStatut(StatutRdv.CONFIRME);
+        rdv.setAnalyseId(analyseId);
         RendezVous saved = rendezVousRepository.save(rdv);
 
         // Publication de l'événement RendezVousConfirme (dossier, analyse, notification)

@@ -56,7 +56,7 @@
       <button (click)="changerPatient()" class="btn btn-primary px-3 py-1 text-xs font-semibold">
         Charger
       </button>
-      @if (patientId() !== 'patient-ahmed-001') {
+      @if (patientId() !== 'patient-ahmed') {
         <button (click)="reinitialiserPatientDefaut()" class="btn btn-ghost-dark px-2.5 py-1 text-xs" title="Revenir au patient par défaut">
           Défaut
         </button>
@@ -88,9 +88,9 @@
           <button (click)="charger()" class="btn btn-ink px-4 py-2 text-xs font-semibold">
             <mv-icon name="refresh" [size]="14" /> Réessayer
           </button>
-          @if (patientId() !== 'patient-ahmed-001') {
+          @if (patientId() !== 'patient-ahmed') {
             <button (click)="reinitialiserPatientDefaut()" class="btn btn-soft px-4 py-2 text-xs font-semibold">
-              Charger patient-ahmed-001
+              Charger patient-ahmed
             </button>
           }
         </div>

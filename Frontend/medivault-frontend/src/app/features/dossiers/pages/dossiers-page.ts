@@ -21,7 +21,7 @@ import {
 } from '../models/dossier.model';
 import { DossierService } from '../services/dossier.service';
 
-export const PATIENT_DEFAUT = 'patient-ahmed-001';
+export const PATIENT_DEFAUT = 'patient-ahmed';
 
 @Component({
   selector: 'mv-dossiers-page',

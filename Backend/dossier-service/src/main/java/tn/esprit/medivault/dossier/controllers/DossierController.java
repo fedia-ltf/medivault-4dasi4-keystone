@@ -20,7 +20,7 @@ import tn.esprit.medivault.dossier.services.DossierService;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/dossiers")
+@RequestMapping("/api/dossiers")
 @RequiredArgsConstructor
 @Tag(name = "Dossiers")
 public class DossierController {

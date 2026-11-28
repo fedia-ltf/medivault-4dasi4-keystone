@@ -1,5 +1,6 @@
 package tn.esprit.medivault.rendezvous.service;
 
+import tn.esprit.medivault.rendezvous.dto.CreneauRequest;
 import tn.esprit.medivault.rendezvous.dto.CreneauResponse;
 import tn.esprit.medivault.rendezvous.dto.RendezVousRequest;
 import tn.esprit.medivault.rendezvous.dto.RendezVousResponse;
@@ -14,6 +15,10 @@ public interface IRendezvousService {
     List<CreneauResponse> getCreneauxLibres(String professionnelId, LocalDate date);
 
     CreneauResponse getCreneauById(Long id);
+
+    CreneauResponse creerCreneau(CreneauRequest request);
+
+    CreneauResponse modifierCreneau(Long id, CreneauRequest request);
 
     void supprimerCreneau(Long id);
 

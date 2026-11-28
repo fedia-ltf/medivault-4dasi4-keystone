@@ -19,7 +19,7 @@
     <description>Microservice de gestion des dossiers médicaux - MediVault</description>
 
     <properties>
-        <java.version>23</java.version>
+        <java.version>17</java.version>
         <spring-cloud.version>2025.0.0</spring-cloud.version>
         <springdoc.version>2.8.9</springdoc.version>
     </properties>

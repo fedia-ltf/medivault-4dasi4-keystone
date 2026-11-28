@@ -2,67 +2,56 @@ package tn.esprit.medivault.medicament.demo;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import tn.esprit.medivault.medicament.entities.*;
+import tn.esprit.medivault.medicament.clients.UtilisateurClient;
+import tn.esprit.medivault.medicament.dto.ExterneDtos;
+import tn.esprit.medivault.medicament.entities.Attribution;
+import tn.esprit.medivault.medicament.entities.Categorie;
+import tn.esprit.medivault.medicament.entities.MedicamentSensible;
 import tn.esprit.medivault.medicament.repositories.AttributionRepository;
 import tn.esprit.medivault.medicament.repositories.MedicamentSensibleRepository;
-import tn.esprit.medivault.medicament.repositories.TentativeRefuseeRepository;
-import tn.esprit.medivault.medicament.repositories.VenteSensibleRepository;
 
 import java.time.Clock;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.Map;
 
-// Données de démonstration, créées UNE SEULE FOIS : seulement si la base est vide.
-// Comme la base H2 est un fichier, elles sont conservées d'un redémarrage à l'autre.
-// Pour ne pas les charger : medivault.demo-data=false (application.properties).
+// Données de départ, créées une seule fois quand la base est vide :
+//   1. le catalogue des médicaments sensibles (données de référence) ;
+//   2. les quotas du mois pour les VRAIES pharmacies du user-service (lues par OpenFeign, via Eureka).
+// Aucune vente, aucun refus ni ordonnance inventés : ils viennent uniquement des vraies actions des pharmacies.
+// Le user-service peut démarrer après ce service : on réessaie toutes les 10 secondes pendant 5 minutes.
+// Pour ne rien créer : medivault.demo-data=false (application.properties).
 @Component
 @RequiredArgsConstructor
 @Slf4j
 @ConditionalOnProperty(name = "medivault.demo-data", havingValue = "true", matchIfMissing = true)
-public class DonneesDemo implements ApplicationRunner {
+public class DonneesDemo {
+
+    private static final int ESSAIS = 30;
+    private static final long PAUSE_MS = 10_000;
 
     private final MedicamentSensibleRepository medicaments;
     private final AttributionRepository attributions;
-    private final VenteSensibleRepository ventes;
-    private final TentativeRefuseeRepository refus;
+    private final UtilisateurClient utilisateurs;
     private final Clock clock;
 
-    // Adresse du user-service (ex. http://localhost:8081) : si elle est donnée, les quotas de démonstration sont créés
-    // pour les VRAIES pharmacies de ce service. Sinon (ou s'il ne répond pas), pharmacies d'exemple.
-    @Value("${medivault.demo.user-service-url:}")
-    private String adresseUserService;
-
-    private List<String> pharmacies() {
-        if (!adresseUserService.isBlank()) {
-            try {
-                List<Map<String, Object>> comptes = RestClient.create().get()
-                        .uri(adresseUserService + "/api/professionnels?type=PHARMACIEN").retrieve()
-                        .body(new ParameterizedTypeReference<>() { });
-                if (comptes != null && !comptes.isEmpty()) {
-                    // ordre stable (l'API n'en garantit aucun) : la Pharmacie Centrale d'abord, puis par identifiant
-                    return comptes.stream().map(c -> String.valueOf(c.get("id")))
-                            .sorted((a, b) -> a.equals("pharmacie-centrale") ? -1 : b.equals("pharmacie-centrale") ? 1 : a.compareTo(b)).toList();
-                }
-            } catch (Exception e) {
-                log.warn("Pharmacies du user-service introuvables ({}) : pharmacies d'exemple", e.toString());
-            }
+    @EventListener(ApplicationReadyEvent.class)
+    public void demarrer() {
+        List<MedicamentSensible> catalogue = creerCatalogue();
+        if (attributions.count() > 0) {
+            return;
         }
-        return List.of("pharmacie-centrale", "2", "3", "4", "5", "6", "7", "8");
+        Thread quotas = new Thread(() -> attribuerQuotas(catalogue), "quotas-de-depart");
+        quotas.setDaemon(true);
+        quotas.start();
     }
 
-    @Override
-    public void run(ApplicationArguments args) {
+    private List<MedicamentSensible> creerCatalogue() {
         if (medicaments.count() > 0) {
-            return;
+            return medicaments.findAll();
         }
         List<MedicamentSensible> liste = medicaments.saveAll(List.of(
                 med("Subutex 8 mg", "Buprénorphine", Categorie.STUPEFIANT,
@@ -86,68 +75,60 @@ public class DonneesDemo implements ApplicationRunner {
                 med("Misoprostol 200 µg", "Misoprostol", Categorie.ABORTIF,
                         "Provoque des contractions de l'utérus : utilisé sous contrôle médical pour interrompre une grossesse.",
                         "Strictement contre-indiqué en dehors d'une prescription encadrée. Saignements et douleurs à surveiller.")));
+        log.info("Catalogue créé : {} médicaments sensibles", liste.size());
+        return liste;
+    }
 
+    // Les quotas du mois : chaque médicament est attribué à une partie des vraies pharmacies
+    private void attribuerQuotas(List<MedicamentSensible> catalogue) {
+        List<String> pharmacies = pharmaciesDuUserService();
+        if (pharmacies.isEmpty()) {
+            log.warn("user-service injoignable : aucun quota de départ. L'administrateur peut les attribuer depuis l'application.");
+            return;
+        }
+        if (attributions.count() > 0) {
+            return;
+        }
         YearMonth mois = YearMonth.now(clock);
-        int compteur = 0;
-        // les pharmacies (celles du user-service si possible) ; chaque médicament est attribué à 5 d'entre elles
-        List<String> idsPharmacies = pharmacies();
-        for (MedicamentSensible m : liste) {
-            for (int p = 1; p <= idsPharmacies.size(); p++) {
+        int total = 0;
+        for (MedicamentSensible m : catalogue) {
+            for (int p = 1; p <= pharmacies.size(); p++) {
                 if ((p + m.getId().intValue()) % 8 >= 5) {
                     continue;
                 }
                 int quota = 40 + ((p * 7 + m.getId().intValue() * 13) % 8) * 10;
-                Attribution a = attributions.save(Attribution.builder()
-                        .pharmacieId(idsPharmacies.get(p - 1)).medicament(m).mois(mois).quantiteAttribuee(quota).build());
-                // quelques ventes passées, cohérentes avec la quantité vendue du quota
-                int vendu = 0;
-                for (int v = 0; v < 3; v++) {
-                    int quantite = 2 + (compteur * 3 + v) % 7;
-                    if (vendu + quantite > quota * 8 / 10) {
-                        break;
-                    }
-                    compteur++;
-                    ventes.save(VenteSensible.builder()
-                            .patientId("patient-" + (1 + compteur % 9)).ordonnanceId(2000L + compteur)
-                            .ordonnanceCode("ORD-DEMO-" + (1000 + compteur)).quantite(quantite)
-                            .date(LocalDateTime.now(clock).minusDays(compteur % 12)).attribution(a).build());
-                    vendu += quantite;
-                }
-                // un quota qui approche de l'épuisement (86 %) : on voit l'alerte à 80 % et la prévision de date
-                if (p == 2 && m.getId() == 2L && vendu < quota * 86 / 100) {
-                    int extra = quota * 86 / 100 - vendu;
-                    compteur++;
-                    ventes.save(VenteSensible.builder().patientId("patient-" + (1 + compteur % 9)).ordonnanceId(2000L + compteur)
-                            .ordonnanceCode("ORD-DEMO-" + (1000 + compteur)).quantite(extra)
-                            .date(LocalDateTime.now(clock).minusDays(1)).attribution(a).build());
-                    vendu += extra;
-                }
-                a.ajouterVente(vendu);
-                // un exemple d'avertissement et un exemple de suspension
-                // chaque avertissement a son refus dans l'historique (comme en vrai)
-                if (p == 1 && m.getId() == 1L) {
-                    a.ajouterAvertissement();
-                    refusDemo(a, MotifRefus.QUOTA_EPUISE, 12, 3, "Quota du mois insuffisant.");
-                    refusDemo(a, MotifRefus.AUCUN_QUOTA, 4, 5, "Aucun quota attribué pour ce mois.");   // pas d'avertissement pour ce motif
-                }
-                if (p == 6 && m.getId() == 6L) {
-                    a.ajouterAvertissement();
-                    a.ajouterAvertissement();
-                    refusDemo(a, MotifRefus.ORDONNANCE_NON_JUSTIFIEE, 9, 6, "Cette ordonnance ne contient pas ce médicament.");
-                    refusDemo(a, MotifRefus.QUOTA_EPUISE, 14, 1, "Quota du mois insuffisant.");
-                }
-                attributions.save(a);
+                attributions.save(Attribution.builder()
+                        .pharmacieId(pharmacies.get(p - 1)).medicament(m).mois(mois).quantiteAttribuee(quota).build());
+                total++;
             }
         }
-        log.info("Données de démonstration créées : {} médicaments sensibles, {} quotas, {} ventes",
-                medicaments.count(), attributions.count(), ventes.count());
+        log.info("Quotas de {} créés : {} quotas pour {} pharmacies du user-service", mois, total, pharmacies.size());
     }
 
-    // Un refus de démonstration, daté de quelques jours en arrière
-    private void refusDemo(Attribution a, MotifRefus motif, int quantite, int joursAvant, String detail) {
-        refus.save(TentativeRefusee.builder().pharmacieId(a.getPharmacieId()).medicamentId(a.getMedicament().getId())
-                .medicamentNom(a.getMedicament().getNomCommercial()).ordonnanceCode("ORD-DEMO-REFUS").quantite(quantite)
-                .date(LocalDateTime.now(clock).minusDays(joursAvant)).motif(motif).detail(detail).build());
+    // Appel synchrone OpenFeign (user-service, trouvé par Eureka) ; réessaie tant que le service n'est pas prêt
+    private List<String> pharmaciesDuUserService() {
+        for (int essai = 1; essai <= ESSAIS; essai++) {
+            try {
+                List<String> ids = utilisateurs.professionnels("PHARMACIEN").stream()
+                        .filter(ExterneDtos.Utilisateur::actif)
+                        .map(ExterneDtos.Utilisateur::id)
+                        // ordre stable : la Pharmacie Centrale d'abord, puis par identifiant
+                        .sorted((a, b) -> a.equals("pharmacie-centrale") ? -1 : b.equals("pharmacie-centrale") ? 1 : a.compareTo(b))
+                        .toList();
+                if (!ids.isEmpty()) {
+                    return ids;
+                }
+            } catch (RuntimeException e) {
+                log.info("Quotas de départ : user-service pas encore prêt (essai {}/{})", essai, ESSAIS);
+            }
+            try {
+                Thread.sleep(PAUSE_MS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return List.of();
+            }
+        }
+        return List.of();
     }
 
     private MedicamentSensible med(String nom, String dci, Categorie categorie, String description, String precautions) {

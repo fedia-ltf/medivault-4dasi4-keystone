@@ -31,7 +31,8 @@ export interface Attribution {
 
 export interface VenteSensible {
   id: number;
-  patientId: number;
+  /** Identifiant du patient dans user-service (ex. patient-ahmed) */
+  patientId: string;
   ordonnanceId: number;
   quantite: number;
   /** Date ISO (AAAA-MM-JJ) */

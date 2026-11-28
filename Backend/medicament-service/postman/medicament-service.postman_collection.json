@@ -1,28 +1,115 @@
 {
   "info": {
     "name": "MediVault - medicament-service (médicaments sensibles)",
-    "description": "Lancer le dossier 1 puis 2 puis 3 dans l'ordre (les identifiants sont gardés dans des variables). Le service utilise les ordonnances simulées : ORD-A7F3 (valide), ORD-D102 (non validée).",
+    "description": "Tout passe par la Gateway ({{gateway}} = http://localhost:9000), comme le front.\nLancer les dossiers 0 à 4 dans l'ordre (Run collection) : la connexion Keycloak garde le jeton JWT, les identifiants créés sont gardés dans des variables.\nDonnées réelles : vraies pharmacies (user-service), vraie ordonnance (ordonnance-service), mise à jour de l'ordonnance par RabbitMQ (vente.sensible.enregistree).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
     {
-      "key": "baseUrl",
-      "value": "http://localhost:8084"
-    },
-    {
-      "key": "mois",
-      "value": "2026-11"
-    },
-    {
-      "key": "medicamentId",
-      "value": ""
-    },
-    {
-      "key": "attributionId",
-      "value": ""
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// un suffixe unique par lancement : le médicament de test a un nom nouveau à chaque fois",
+          "if (!pm.collectionVariables.get('suffixe')) { pm.collectionVariables.set('suffixe', Date.now() % 100000); }"
+        ]
+      }
     }
   ],
   "item": [
+    {
+      "name": "0. Connexion (Keycloak, par la Gateway)",
+      "item": [
+        {
+          "name": "Sans jeton : refusé par la Gateway (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/medicaments-sensibles",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "medicaments-sensibles"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Connexion admin (jeton JWT)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/auth/login",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@medivault.tn\",\n  \"motDePasse\": \"{{motDePasse}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
     {
       "name": "1. Médicaments sensibles (CRUD)",
       "item": [
@@ -37,9 +124,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/medicaments-sensibles",
+              "raw": "{{gateway}}/api/medicaments-sensibles",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -48,7 +135,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nomCommercial\": \"Test Postman 10 mg\",\n  \"dci\": \"Substance test\",\n  \"categorie\": \"PSYCHOTROPE\",\n  \"description\": \"Médicament de test\",\n  \"precautions\": \"Aucune\"\n}"
+              "raw": "{\n  \"nomCommercial\": \"Test Postman {{suffixe}} mg\",\n  \"dci\": \"Substance test\",\n  \"categorie\": \"PSYCHOTROPE\",\n  \"description\": \"Médicament de test\",\n  \"precautions\": \"Aucune\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -75,9 +167,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/medicaments-sensibles",
+              "raw": "{{gateway}}/api/medicaments-sensibles",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -86,7 +178,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nomCommercial\": \"test postman 10 mg\",\n  \"dci\": \"x\",\n  \"categorie\": \"PSYCHOTROPE\"\n}"
+              "raw": "{\n  \"nomCommercial\": \"test postman {{suffixe}} mg\",\n  \"dci\": \"x\",\n  \"categorie\": \"PSYCHOTROPE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -112,9 +209,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/medicaments-sensibles",
+              "raw": "{{gateway}}/api/medicaments-sensibles",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -123,7 +220,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nomCommercial\": \"\",\n  \"dci\": \"\"\n}"
+              "raw": "{\n  \"nomCommercial\": \"\",\n  \"dci\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -144,9 +246,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/medicaments-sensibles",
+              "raw": "{{gateway}}/api/medicaments-sensibles",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -172,9 +274,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/medicaments-sensibles?categorie=PSYCHOTROPE",
+              "raw": "{{gateway}}/api/medicaments-sensibles?categorie=PSYCHOTROPE",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -206,9 +308,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/medicaments-sensibles/{{medicamentId}}",
+              "raw": "{{gateway}}/api/medicaments-sensibles/{{medicamentId}}",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -235,9 +337,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/medicaments-sensibles/99999",
+              "raw": "{{gateway}}/api/medicaments-sensibles/99999",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -269,9 +371,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/medicaments-sensibles/{{medicamentId}}",
+              "raw": "{{gateway}}/api/medicaments-sensibles/{{medicamentId}}",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -281,7 +383,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nomCommercial\": \"Test Postman 10 mg\",\n  \"dci\": \"Substance test\",\n  \"categorie\": \"ABORTIF\",\n  \"description\": \"Modifié\",\n  \"precautions\": \"Aucune\"\n}"
+              "raw": "{\n  \"nomCommercial\": \"Test Postman {{suffixe}} mg\",\n  \"dci\": \"Substance test\",\n  \"categorie\": \"ABORTIF\",\n  \"description\": \"Modifié\",\n  \"precautions\": \"Aucune\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -302,7 +409,42 @@
       "name": "2. Quotas (attributions)",
       "item": [
         {
-          "name": "Créer un quota",
+          "name": "Les vraies pharmacies (user-service)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/professionnels?type=PHARMACIEN",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "professionnels"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "PHARMACIEN"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('au moins 3 pharmacies', () => pm.expect(pm.response.json().length).to.be.at.least(3));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Créer un quota (Pharmacie Centrale)",
           "request": {
             "method": "POST",
             "header": [
@@ -312,9 +454,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/attributions",
+              "raw": "{{gateway}}/api/attributions",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -323,7 +465,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pharmacieId\": \"42\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"mois\": \"{{mois}}\",\n  \"quantiteAttribuee\": 30\n}"
+              "raw": "{\n  \"pharmacieId\": \"pharmacie-centrale\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"mois\": \"{{mois}}\",\n  \"quantiteAttribuee\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -350,9 +497,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/attributions",
+              "raw": "{{gateway}}/api/attributions",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -361,7 +508,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pharmacieId\": \"42\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"mois\": \"{{mois}}\",\n  \"quantiteAttribuee\": 30\n}"
+              "raw": "{\n  \"pharmacieId\": \"pharmacie-centrale\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"mois\": \"{{mois}}\",\n  \"quantiteAttribuee\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -377,7 +529,7 @@
           ]
         },
         {
-          "name": "Quota en lot",
+          "name": "Quota en lot (1 ignoré, 2 créés)",
           "request": {
             "method": "POST",
             "header": [
@@ -387,9 +539,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/attributions/lot",
+              "raw": "{{gateway}}/api/attributions/lot",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -399,7 +551,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"mois\": \"{{mois}}\",\n  \"quantiteAttribuee\": 20,\n  \"pharmacieIds\": [\n    \"42\",\n    \"43\",\n    \"44\"\n  ]\n}"
+              "raw": "{\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"mois\": \"{{mois}}\",\n  \"quantiteAttribuee\": 20,\n  \"pharmacieIds\": [\n    \"pharmacie-centrale\",\n    \"pharmacie-marsa\",\n    \"pharmacie-bizerte\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -409,6 +566,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('quotaSansVenteId', pm.response.json().attributions[0].id);",
                   "pm.test('1 ignorée, 2 créées', () => { const r = pm.response.json(); pm.expect(r.crees).to.eql(2); pm.expect(r.ignores).to.eql(1); });"
                 ]
               }
@@ -421,9 +579,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/attributions?pharmacieId=42&mois={{mois}}",
+              "raw": "{{gateway}}/api/attributions?pharmacieId=pharmacie-centrale&mois={{mois}}",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -432,7 +590,7 @@
               "query": [
                 {
                   "key": "pharmacieId",
-                  "value": "42"
+                  "value": "pharmacie-centrale"
                 },
                 {
                   "key": "mois",
@@ -459,9 +617,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/attributions/{{attributionId}}",
+              "raw": "{{gateway}}/api/attributions/{{attributionId}}",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -493,9 +651,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/attributions/{{attributionId}}",
+              "raw": "{{gateway}}/api/attributions/{{attributionId}}",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -505,7 +663,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"quantiteAttribuee\": 40\n}"
+              "raw": "{\n  \"quantiteAttribuee\": 40\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -526,9 +689,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/attributions/{{attributionId}}/bilan",
+              "raw": "{{gateway}}/api/attributions/{{attributionId}}/bilan",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -556,9 +719,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/disponibilites?medicamentId={{medicamentId}}",
+              "raw": "{{gateway}}/api/disponibilites?medicamentId={{medicamentId}}",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -583,28 +746,40 @@
               }
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "name": "3. Ventes réelles (RG1, RG2, RG3) avec ordonnance-service et user-service",
+      "item": [
         {
-          "name": "RG4 : renouvellement du mois",
+          "name": "Préparer : vraie ordonnance (ordonnance-service)",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{baseUrl}}/api/attributions/renouvellement?mois=2099-01",
+              "raw": "{{gateway}}/api/ordonnances",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
-                "attributions",
-                "renouvellement"
-              ],
-              "query": [
-                {
-                  "key": "mois",
-                  "value": "2099-01"
-                }
+                "ordonnances"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"patient-ahmed\",\n  \"medecinId\": \"medecin-karim\",\n  \"lignes\": [\n    {\n      \"medicamentId\": \"{{medicamentId}}\",\n      \"nomMedicament\": \"Test Postman {{suffixe}} mg\",\n      \"posologie\": \"1 par jour\",\n      \"dureeJours\": 2,\n      \"quantite\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -613,18 +788,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));"
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('ordonnanceCode', pm.response.json().code);",
+                  "pm.collectionVariables.set('ordonnanceId', pm.response.json().id);",
+                  "pm.test('ordonnance VALIDEE', () => pm.expect(pm.response.json().statut).to.eql('VALIDEE'));"
                 ]
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "name": "3. Ventes (RG1, RG2, RG3) - ordonnances simulées",
-      "description": "Le médicament créé en 1 a un identifiant élevé : pour ces tests on utilise les médicaments de démonstration (1 = Subutex) et la pharmacie 1.",
-      "item": [
+        },
         {
           "name": "Vente valide (201)",
           "request": {
@@ -636,9 +808,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/ventes",
+              "raw": "{{gateway}}/api/ventes",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -647,7 +819,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pharmacieId\": \"1\",\n  \"ordonnanceCode\": \"ORD-A7F3\",\n  \"medicamentId\": 1,\n  \"quantite\": 1\n}"
+              "raw": "{\n  \"pharmacieId\": \"pharmacie-centrale\",\n  \"ordonnanceCode\": \"{{ordonnanceCode}}\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"quantite\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -663,7 +840,7 @@
           ]
         },
         {
-          "name": "RG1 : ordonnance non validée (409 + avertissement)",
+          "name": "RG1 : ordonnance introuvable (409 + 1er avertissement)",
           "request": {
             "method": "POST",
             "header": [
@@ -673,9 +850,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/ventes",
+              "raw": "{{gateway}}/api/ventes",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -684,7 +861,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pharmacieId\": \"1\",\n  \"ordonnanceCode\": \"ORD-D102\",\n  \"medicamentId\": 1,\n  \"quantite\": 1\n}"
+              "raw": "{\n  \"pharmacieId\": \"pharmacie-centrale\",\n  \"ordonnanceCode\": \"ORD-0000-9999\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"quantite\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -694,14 +876,14 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('409', () => pm.response.to.have.status(409));",
-                  "pm.test('avertissement compté', () => pm.expect(pm.response.json().avertissements).to.be.at.least(1));"
+                  "pm.test('1 avertissement', () => pm.expect(pm.response.json().avertissements).to.eql(1));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Pharmacie inactive (403)",
+          "name": "RG2 : plus que l'ordonnance (409 + 2e avertissement = suspension)",
           "request": {
             "method": "POST",
             "header": [
@@ -711,9 +893,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/ventes",
+              "raw": "{{gateway}}/api/ventes",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -722,7 +904,55 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pharmacieId\": \"off-1\",\n  \"ordonnanceCode\": \"ORD-A7F3\",\n  \"medicamentId\": 1,\n  \"quantite\": 1\n}"
+              "raw": "{\n  \"pharmacieId\": \"pharmacie-centrale\",\n  \"ordonnanceCode\": \"{{ordonnanceCode}}\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"quantite\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));",
+                  "pm.test('quota suspendu', () => pm.expect(pm.response.json().suspendue).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pharmacie inconnue ou inactive (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway}}/api/ventes",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "ventes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pharmacieId\": \"pharmacie-inexistante\",\n  \"ordonnanceCode\": \"{{ordonnanceCode}}\",\n  \"medicamentId\": \"{{medicamentId}}\",\n  \"quantite\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -748,9 +978,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/ventes",
+              "raw": "{{gateway}}/api/ventes",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -759,7 +989,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pharmacieId\": \"1\",\n  \"ordonnanceCode\": \"ORD-A7F3\",\n  \"medicamentId\": 99999,\n  \"quantite\": 1\n}"
+              "raw": "{\n  \"pharmacieId\": \"pharmacie-centrale\",\n  \"ordonnanceCode\": \"{{ordonnanceCode}}\",\n  \"medicamentId\": 99999,\n  \"quantite\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -785,9 +1020,9 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/ventes",
+              "raw": "{{gateway}}/api/ventes",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -796,7 +1031,12 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"pharmacieId\": \"\",\n  \"quantite\": 0\n}"
+              "raw": "{\n  \"pharmacieId\": \"\",\n  \"quantite\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           },
           "event": [
@@ -812,14 +1052,14 @@
           ]
         },
         {
-          "name": "Historique",
+          "name": "Historique de la pharmacie",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/ventes?pharmacieId=1",
+              "raw": "{{gateway}}/api/ventes?pharmacieId=pharmacie-centrale",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -828,8 +1068,66 @@
               "query": [
                 {
                   "key": "pharmacieId",
-                  "value": "1"
+                  "value": "pharmacie-centrale"
                 }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ordonnance mise à jour par RabbitMQ (PARTIELLEMENT_DELIVREE)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/ordonnances/{{ordonnanceId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "ordonnances",
+                "{{ordonnanceId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('1 boîte délivrée', () => pm.expect(pm.response.json().lignes[0].quantiteDelivree).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refus enregistrés",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/tentatives-refusees",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "tentatives-refusees"
               ]
             }
           },
@@ -851,19 +1149,19 @@
       "name": "4. Nettoyage",
       "item": [
         {
-          "name": "Supprimer le quota (204)",
+          "name": "Supprimer un quota sans vente (204)",
           "request": {
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/attributions/{{attributionId}}",
+              "raw": "{{gateway}}/api/attributions/{{quotaSansVenteId}}",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
                 "attributions",
-                "{{attributionId}}"
+                "{{quotaSansVenteId}}"
               ]
             }
           },
@@ -880,14 +1178,43 @@
           ]
         },
         {
+          "name": "Quota avec ventes : non supprimable (409)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{gateway}}/api/attributions/{{attributionId}}",
+              "host": [
+                "{{gateway}}"
+              ],
+              "path": [
+                "api",
+                "attributions",
+                "{{attributionId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Médicament encore attribué (409)",
           "request": {
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/medicaments-sensibles/{{medicamentId}}",
+              "raw": "{{gateway}}/api/medicaments-sensibles/{{medicamentId}}",
               "host": [
-                "{{baseUrl}}"
+                "{{gateway}}"
               ],
               "path": [
                 "api",
@@ -909,6 +1236,48 @@
           ]
         }
       ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "gateway",
+      "value": "http://localhost:9000"
+    },
+    {
+      "key": "motDePasse",
+      "value": "Medivault2026!"
+    },
+    {
+      "key": "mois",
+      "value": "2026-11"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "suffixe",
+      "value": ""
+    },
+    {
+      "key": "medicamentId",
+      "value": ""
+    },
+    {
+      "key": "attributionId",
+      "value": ""
+    },
+    {
+      "key": "quotaSansVenteId",
+      "value": ""
+    },
+    {
+      "key": "ordonnanceCode",
+      "value": ""
+    },
+    {
+      "key": "ordonnanceId",
+      "value": ""
     }
   ]
 }

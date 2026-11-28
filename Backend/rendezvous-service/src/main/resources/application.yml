@@ -9,7 +9,8 @@ spring:
     import: "optional:configserver:http://localhost:8888"
 
   datasource:
-    url: jdbc:h2:mem:rendezvous_db
+    # H2 en fichier : les créneaux et rendez-vous restent après un redémarrage
+    url: jdbc:h2:file:./rendezvous-data/rendezvous_db;AUTO_SERVER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
     password:

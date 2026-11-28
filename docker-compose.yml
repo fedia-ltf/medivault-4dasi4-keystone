@@ -1,11 +1,15 @@
-# docker-compose.yml commun : l'INFRASTRUCTURE de MediVault pour l'intégration (pas les microservices).
-# Les microservices se lancent depuis IntelliJ (ou mvnw spring-boot:run), dans l'ordre du document
-# « Démarrage de l'intégration » : eureka-server, user, dossier, ordonnance, medicament, soin, analyse,
-# rendezvous, puis api-gateway et le front.
+# docker-compose.yml commun de MediVault : l'infrastructure ET (profil « app ») toute l'application.
 #
-#   Lancer   :  docker compose up -d
-#   Arrêter  :  docker compose down            (les données restent dans les volumes)
-#   Tout effacer, données comprises :  docker compose down -v
+# 1) Tout dans Docker (le plus simple : aucun Java, Maven ni Node sur le PC) :
+#      docker compose --profile app up -d --build      (premier lancement : quelques minutes de construction)
+#      puis ouvrir http://localhost:4200  (front)  ·  http://localhost:9000/swagger-ui.html  (Swagger unifié)
+#      Arrêter :  docker compose --profile app down    (les données restent dans les volumes)
+#
+# 2) Seulement l'infrastructure (les microservices lancés depuis IntelliJ / mvn spring-boot:run, puis ng serve) :
+#      docker compose up -d
+#    Ordre des services : eureka-server, user, dossier, ordonnance, medicament, soin, analyse, rendezvous, api-gateway.
+#
+#   Tout effacer, données comprises :  docker compose --profile app down -v
 #
 #   mongo          user-service (base user_db)                              -> localhost:27017
 #   mongo-express  voir les utilisateurs dans MongoDB                        -> http://localhost:8090
@@ -16,10 +20,32 @@
 #   keycloak       realm medivault (5 rôles, comptes de démo)                -> http://localhost:8180 (admin / admin)
 #   mailpit        e-mails de test (mot de passe oublié)                     -> http://localhost:8025
 #
+#   Profil app :   eureka 8761 · gateway 9000 (seule porte d'entrée de l'API) · front 4200
+#                  user 8081 · dossier 8082 · ordonnance 8083 · medicament 8084 · soin 8085 · analyse 8086 · rendezvous 8087
+#                  (les ports des services sont ouverts pour Swagger et la console H2 ; le front et Postman passent par la Gateway)
+#
 # Si MySQL (XAMPP / WAMP) ou MongoDB tourne déjà sur le poste, ne lancer que le reste, par exemple :
 #   docker compose up -d rabbitmq keycloak mailpit
 
+# Réglages communs aux microservices Spring Boot (profil « app »)
+x-microservice: &microservice
+  profiles: ["app"]
+  restart: on-failure
+  depends_on:
+    eureka:
+      condition: service_started
+    rabbitmq:
+      condition: service_healthy
+
+x-environnement: &environnement
+  SPRING_CLOUD_CONFIG_ENABLED: "false"
+  # Eureka du conteneur « eureka » ; chaque service s'inscrit avec l'adresse IP de son conteneur
+  SPRING_APPLICATION_JSON: '{"eureka":{"client":{"serviceUrl":{"defaultZone":"http://eureka:8761/eureka/"}},"instance":{"preferIpAddress":true}}}'
+  SPRING_RABBITMQ_HOST: rabbitmq
+  JAVA_OPTS: "-Xmx384m -XX:+UseSerialGC"
+
 services:
+  # ============================== Infrastructure ==============================
   mongo:
     image: mongo:7
     ports:
@@ -46,12 +72,22 @@ services:
       MYSQL_ROOT_HOST: "%"
     volumes:
       - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   rabbitmq:
     image: rabbitmq:3-management
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
 
   mailpit:
     image: axllent/mailpit:v1.21.8
@@ -74,11 +110,160 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
       KC_HEALTH_ENABLED: "true"
+      # Adresse vue par le navigateur (liens des e-mails, jetons) ; les services Docker passent par keycloak:8080
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
     volumes:
       - ./Backend/user-service/keycloak:/opt/keycloak/data/import:ro
       - keycloak-data:/opt/keycloak/data/h2
+    healthcheck:
+      # Keycloak répond « UP » sur son port de gestion (9000, interne au conteneur)
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # ============================== Application (profil « app ») ==============================
+  eureka:
+    profiles: ["app"]
+    build: ./Backend/eureka-server
+    restart: on-failure
+    ports:
+      - "8761:8761"
+    environment:
+      JAVA_OPTS: "-Xmx256m -XX:+UseSerialGC"
+
+  user-service:
+    <<: *microservice
+    build: ./Backend/user-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      eureka:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+    environment:
+      <<: *environnement
+      SPRING_PROFILES_ACTIVE: keycloak
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/user_db
+      MEDIVAULT_KEYCLOAK_SERVERURL: http://keycloak:8080
+      MEDIVAULT_SECURITY_JWKSETURI: http://keycloak:8080/realms/medivault/protocol/openid-connect/certs
+
+  dossier-service:
+    <<: *microservice
+    build: ./Backend/dossier-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      eureka:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    environment:
+      <<: *environnement
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/dossier_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+
+  ordonnance-service:
+    <<: *microservice
+    build: ./Backend/ordonnance-service
+    ports:
+      - "8083:8083"
+    depends_on:
+      eureka:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    environment:
+      <<: *environnement
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/ordonnance_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+
+  medicament-service:
+    <<: *microservice
+    build: ./Backend/medicament-service
+    ports:
+      - "8084:8084"
+    environment:
+      <<: *environnement
+      INTEGRATION_MODE: reel
+      DATA_DIR: /app/data
+      SPRING_H2_CONSOLE_SETTINGS_WEBALLOWOTHERS: "true"   # console H2 ouverte depuis le navigateur du PC
+    volumes:
+      - medicament-data:/app/data
+
+  soin-domicile-service:
+    <<: *microservice
+    build: ./Backend/soin-domicile-service
+    ports:
+      - "8085:8085"
+    environment:
+      <<: *environnement
+      SPRING_H2_CONSOLE_SETTINGS_WEBALLOWOTHERS: "true"
+    volumes:
+      - soin-domicile-data:/app/soin-domicile-data
+
+  analyse-service:
+    <<: *microservice
+    build: ./Backend/analyse-service
+    ports:
+      - "8086:8086"
+    environment:
+      <<: *environnement
+      SPRING_H2_CONSOLE_SETTINGS_WEBALLOWOTHERS: "true"
+    volumes:
+      - analyse-data:/app/analyse-data
+
+  rendezvous-service:
+    <<: *microservice
+    build: ./Backend/rendezvous-service
+    ports:
+      - "8087:8087"
+    environment:
+      <<: *environnement
+      SPRING_H2_CONSOLE_SETTINGS_WEBALLOWOTHERS: "true"
+    volumes:
+      - rendezvous-data:/app/rendezvous-data
+
+  # Point d'entrée unique : toujours le port 9000 (front, Postman et Swagger passent par ici)
+  gateway:
+    profiles: ["app"]
+    build: ./Backend/api-gateway
+    restart: on-failure
+    ports:
+      - "9000:9000"
+    depends_on:
+      eureka:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+    environment:
+      SPRING_APPLICATION_JSON: '{"eureka":{"client":{"serviceUrl":{"defaultZone":"http://eureka:8761/eureka/"}},"instance":{"preferIpAddress":true}}}'
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWKSETURI: http://keycloak:8080/realms/medivault/protocol/openid-connect/certs
+      JAVA_OPTS: "-Xmx320m -XX:+UseSerialGC"
+
+  frontend:
+    profiles: ["app"]
+    build: ./Frontend/medivault-frontend
+    restart: on-failure
+    ports:
+      - "4200:80"
+    depends_on:
+      - gateway
 
 volumes:
   mongo-data:
   mysql-data:
   keycloak-data:
+  medicament-data:
+  soin-domicile-data:
+  analyse-data:
+  rendezvous-data:

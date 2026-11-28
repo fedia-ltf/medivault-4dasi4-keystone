@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { catchError, of } from 'rxjs';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
@@ -14,6 +16,13 @@ import { SensibleService } from '../../services/sensible.service';
 
 type Onglet = 'catalogue' | 'quotas' | 'ventes';
 
+/** L'ordonnance qui justifie une vente, lue dans ordonnance-service (GET /api/ordonnances/{id}) */
+interface OrdonnanceJustif {
+  code: string; statut: string; medecinId: string; dateEmission: string; dateExpiration: string;
+  lignes: { nomMedicament: string; posologie: string; quantite: number; quantiteDelivree: number }[];
+}
+interface Justification { chargement: boolean; ordonnance: OrdonnanceJustif | null; patient: string; medecin: string; }
+
 const auMoinsUn = (c: AbstractControl): ValidationErrors | null => (c.value?.length ? null : { vide: true });
 const normaliser = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
@@ -28,6 +37,29 @@ const normaliser = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toL
 export class MedicamentsAdminPage {
   protected s = inject(SensibleService);
   private fb = inject(FormBuilder);
+  private http = inject(HttpClient);
+
+  // ---------- Justification d'une vente : vraie ordonnance (ordonnance-service) et vrais noms (user-service) ----------
+  protected justification = signal<Justification | null>(null);
+  private readonly chargerJustification = effect(() => {
+    const v = this.detailVente();
+    untracked(() => {
+      if (!v) { this.justification.set(null); return; }
+      this.justification.set({ chargement: true, ordonnance: null, patient: v.patientId, medecin: '' });
+      this.nomDe(v.patientId, nom => this.justification.update(j => j && { ...j, patient: nom }));
+      this.http.get<OrdonnanceJustif>(`/api/ordonnances/${v.ordonnanceId}`).pipe(catchError(() => of(null))).subscribe(o => {
+        this.justification.update(j => j && { ...j, chargement: false, ordonnance: o, medecin: o?.medecinId ?? '' });
+        if (o) this.nomDe(o.medecinId, nom => this.justification.update(j => j && { ...j, medecin: nom }));
+      });
+    });
+  });
+
+  /** Le nom affiché d'un compte du user-service (« Dr Karim Trabelsi »), sinon son identifiant */
+  private nomDe(id: string, appliquer: (nom: string) => void) {
+    this.http.get<{ nom: string; prenom: string; role: string }>(`/api/utilisateurs/${encodeURIComponent(id)}`)
+      .pipe(catchError(() => of(null)))
+      .subscribe(u => u && appliquer(`${u.role === 'MEDECIN' ? 'Dr ' : ''}${u.prenom} ${u.nom}`.trim()));
+  }
 
   protected readonly categories = CATEGORIES;
   protected readonly libelleMois = libelleMois;

@@ -238,39 +238,99 @@ medivault-4dasi4-keystone/
 
 ## Lancement du projet
 
-> Le développement démarre après la validation de la conception. Cette section sera complétée au fur et à mesure de l'avancement.
-
 ### Prérequis
 
-- Java 17
-- Maven
-- Node.js et Angular CLI
-- Docker et Docker Compose
+- **Docker Desktop** (suffit pour tout lancer : aucun Java, Maven ni Node n'est nécessaire)
+- Pour développer un service : Java 17, Maven, Node.js 22 et Angular CLI
 
-### Lancer un microservice (exemple : `medicament-service`)
+> **Port 9000** : c'est le port de la Gateway, toujours. S'il est déjà pris par un autre programme
+> (par exemple un conteneur ClickHouse), l'arrêter d'abord : `docker ps` puis `docker stop <nom>`.
+
+### 1. Tout lancer avec Docker (recommandé)
 
 ```bash
 git clone https://github.com/fedia-ltf/medivault-4dasi4-keystone.git
-cd medivault-4dasi4-keystone/Backend/medicament-service
-mvn spring-boot:run
+cd medivault-4dasi4-keystone
+docker compose --profile app up -d --build
 ```
 
-- API : http://localhost:8084/api/medicaments
-- Swagger : http://localhost:8084/swagger-ui.html
-- Console H2 : http://localhost:8084/h2-console (JDBC `jdbc:h2:mem:medicament_db`, utilisateur `sa`)
-- Collection Postman : `Backend/medicament-service/postman/`
+Le premier lancement construit les images (quelques minutes). Ensuite, en 1 à 2 minutes, tout est prêt :
 
-Eureka (8761), Config Server (8888) et RabbitMQ (5672) sont optionnels pour démarrer un service seul :
+| Quoi | Adresse |
+|---|---|
+| **Application (front Angular)** | http://localhost:4200 |
+| **API Gateway** (seule porte d'entrée de l'API) | http://localhost:9000/api/... |
+| **Swagger unifié** (les 7 services) | http://localhost:9000/swagger-ui.html |
+| Eureka (services inscrits) | http://localhost:8761 |
+| RabbitMQ (files et messages) | http://localhost:15672 (`guest` / `guest`) |
+| Keycloak (comptes et rôles) | http://localhost:8180 (`admin` / `admin`, realm `medivault`) |
+| Mailpit (e-mails « mot de passe oublié ») | http://localhost:8025 |
+
+Commandes utiles :
 
 ```bash
-docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
+docker compose --profile app ps                 # état de chaque conteneur
+docker compose --profile app logs -f gateway    # journaux d'un service
+docker compose --profile app down               # tout arrêter (les données restent)
+docker compose --profile app down -v            # tout arrêter ET effacer les données
 ```
 
-### Démarrage global (à venir)
+**Comptes de démonstration** (mot de passe de tous : `Medivault2026!`, développement seulement) :
+`admin@medivault.tn` (ADMIN), `karim.trabelsi@medivault.tn` (MEDECIN), `ahmed.benali@medivault.tn` (PATIENT),
+`contact@biolab.tn` (LABORANTIN), `pharmacie.centrale@medivault.tn` (PHARMACIEN).
+
+### 2. Lancer les services un par un (développement)
 
 ```bash
-docker-compose up -d
+docker compose up -d        # seulement l'infrastructure : MySQL, MongoDB, RabbitMQ, Keycloak, Mailpit
 ```
+
+Puis, dans cet ordre (IntelliJ ou `mvn spring-boot:run` dans chaque dossier de `Backend/`) :
+`eureka-server` → `user-service` (profil `keycloak`) → `dossier-service` → `ordonnance-service` → `medicament-service`
+→ `soin-domicile-service` → `analyse-service` → `rendezvous-service` → `api-gateway`, et enfin le front :
+
+```bash
+cd Frontend/medivault-frontend
+npm install
+npm start                   # http://localhost:4200 (proxy /api → Gateway 9000)
+```
+
+### Sécurité
+
+- Le front, Postman et Swagger passent **uniquement par la Gateway (9000)**.
+- La Gateway exige un **jeton JWT Keycloak** (`Authorization: Bearer ...`) pour tout `/api/**`, sauf `/api/auth/**`
+  (connexion, inscription, mot de passe oublié). Jeton : `POST http://localhost:9000/api/auth/login`
+  avec `{"email": "...", "motDePasse": "..."}` → `accessToken`.
+- Les microservices s'appellent entre eux directement : OpenFeign (trouvés par Eureka) et RabbitMQ.
+- Dans Swagger : bouton **Authorize**, coller le jeton, puis « Try it out » (les requêtes passent par la Gateway).
+
+### Voir les données de chaque base
+
+| Service | Base | Comment la voir |
+|---|---|---|
+| user-service | MongoDB `user_db` | http://localhost:8090 (mongo-express) ou MongoDB Compass sur `mongodb://localhost:27017` |
+| dossier-service | MySQL `dossier_db` | MySQL Workbench sur `localhost:3306`, utilisateur `root`, sans mot de passe |
+| ordonnance-service | MySQL `ordonnance_db` | idem, ou `docker compose exec mysql mysql -uroot` |
+| medicament-service | H2 fichier | http://localhost:8084/h2-console |
+| soin-domicile-service | H2 fichier | http://localhost:8085/h2-console |
+| analyse-service | H2 fichier | http://localhost:8086/h2-console |
+| rendezvous-service | H2 fichier | http://localhost:8087/h2-console |
+| Keycloak | comptes et rôles | http://localhost:8180 → realm `medivault` → Users |
+| RabbitMQ | messages | http://localhost:15672 → Queues |
+
+Consoles H2 : utilisateur `sa`, mot de passe vide, et l'URL JDBC suivante :
+
+| Service | Avec Docker | Lancé un par un |
+|---|---|---|
+| medicament | `jdbc:h2:file:/app/data/medicament_db` | `jdbc:h2:file:./data/medicament_db` |
+| soin-domicile | `jdbc:h2:file:./soin-domicile-data/soin_domicile_db` | idem |
+| analyse | `jdbc:h2:file:./analyse-data/analyse_db` | idem |
+| rendezvous | `jdbc:h2:file:./rendezvous-data/rendezvous_db` | idem |
+
+### Postman
+
+Les collections sont dans `Backend/<service>/postman/`. Elles passent par la Gateway (`{{gateway}}` = http://localhost:9000)
+et commencent par la connexion Keycloak, qui garde le jeton pour les requêtes suivantes : **Run collection**.
 
 ---
 

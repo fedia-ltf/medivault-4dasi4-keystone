@@ -33,11 +33,11 @@ COPY --from=build --chown=app:app /build/target/medicament-service-*.jar app.jar
 
 # Variables d'environnement (valeurs par défaut) : voir aussi application.properties.
 #   DATA_DIR          dossier de la base H2 (fichier) : à garder dans un volume pour ne pas perdre les données
-#   INTEGRATION_MODE  simule (fausses ordonnances et comptes) ou reel (vrais appels aux autres services)
-#   DEMO_DATA         true : crée des données d'exemple au premier lancement (base vide)
+#   INTEGRATION_MODE  reel (vrais appels aux autres services) ; simule = seulement pour les tests
+#   DEMO_DATA         true : crée le catalogue et les quotas des vraies pharmacies au premier lancement
 #   EUREKA_URL, RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASSWORD, CONFIG_SERVER_URL
 ENV DATA_DIR=/app/data \
-    INTEGRATION_MODE=simule \
+    INTEGRATION_MODE=reel \
     DEMO_DATA=true \
     JAVA_OPTS="-XX:MaxRAMPercentage=75"
 

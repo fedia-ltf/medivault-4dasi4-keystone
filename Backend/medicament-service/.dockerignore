@@ -1,10 +1,6 @@
-# Ce que Docker ne doit PAS copier dans la construction (plus rapide et plus propre)
 target/
 data/
+*.mv.db
+*.trace.db
 .idea/
 *.iml
-.git/
-postman/
-README.md
-Dockerfile
-docker-compose.yml

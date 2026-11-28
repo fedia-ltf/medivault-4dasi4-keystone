@@ -128,8 +128,7 @@ public class DossierController {
 
     @GetMapping("/patient/{patientId}/acces")
     @Operation(summary = "Vérifier l'accès d'un professionnel au dossier d'un patient")
-    @ApiResponse(responseCode = "200", description = "Justification d'accès retournée")
-    @ApiResponse(responseCode = "404", description = "Dossier introuvable")
+    @ApiResponse(responseCode = "200", description = "Justification d'accès retournée (autorise=false si le patient n'a pas encore de dossier)")
     public ResponseEntity<AccesJustificationResponse> verifierAcces(
             @PathVariable String patientId,
             @RequestParam String professionnelId) {

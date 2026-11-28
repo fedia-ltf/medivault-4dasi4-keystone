@@ -8,7 +8,7 @@ export interface ModuleInfo {
 export const MODULES: Record<string, ModuleInfo> = {
   dossiers: { titre: 'Dossiers médicaux', icon: 'folder' },
   ordonnances: { titre: 'Ordonnances', icon: 'clipboard' },
-  pharmacie: { titre: 'Pharmacie', icon: 'cross' },
+  'soin-domicile': { titre: 'Soin à domicile', icon: 'cross' },
   analyses: { titre: 'Analyses', icon: 'flask' },
   'rendez-vous': { titre: 'Rendez-vous', icon: 'calendar' }
 };

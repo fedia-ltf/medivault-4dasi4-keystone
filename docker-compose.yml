@@ -1,0 +1,84 @@
+# docker-compose.yml commun : l'INFRASTRUCTURE de MediVault pour l'intégration (pas les microservices).
+# Les microservices se lancent depuis IntelliJ (ou mvnw spring-boot:run), dans l'ordre du document
+# « Démarrage de l'intégration » : eureka-server, user, dossier, ordonnance, medicament, soin, analyse,
+# rendezvous, puis api-gateway et le front.
+#
+#   Lancer   :  docker compose up -d
+#   Arrêter  :  docker compose down            (les données restent dans les volumes)
+#   Tout effacer, données comprises :  docker compose down -v
+#
+#   mongo          user-service (base user_db)                              -> localhost:27017
+#   mongo-express  voir les utilisateurs dans MongoDB                        -> http://localhost:8090
+#   mysql          dossier-service (dossier_db) et ordonnance-service (ordonnance_db), root sans mot de passe
+#                                                                            -> localhost:3306
+#   rabbitmq       exchange medivault.events, une file par consommateur     -> localhost:5672
+#                  console web                                               -> http://localhost:15672 (guest / guest)
+#   keycloak       realm medivault (5 rôles, comptes de démo)                -> http://localhost:8180 (admin / admin)
+#   mailpit        e-mails de test (mot de passe oublié)                     -> http://localhost:8025
+#
+# Si MySQL (XAMPP / WAMP) ou MongoDB tourne déjà sur le poste, ne lancer que le reste, par exemple :
+#   docker compose up -d rabbitmq keycloak mailpit
+
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    depends_on:
+      - mongo
+    ports:
+      - "8090:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+      ME_CONFIG_BASICAUTH: "false"
+
+  mysql:
+    image: mysql:8.4
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"     # développement : même configuration que les postes (root, sans mot de passe)
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  mailpit:
+    image: axllent/mailpit:v1.21.8
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    command: start-dev --import-realm
+    user: "0:0"
+    depends_on:
+      - mailpit
+    ports:
+      - "8180:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./Backend/user-service/keycloak:/opt/keycloak/data/import:ro
+      - keycloak-data:/opt/keycloak/data/h2
+
+volumes:
+  mongo-data:
+  mysql-data:
+  keycloak-data:

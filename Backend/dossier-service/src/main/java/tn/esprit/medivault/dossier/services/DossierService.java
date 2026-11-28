@@ -63,12 +63,12 @@ public class DossierService {
 
     @Transactional(readOnly = true)
     public AccesJustificationResponse verifierAcces(String patientId, String professionnelId) {
-        Dossier dossier = dossierRepository.findByPatientId(patientId)
-                .orElseThrow(() -> new DossierNotFoundException(
-                        "Aucun dossier trouvé pour le patient : " + patientId));
-
-        boolean autorise = accesDossierRepository.existsByDossierIdAndProfessionnelIdAndStatut(
-                dossier.getId(), professionnelId, StatutAcces.ACTIF);
+        // Pas encore de dossier = aucune justification d'accès : réponse autorise=false (le service
+        // appelant renvoie 403), et non 404, que le fallback Feign transformerait en 503.
+        boolean autorise = dossierRepository.findByPatientId(patientId)
+                .map(dossier -> accesDossierRepository.existsByDossierIdAndProfessionnelIdAndStatut(
+                        dossier.getId(), professionnelId, StatutAcces.ACTIF))
+                .orElse(false);
 
         return new AccesJustificationResponse(patientId, professionnelId, autorise);
     }

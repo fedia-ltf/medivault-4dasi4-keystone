@@ -117,7 +117,7 @@ export class DashboardPage {
     { nom: 'medicament', etat: this.apiEnLigne() },
     { nom: 'ordonnance', etat: null },
     { nom: 'dossier', etat: null },
-    { nom: 'pharmacie', etat: null },
+    { nom: 'soin-domicile', etat: null },
     { nom: 'analyse', etat: null },
     { nom: 'rendezvous', etat: null },
     { nom: 'user', etat: null }

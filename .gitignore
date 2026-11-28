@@ -24,5 +24,6 @@ secrets.properties
 
 # Base H2 fichier du service (donnees locales)
 data/
+soin-domicile-data/
 *.mv.db
 *.trace.db

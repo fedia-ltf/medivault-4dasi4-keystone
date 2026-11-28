@@ -1,0 +1,691 @@
+<!-- ================= Bandeau Supérieur ================= -->
+<section class="enter relative overflow-hidden rounded-[2rem] aurora-dark grain p-8 text-white sm:p-12">
+  <div class="absolute inset-0 grid-lines"></div>
+  <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[52%] md:block">
+    <mv-dossiers-scene class="h-full w-full" />
+  </div>
+
+  <div class="relative max-w-xl">
+    <div class="grid h-14 w-14 place-items-center rounded-2xl bg-aqua-400 text-ink-950">
+      <mv-icon name="folder" [size]="26" />
+    </div>
+    <p class="mt-6 font-mono text-xs text-aqua-300">dossier-service • Microservice port 8085</p>
+    <h2 class="mt-2 font-display text-6xl leading-none">Dossiers médicaux</h2>
+    <p class="mt-4 text-lg text-white/60">
+      Dossier unique du patient : groupe sanguin, allergies, antécédents médicaux et historique des consultations.
+    </p>
+
+    <!-- Patient actuel & actions -->
+    <div class="mt-6 flex flex-wrap items-center gap-3">
+      @if (dossier(); as d) {
+        <button (click)="ouvrirAjoutConsultation()" class="btn btn-primary shine px-6 py-3 text-sm">
+          <mv-icon name="plus" [size]="17" /> Nouvelle consultation
+        </button>
+      }
+
+      <button (click)="charger()" class="btn btn-ghost-dark px-4 py-3 text-sm" title="Actualiser le dossier">
+        <mv-icon name="refresh" [size]="17" [class.animate-spin]="chargement()" /> Actualiser
+      </button>
+
+      @if (chargement()) {
+        <span class="chip bg-aqua-400/15 px-3 py-1.5 text-aqua-300">
+          <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-aqua-400"></span> Chargement...
+        </span>
+      } @else if (erreur()) {
+        <span class="chip bg-rose-400/15 px-3 py-1.5 text-rose-300">
+          <span class="h-1.5 w-1.5 rounded-full bg-rose-400"></span> Erreur {{ erreur()?.status }}
+        </span>
+      } @else if (api.enLigne() === true) {
+        <span class="chip bg-emerald-400/15 px-3 py-1.5 text-emerald-300">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> API 8085 connectée
+        </span>
+      }
+    </div>
+
+    <!-- Sélecteur temporaire de patient -->
+    <div class="mt-6 flex flex-wrap items-center gap-2 rounded-2xl bg-white/10 p-2.5 backdrop-blur-sm sm:inline-flex">
+      <span class="flex items-center gap-1.5 pl-2 font-mono text-xs text-aqua-200">
+        <mv-icon name="user" [size]="14" /> Patient :
+      </span>
+      <input
+        class="rounded-xl border border-white/20 bg-black/20 px-3 py-1 font-mono text-xs text-white placeholder-white/40 outline-none transition focus:border-aqua-400 focus:bg-black/30"
+        [(ngModel)]="patientIdSaisi"
+        (keyup.enter)="changerPatient()"
+        placeholder="Identifiant patient..."
+      />
+      <button (click)="changerPatient()" class="btn btn-primary px-3 py-1 text-xs font-semibold">
+        Charger
+      </button>
+      @if (patientId() !== 'patient-ahmed-001') {
+        <button (click)="reinitialiserPatientDefaut()" class="btn btn-ghost-dark px-2.5 py-1 text-xs" title="Revenir au patient par défaut">
+          Défaut
+        </button>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- ================= Gestion des erreurs (404, 403, 503, etc.) ================= -->
+@if (erreur(); as err) {
+  <section class="enter card mt-6 border-l-4 p-6 sm:p-8 {{ err.status === 404 ? 'border-l-amber-500' : err.status === 403 ? 'border-l-rose-500' : err.status === 503 || err.status === 0 || err.status === 500 ? 'border-l-red-500' : 'border-l-rose-400' }}">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+      <div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl {{ err.status === 404 ? 'bg-amber-50 text-amber-600' : err.status === 403 ? 'bg-rose-50 text-rose-600' : 'bg-red-50 text-red-600' }}">
+        @if (err.status === 404) {
+          <mv-icon name="search" [size]="24" />
+        } @else if (err.status === 403) {
+          <mv-icon name="lock" [size]="24" />
+        } @else {
+          <mv-icon name="server" [size]="24" />
+        }
+      </div>
+      <div class="flex-1">
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-xl font-bold text-ink-900">{{ err.message }}</h3>
+          <span class="chip bg-ink-100 font-mono text-xs text-ink-700">HTTP {{ err.status }}</span>
+        </div>
+        <p class="mt-2 text-sm text-ink-600 leading-relaxed font-sans">{{ err.detail }}</p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button (click)="charger()" class="btn btn-ink px-4 py-2 text-xs font-semibold">
+            <mv-icon name="refresh" [size]="14" /> Réessayer
+          </button>
+          @if (patientId() !== 'patient-ahmed-001') {
+            <button (click)="reinitialiserPatientDefaut()" class="btn btn-soft px-4 py-2 text-xs font-semibold">
+              Charger patient-ahmed-001
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+}
+
+<!-- ================= Indicateur de chargement ================= -->
+@if (chargement()) {
+  <section class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    @for (i of [1, 2, 3, 4]; track i) {
+      <div class="card p-5">
+        <div class="h-10 w-24 rounded-xl bg-[linear-gradient(90deg,#eef3f9_0%,#f8fafd_50%,#eef3f9_100%)] bg-[length:200%_100%] animate-shimmer"></div>
+        <div class="mt-3 h-4 w-32 rounded bg-ink-100"></div>
+      </div>
+    }
+  </section>
+}
+
+<!-- ================= Contenu du Dossier Médical ================= -->
+@if (!chargement() && dossier(); as d) {
+  <!-- Chiffres clés / KPIs -->
+  <section class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    @for (s of stats(); track s.label; let i = $index) {
+      <article class="card card-hover enter flex items-center gap-4 p-5" [style.animation-delay.ms]="80 + i * 60">
+        <div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl {{ s.ton }}">
+          <mv-icon [name]="s.icon" [size]="22" />
+        </div>
+        <div>
+          @if (s.texte) {
+            <p class="font-display text-4xl leading-none text-ink-900 font-bold">{{ s.texte }}</p>
+          } @else {
+            <p class="font-display text-4xl leading-none text-ink-900" [mvCountUp]="s.valeur ?? 0"></p>
+          }
+          <p class="mt-1 text-sm text-ink-500">{{ s.label }}</p>
+        </div>
+      </article>
+    }
+  </section>
+
+  <!-- Fiche de Synthèse Médicale -->
+  <section class="card enter mt-6 overflow-hidden [animation-delay:200ms]">
+    <div class="border-b border-ink-100 bg-ink-50/50 p-5">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <span class="grid h-10 w-10 place-items-center rounded-xl bg-aqua-100 text-aqua-700">
+            <mv-icon name="clipboard" [size]="20" />
+          </span>
+          <div>
+            <h3 class="text-lg font-bold text-ink-900">Synthèse du dossier médical</h3>
+            <p class="font-mono text-xs text-ink-400">
+              Dossier N° #{{ d.id }} • Patient : <span class="font-semibold text-ink-700">{{ d.patientId }}</span>
+            </p>
+          </div>
+        </div>
+        <span class="chip bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <mv-icon name="shield-check" [size]="14" class="mr-1 inline" /> Dossier Actif
+        </span>
+      </div>
+    </div>
+
+    <div class="grid gap-6 p-6 md:grid-cols-3">
+      <!-- Groupe Sanguin -->
+      <div class="rounded-2xl border border-ink-100 bg-gradient-to-br from-white to-ink-50/40 p-5">
+        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-400">
+          <mv-icon name="heart" [size]="15" class="text-rose-500" /> Groupe sanguin
+        </div>
+        <div class="mt-3 flex items-baseline gap-2">
+          <span class="font-display text-4xl font-bold text-rose-600">{{ d.groupeSanguin || 'Inconnu' }}</span>
+          <span class="text-xs text-ink-400">Système ABO/Rh</span>
+        </div>
+      </div>
+
+      <!-- Allergies -->
+      <div class="rounded-2xl border border-ink-100 bg-gradient-to-br from-white to-ink-50/40 p-5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-400">
+            <mv-icon name="alert" [size]="15" class="text-amber-500" /> Allergies
+          </div>
+          <span class="chip bg-amber-50 text-amber-700 text-xs">
+            {{ d.allergies.length }} déclarée{{ d.allergies.length > 1 ? 's' : '' }}
+          </span>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-1.5">
+          @if (d.allergies.length > 0) {
+            @for (a of d.allergies; track a) {
+              <span class="chip bg-amber-100/70 text-amber-900 border border-amber-200/80 font-medium">
+                <span class="h-1.5 w-1.5 rounded-full bg-amber-600"></span> {{ a }}
+              </span>
+            }
+          } @else {
+            <p class="text-sm italic text-ink-400">Aucune allergie connue signalée.</p>
+          }
+        </div>
+      </div>
+
+      <!-- Antécédents médicaux -->
+      <div class="rounded-2xl border border-ink-100 bg-gradient-to-br from-white to-ink-50/40 p-5">
+        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink-400">
+          <mv-icon name="activity" [size]="15" class="text-sky-500" /> Antécédents médicaux
+        </div>
+        <p class="mt-3 text-sm text-ink-800 leading-relaxed">
+          {{ d.antecedents || 'Aucun antécédent médical ou chirurgical renseigné.' }}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Historique des Consultations ================= -->
+  <section class="card enter mt-6 overflow-hidden [animation-delay:300ms]">
+    <!-- En-tête section -->
+    <div class="flex flex-col gap-4 border-b border-ink-100 p-5 sm:flex-row sm:items-center">
+      <div class="mr-auto">
+        <div class="flex items-center gap-2.5">
+          <span class="grid h-9 w-9 place-items-center rounded-xl bg-aqua-50 text-aqua-600">
+            <mv-icon name="stethoscope" [size]="18" />
+          </span>
+          <h3 class="text-lg font-bold text-ink-900">Historique des consultations</h3>
+        </div>
+        <p class="text-xs text-ink-400 mt-1">
+          {{ totalElements() }} consultation{{ totalElements() > 1 ? 's' : '' }} au total
+          @if (filtresActifs()) {
+            <span class="ml-1 chip bg-aqua-50 text-aqua-700 border border-aqua-200">filtres actifs</span>
+          }
+        </p>
+      </div>
+
+      <!-- Bouton Ajouter -->
+      <button (click)="ouvrirAjoutConsultation()" class="btn btn-ink shine px-4 py-2 text-xs font-semibold shrink-0">
+        <mv-icon name="plus" [size]="14" /> Ajouter
+      </button>
+    </div>
+
+    <!-- Barre de filtres -->
+    <div class="border-b border-ink-100 bg-ink-50/40 px-5 py-4">
+      <div class="flex flex-wrap items-end gap-3">
+        <!-- Filtre médecin -->
+        <label class="flex flex-col gap-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-ink-500">Médecin ID</span>
+          <input
+            class="field py-1.5 text-xs font-mono w-48"
+            placeholder="ex. medecin-karim-001"
+            [ngModel]="saisieFiltreMedecin()"
+            (ngModelChange)="saisieFiltreMedecin.set($event)"
+            (keyup.enter)="appliquerFiltres()"
+          />
+        </label>
+
+        <!-- Filtre date début -->
+        <label class="flex flex-col gap-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-ink-500">Depuis</span>
+          <input
+            type="date"
+            class="field py-1.5 text-xs w-36"
+            [ngModel]="saisieFiltredu()"
+            (ngModelChange)="saisieFiltredu.set($event)"
+          />
+        </label>
+
+        <!-- Filtre date fin -->
+        <label class="flex flex-col gap-1">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-ink-500">Au</span>
+          <input
+            type="date"
+            class="field py-1.5 text-xs w-36"
+            [ngModel]="saisieFiltreAu()"
+            (ngModelChange)="saisieFiltreAu.set($event)"
+          />
+        </label>
+
+        <!-- Boutons Filtrer / Réinitialiser -->
+        <div class="flex gap-2 self-end">
+          <button (click)="appliquerFiltres()" class="btn btn-ink px-4 py-2 text-xs font-semibold">
+            <mv-icon name="search" [size]="13" /> Filtrer
+          </button>
+          @if (filtresActifs()) {
+            <button (click)="reinitialiserFiltres(); chargerConsultations()" class="btn btn-soft px-4 py-2 text-xs font-semibold">
+              <mv-icon name="x" [size]="13" /> Réinitialiser
+            </button>
+          }
+        </div>
+
+        <!-- Bouton Télécharger PDF -->
+        <div class="ml-auto self-end">
+          <button
+            (click)="telechargerPdf()"
+            class="btn btn-soft px-4 py-2 text-xs font-semibold"
+            [disabled]="pdfEnCours()"
+            title="Télécharger les consultations au format PDF"
+          >
+            @if (pdfEnCours()) {
+              <mv-icon name="refresh" [size]="13" class="animate-spin" /> Génération...
+            } @else {
+              <mv-icon name="activity" [size]="13" /> Télécharger PDF
+            }
+          </button>
+        </div>
+      </div>
+
+      <!-- Erreur PDF -->
+      @if (erreurPdf()) {
+        <div class="mt-3 rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 flex items-center gap-2 text-xs text-rose-700">
+          <mv-icon name="alert" [size]="14" class="text-rose-500 shrink-0" />
+          <span>{{ erreurPdf() }}</span>
+          <button (click)="erreurPdf.set(null)" class="ml-auto text-rose-400 hover:text-rose-600">
+            <mv-icon name="x" [size]="13" />
+          </button>
+        </div>
+      }
+    </div>
+
+    <!-- Tableau des consultations -->
+    @if (chargementConsultations()) {
+      <div class="p-8 text-center text-ink-400 text-sm">
+        <mv-icon name="refresh" [size]="20" class="animate-spin inline-block mb-2 text-aqua-500" />
+        <p>Chargement des consultations...</p>
+      </div>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[920px] text-sm">
+          <thead>
+            <tr class="bg-ink-50/70 text-left text-[11px] uppercase tracking-wider text-ink-400">
+              <th class="py-3.5 pl-6 font-bold">Date</th>
+              <th class="py-3.5 font-bold">Médecin</th>
+              <th class="py-3.5 font-bold">Motif &amp; Diagnostic</th>
+              <th class="py-3.5 font-bold">Observations</th>
+              <th class="py-3.5 font-bold">Analyses demandées</th>
+              <th class="py-3.5 pr-6 text-right font-bold">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of consultationsPage(); track c.id) {
+              <tr class="group border-t border-ink-100/80 transition-colors hover:bg-aqua-50/40">
+                <!-- Date -->
+                <td class="py-4 pl-6 align-top">
+                  <div class="flex items-center gap-2">
+                    <span class="grid h-8 w-8 place-items-center rounded-lg bg-ink-50 text-ink-600 group-hover:bg-aqua-100 group-hover:text-aqua-700">
+                      <mv-icon name="calendar" [size]="15" />
+                    </span>
+                    <div>
+                      <p class="font-semibold text-ink-900 whitespace-nowrap">
+                        {{ c.date ? (c.date | date:'dd MMM yyyy') : 'Date non définie' }}
+                      </p>
+                      <p class="text-xs text-ink-400 font-mono">{{ c.date ? (c.date | date:'HH:mm') : '' }}</p>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Médecin -->
+                <td class="py-4 align-top">
+                  <span class="inline-flex items-center gap-1.5 rounded-lg bg-ink-50 px-2.5 py-1 font-mono text-xs text-ink-800">
+                    <mv-icon name="user" [size]="12" class="text-ink-400" />
+                    {{ c.medecinId }}
+                  </span>
+                </td>
+
+                <!-- Motif & Diagnostic -->
+                <td class="py-4 align-top">
+                  <p class="font-bold text-ink-900">{{ c.motif }}</p>
+                  <div class="mt-1 flex items-center gap-1.5">
+                    <span class="chip bg-sky-50 text-sky-700 border border-sky-100 font-medium text-xs">
+                      Diag : {{ c.diagnostic || 'Non spécifié' }}
+                    </span>
+                  </div>
+                </td>
+
+                <!-- Observations -->
+                <td class="py-4 align-top max-w-xs text-ink-600">
+                  <p class="text-xs leading-relaxed">{{ c.observations || '—' }}</p>
+                </td>
+
+                <!-- Analyses demandées -->
+                <td class="py-4 align-top">
+                  @if (c.analysesDemandees && c.analysesDemandees.length > 0) {
+                    <div class="flex flex-wrap gap-1">
+                      @for (a of c.analysesDemandees; track a) {
+                        <span class="chip bg-aqua-50 text-aqua-800 border border-aqua-100 font-mono text-[11px]">
+                          <mv-icon name="flask" [size]="11" class="mr-1 inline text-aqua-600" />{{ a }}
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <span class="text-xs text-ink-300">Aucune</span>
+                  }
+                </td>
+
+                <!-- Actions -->
+                <td class="py-4 pr-6 align-top">
+                  <div class="flex justify-end gap-2">
+                    <button
+                      (click)="ouvrirModification(c)"
+                      title="Modifier la consultation"
+                      aria-label="Modifier la consultation"
+                      class="grid h-8 w-8 place-items-center rounded-xl border border-ink-100 bg-white text-ink-500 transition hover:border-aqua-300 hover:bg-aqua-50 hover:text-aqua-600"
+                    >
+                      <mv-icon name="edit" [size]="15" />
+                    </button>
+                    <button
+                      (click)="ouvrirSuppression(c)"
+                      title="Supprimer la consultation"
+                      aria-label="Supprimer la consultation"
+                      class="grid h-8 w-8 place-items-center rounded-xl border border-ink-100 bg-white text-ink-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                    >
+                      <mv-icon name="trash" [size]="15" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="py-16 text-center text-ink-400">
+                  <div class="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-ink-50 text-ink-300">
+                    <mv-icon name="folder" [size]="24" />
+                  </div>
+                  <p class="mt-3 font-semibold text-ink-700">Aucune consultation trouvée</p>
+                  <p class="mt-1 text-xs text-ink-400">
+                    {{ filtresActifs() ? 'Aucune consultation ne correspond à vos filtres.' : 'Aucune consultation n\'a encore été enregistrée pour ce dossier médical.' }}
+                  </p>
+                  @if (!filtresActifs()) {
+                    <button (click)="ouvrirAjoutConsultation()" class="btn btn-soft mt-4 px-4 py-2 text-xs font-semibold">
+                      <mv-icon name="plus" [size]="14" /> Enregistrer une première consultation
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Barre de pagination -->
+      @if (totalPages() > 0) {
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-ink-100 px-5 py-3">
+          <div class="flex items-center gap-2">
+            <button
+              (click)="pagePrecedente()"
+              [disabled]="pageCourante() === 0"
+              class="btn btn-soft px-3 py-1.5 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <mv-icon name="chevron-left" [size]="13" /> Précédent
+            </button>
+
+            <span class="text-xs text-ink-600 font-mono px-2">
+              Page {{ pageCourante() + 1 }} sur {{ totalPages() }}
+            </span>
+
+            <button
+              (click)="pageSuivante()"
+              [disabled]="pageCourante() >= totalPages() - 1"
+              class="btn btn-soft px-3 py-1.5 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Suivant <mv-icon name="chevron-right" [size]="13" />
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2 text-xs text-ink-500">
+            <span>Lignes par page :</span>
+            <select
+              class="field py-1 text-xs w-16"
+              [ngModel]="taillePage()"
+              (change)="changerTaillePage($event)"
+            >
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="20">20</option>
+            </select>
+            <span class="text-ink-400 ml-1">
+              {{ totalElements() }} consultation{{ totalElements() > 1 ? 's' : '' }} au total
+            </span>
+          </div>
+        </div>
+      }
+    }
+  </section>
+}
+
+<!-- ================= Panneau Latéral Formulaire : Ajout ou Modification ================= -->
+@if (formulaireOuvert()) {
+  <div class="fixed inset-0 z-[60] bg-[#0b2545]/30 backdrop-blur-sm" (click)="fermerFormulaire()"></div>
+
+  <div class="enter fixed inset-y-3 right-3 z-[61] flex w-[calc(100%-1.5rem)] max-w-lg flex-col rounded-[1.75rem] bg-white p-7 shadow-2xl overflow-y-auto">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="grid h-10 w-10 place-items-center rounded-xl {{ enEdition() ? 'bg-amber-100 text-amber-700' : 'bg-aqua-100 text-aqua-700' }}">
+          <mv-icon [name]="enEdition() ? 'edit' : 'stethoscope'" [size]="20" />
+        </span>
+        <h3 class="font-display text-3xl text-ink-900">
+          {{ enEdition() ? 'Modifier la consultation' : 'Nouvelle consultation' }}
+        </h3>
+      </div>
+      <button
+        (click)="fermerFormulaire()"
+        class="rounded-xl p-2 text-ink-400 hover:bg-ink-50"
+        aria-label="Fermer la fenêtre"
+        [disabled]="soumissionEnCours()"
+      >
+        <mv-icon name="x" [size]="18" />
+      </button>
+    </div>
+
+    <p class="mt-2 text-sm text-ink-500">
+      @if (enEdition(); as edit) {
+        Modification de l'acte n° <strong class="text-ink-800">#{{ edit.id }}</strong> pour le patient
+        <code class="font-mono text-xs bg-ink-50 px-1.5 py-0.5 rounded text-ink-700">{{ patientId() }}</code>.
+      } @else {
+        Enregistrement d'un acte médical dans le dossier N° <strong class="text-ink-800">#{{ dossier()?.id }}</strong>
+        du patient <code class="font-mono text-xs bg-ink-50 px-1.5 py-0.5 rounded text-ink-700">{{ patientId() }}</code>.
+      }
+    </p>
+
+    <!-- Informations non modifiables (mode édition) -->
+    @if (enEdition(); as edit) {
+      <div class="mt-4 rounded-xl border border-ink-100 bg-ink-50/60 p-3.5 space-y-2 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="text-ink-500">Date de la consultation :</span>
+          <span class="font-medium text-ink-800 font-mono">{{ edit.date | date:'dd MMM yyyy à HH:mm' }}</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-ink-500">Analyses prescrites :</span>
+          <div class="flex flex-wrap gap-1 justify-end max-w-[60%]">
+            @if (edit.analysesDemandees && edit.analysesDemandees.length > 0) {
+              @for (a of edit.analysesDemandees; track a) {
+                <span class="chip bg-aqua-50 text-aqua-800 border border-aqua-100 text-[10px] font-mono">{{ a }}</span>
+              }
+            } @else {
+              <span class="text-ink-400 italic">Aucune</span>
+            }
+          </div>
+        </div>
+        <p class="text-[11px] text-ink-400 italic pt-1 border-t border-ink-100">
+          Note : la date, le médecin prescripteur et les analyses demandées ne peuvent pas être modifiés.
+        </p>
+      </div>
+    }
+
+    <form class="mt-5 flex-1 space-y-4" (ngSubmit)="enregistrerConsultation()">
+      <!-- Médecin prescripteur -->
+      <label class="block">
+        <span class="mb-1.5 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-ink-700">
+          <span>Médecin prescripteur *</span>
+          @if (enEdition()) {
+            <span class="text-[10px] text-amber-600 font-normal normal-case">Lecture seule (auteur initial)</span>
+          }
+        </span>
+        <input
+          class="field font-mono text-sm {{ enEdition() ? 'bg-ink-50 text-ink-600 cursor-not-allowed border-ink-200' : '' }}"
+          name="medecinId"
+          [(ngModel)]="saisie.medecinId"
+          placeholder="ex. medecin-karim-001"
+          [readonly]="enEdition() !== null"
+          required
+        />
+      </label>
+
+      <!-- Motif -->
+      <label class="block">
+        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink-700">Motif de consultation *</span>
+        <input
+          class="field text-sm"
+          name="motif"
+          [(ngModel)]="saisie.motif"
+          placeholder="ex. Consultation de suivi, Douleurs thoraciques..."
+          required
+        />
+      </label>
+
+      <!-- Diagnostic -->
+      <label class="block">
+        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink-700">Diagnostic établi</span>
+        <input
+          class="field text-sm"
+          name="diagnostic"
+          [(ngModel)]="saisie.diagnostic"
+          placeholder="ex. Rhinopharyngite aiguë, HTA stabilisée..."
+        />
+      </label>
+
+      <!-- Observations -->
+      <label class="block">
+        <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink-700">Observations &amp; Recommandations</span>
+        <textarea
+          class="field min-h-[90px] text-sm"
+          name="observations"
+          [(ngModel)]="saisie.observations"
+          placeholder="Détails de l'examen clinique, constantes, conseils hygiéno-diététiques..."
+        ></textarea>
+      </label>
+
+      <!-- Analyses demandées (création uniquement) -->
+      @if (!enEdition()) {
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-ink-700">Analyses biologiques demandées</span>
+          <input
+            class="field text-sm"
+            name="analyses"
+            [(ngModel)]="saisie.analysesDemandeesStr"
+            placeholder="ex. NFS, Glycémie à jeun, Bilan lipidique (séparées par des virgules)"
+          />
+          <span class="mt-1 block text-[11px] text-ink-400">Séparez les différentes analyses demandées par une virgule.</span>
+        </label>
+      }
+
+      <!-- Erreur formulaire -->
+      @if (erreurFormulaire()) {
+        <div class="rounded-xl bg-rose-50 p-4 border border-rose-200">
+          <div class="flex items-center gap-2 text-rose-800 text-sm font-semibold">
+            <mv-icon name="alert" [size]="16" /> Erreur lors de l'enregistrement
+          </div>
+          <p class="mt-1 text-xs text-rose-700 font-sans leading-relaxed">{{ erreurFormulaire() }}</p>
+        </div>
+      }
+
+      <div class="flex gap-3 pt-3">
+        <button type="button" (click)="fermerFormulaire()" class="btn btn-soft flex-1 py-3 text-sm font-semibold" [disabled]="soumissionEnCours()">
+          Annuler
+        </button>
+        <button type="submit" class="btn btn-ink shine flex-1 py-3 text-sm font-semibold" [disabled]="soumissionEnCours()">
+          @if (soumissionEnCours()) {
+            <mv-icon name="refresh" [size]="16" class="animate-spin" /> Enregistrement...
+          } @else {
+            <mv-icon name="check" [size]="16" />
+            {{ enEdition() ? 'Enregistrer les modifications' : 'Valider la consultation' }}
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+}
+
+<!-- ================= Dialogue de Confirmation de Suppression ================= -->
+@if (aSupprimer(); as c) {
+  <div class="fixed inset-0 z-[60] bg-[#0b2545]/30 backdrop-blur-sm" (click)="fermerSuppression()"></div>
+
+  <div class="enter fixed inset-0 z-[61] grid place-items-center p-4 pointer-events-none">
+    <div class="pointer-events-auto w-full max-w-md rounded-[1.75rem] bg-white p-7 shadow-2xl">
+      <div class="grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-rose-600">
+        <mv-icon name="trash" [size]="22" />
+      </div>
+
+      <h3 class="mt-5 font-display text-3xl text-ink-900">Supprimer la consultation ?</h3>
+
+      <p class="mt-2 text-sm text-ink-600 leading-relaxed">
+        Vous êtes sur le point de supprimer la consultation n° <strong class="text-ink-800">#{{ c.id }}</strong>
+        du <span class="font-semibold text-ink-800">{{ c.date ? (c.date | date:'dd/MM/yyyy à HH:mm') : 'date non définie' }}</span>
+        (Motif : « {{ c.motif }} »).
+      </p>
+
+      <div class="mt-3 rounded-xl bg-amber-50 p-3 border border-amber-200 text-xs text-amber-800">
+        <p class="font-medium">Règle de sécurité :</p>
+        <p class="mt-0.5 text-amber-700">
+          Seul le médecin auteur (<code class="font-mono font-semibold">{{ c.medecinId }}</code>) avec un accès actif au dossier peut confirmer cette suppression. Cette action est irréversible.
+        </p>
+      </div>
+
+      @if (erreurSuppression()) {
+        <div class="mt-4 rounded-xl bg-rose-50 p-3.5 border border-rose-200">
+          <div class="flex items-center gap-2 text-rose-800 text-xs font-semibold">
+            <mv-icon name="alert" [size]="14" /> Échec de la suppression
+          </div>
+          <p class="mt-1 text-xs text-rose-700 leading-relaxed">{{ erreurSuppression() }}</p>
+        </div>
+      }
+
+      <div class="mt-6 flex gap-3">
+        <button type="button" (click)="fermerSuppression()" class="btn btn-soft flex-1 py-3 text-sm font-semibold" [disabled]="suppressionEnCours()">
+          Annuler
+        </button>
+        <button type="button" (click)="confirmerSuppression()" class="btn flex-1 bg-rose-600 py-3 text-sm font-semibold text-white hover:bg-rose-700 transition" [disabled]="suppressionEnCours()">
+          @if (suppressionEnCours()) {
+            <mv-icon name="refresh" [size]="15" class="animate-spin" /> Suppression...
+          } @else {
+            <mv-icon name="trash" [size]="15" /> Confirmer
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ================= Toast de confirmation ================= -->
+@if (toast()) {
+  <div class="pointer-events-none fixed inset-x-0 bottom-6 z-[70] flex justify-center px-4">
+    <div class="enter flex items-center gap-3 rounded-full bg-[#0b2545] px-5 py-3 text-sm text-white shadow-2xl">
+      <span class="grid h-6 w-6 place-items-center rounded-full bg-aqua-400 text-ink-950">
+        <mv-icon name="check" [size]="14" [stroke]="3" />
+      </span>
+      {{ toast() }}
+    </div>
+  </div>
+}
+
+<!-- Lien de retour -->
+<div class="mt-8">
+  <a routerLink="/app/dashboard" class="btn btn-soft px-5 py-3 text-sm">
+    <mv-icon name="chevron-left" [size]="16" /> Retour au tableau de bord
+  </a>
+</div>

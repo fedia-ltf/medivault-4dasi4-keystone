@@ -31,13 +31,29 @@ spring:
     password: guest
     listener:
       simple:
-        auto-startup: false # Mettre à true dès que le conteneur RabbitMQ est démarré
+        auto-startup: true
+        # RabbitMQ absent ou file pas encore créée : le service démarre quand même
+        missing-queues-fatal: false
+        # message en erreur : rejeté sans être remis en boucle dans la file
+        default-requeue-rejected: false
 
   # Circuit breaker (Resilience4j) sur l'appel OpenFeign vers user-service
   cloud:
     openfeign:
       circuitbreaker:
         enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 3000
+
+# Même temps limite que les autres services (par défaut Resilience4j coupe après 1 s)
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 4s
 
 eureka:
   client:

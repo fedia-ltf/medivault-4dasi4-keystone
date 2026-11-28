@@ -28,6 +28,10 @@ public class RendezVous {
     @Column(nullable = false)
     private String motif;
 
+    /** Précisions facultatives du patient (symptômes, consignes). */
+    @Column(length = 500)
+    private String description;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutRdv statut;

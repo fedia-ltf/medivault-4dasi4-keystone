@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ordonnance – MediVault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@1,600;1,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy-900: #0a1f44;
+    --navy-700: #16356f;
+    --blue-600: #2563eb;
+    --blue-500: #3b82f6;
+    --blue-100: #dbeafe;
+    --blue-50:  #eff6ff;
+    --slate-500: #64748b;
+    --slate-400: #94a3b8;
+    --slate-200: #e2e8f0;
+    --slate-100: #f1f5f9;
+    --green-600: #059669;
+    --green-50:  #ecfdf5;
+    --amber-600: #d97706;
+    --amber-50:  #fffbeb;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: var(--navy-900);
+    background:
+      radial-gradient(circle at 15% 10%, #dbe7fb 0, transparent 40%),
+      radial-gradient(circle at 85% 90%, #e0ecfd 0, transparent 40%),
+      #eef2f8;
+    min-height: 100vh;
+    display: flex; justify-content: center;
+    padding: 40px 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== Page A4 ===== */
+  .page {
+    position: relative;
+    width: 210mm;
+    min-height: 297mm;
+    background: #fff;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(10,31,68,.06), 0 24px 60px -12px rgba(10,31,68,.22);
+    display: flex; flex-direction: column;
+  }
+
+  /* ===== En-tête ===== */
+  .header {
+    position: relative;
+    background: linear-gradient(120deg, var(--navy-900) 0%, var(--navy-700) 55%, var(--blue-600) 100%);
+    color: #fff;
+    padding: 30px 40px 58px;
+    overflow: hidden;
+  }
+  .header::before, .header::after {
+    content: ""; position: absolute; border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,.12);
+  }
+  .header::before { width: 340px; height: 340px; right: -110px; top: -170px; }
+  .header::after  { width: 220px; height: 220px; right: -40px; top: -90px; }
+  .header-curve { position: absolute; left: 0; bottom: -1px; width: 100%; height: 34px; }
+
+  .header-inner { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 58px; height: 58px; border-radius: 16px;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.25);
+    display: grid; place-items: center;
+    backdrop-filter: blur(4px);
+  }
+  .brand-logo svg { width: 38px; height: 38px; }
+  .brand-name { font-size: 30px; font-weight: 800; letter-spacing: -.5px; line-height: 1; }
+  .brand-name em { font-family: 'Playfair Display', serif; font-weight: 600; color: #bcd4ff; }
+  .brand-tag { font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(255,255,255,.65); margin-top: 6px; }
+
+  .doctor { text-align: right; }
+  .doctor-name { font-size: 19px; font-weight: 700; }
+  .doctor-spec { font-size: 13.5px; color: rgba(255,255,255,.8); margin-top: 3px; }
+  .doctor-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 10px; padding: 5px 12px; border-radius: 999px;
+    background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22);
+    font-size: 12px; font-weight: 600;
+  }
+  .doctor-badge svg { width: 13px; height: 13px; }
+
+  /* ===== Corps ===== */
+  .body { position: relative; padding: 8px 40px 0; flex: 1; display: flex; flex-direction: column; }
+
+  .watermark {
+    position: absolute; right: -70px; top: 300px;
+    width: 340px; height: 340px; opacity: .045; pointer-events: none;
+  }
+
+  /* Bandeau titre */
+  .doc-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+  .doc-title { display: flex; align-items: baseline; gap: 14px; }
+  .doc-title h1 { font-size: 32px; font-weight: 800; letter-spacing: -.8px; }
+  .doc-ref { font-size: 12.5px; color: var(--slate-500); font-weight: 500; }
+  .doc-ref b { color: var(--navy-700); font-weight: 700; }
+  .doc-date {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; border-radius: 12px;
+    background: var(--blue-50); border: 1px solid var(--blue-100);
+    font-size: 13.5px; font-weight: 600; color: var(--navy-700);
+  }
+  .doc-date svg { width: 18px; height: 18px; color: var(--blue-600); }
+
+  /* Carte patient */
+  .patient-card {
+    display: grid; grid-template-columns: auto 1fr 1fr 1fr; align-items: center;
+    gap: 22px;
+    padding: 16px 22px;
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, #fff 0%, #fafcff 100%);
+    margin-bottom: 26px;
+  }
+  .avatar {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--blue-500), var(--navy-700));
+    color: #fff; font-weight: 700; font-size: 16px;
+    display: grid; place-items: center;
+  }
+  .field label {
+    display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; color: var(--slate-400); margin-bottom: 4px;
+  }
+  .field span { font-size: 15.5px; font-weight: 600; }
+  .field + .field { border-left: 1px solid var(--slate-200); padding-left: 22px; }
+
+  /* Rp */
+  .rp-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .rp {
+    font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-weight: 700;
+    font-size: 34px; color: var(--blue-600); line-height: 1;
+  }
+  .rp-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--slate-200), transparent); }
+  .rp-count { font-size: 12px; font-weight: 600; color: var(--slate-500); }
+
+  /* Médicaments */
+  .meds { list-style: none; display: flex; flex-direction: column; gap: 12px; position: relative; }
+  .med {
+    display: grid; grid-template-columns: 44px 1fr; gap: 16px; align-items: start;
+    padding: 16px 20px;
+    border: 1px solid var(--slate-200);
+    border-left: 4px solid var(--blue-500);
+    border-radius: var(--radius);
+    background: #fff;
+  }
+  .med-num {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--blue-50); color: var(--blue-600);
+    display: grid; place-items: center;
+  }
+  .med-num svg { width: 22px; height: 22px; }
+  .med-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .med-name { font-size: 17px; font-weight: 700; }
+  .med-dose {
+    font-size: 12px; font-weight: 700; color: var(--navy-700);
+    background: var(--slate-100); padding: 3px 9px; border-radius: 6px;
+  }
+  .med-posology { font-size: 14px; color: var(--slate-500); margin: 5px 0 10px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+    padding: 5px 10px; border-radius: 999px;
+    background: var(--blue-50); color: var(--blue-600);
+  }
+  .chip svg { width: 13px; height: 13px; }
+  .chip.green { background: var(--green-50); color: var(--green-600); }
+  .chip.amber { background: var(--amber-50); color: var(--amber-600); }
+
+  /* Conseils */
+  .advice {
+    margin-top: 22px;
+    padding: 18px 22px;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--blue-50) 0%, #f7faff 100%);
+    border: 1px solid var(--blue-100);
+  }
+  .advice h3 {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--navy-700); margin-bottom: 12px;
+  }
+  .advice h3 svg { width: 18px; height: 18px; color: var(--blue-600); }
+  .advice ul { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .advice li {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13.5px; line-height: 1.4; font-weight: 500;
+    background: #fff; border-radius: 10px; padding: 10px 12px;
+    border: 1px solid var(--blue-100);
+  }
+  .advice li .ico {
+    flex: 0 0 28px; height: 28px; border-radius: 8px;
+    background: var(--blue-600); color: #fff;
+    display: grid; place-items: center;
+  }
+  .advice li .ico svg { width: 15px; height: 15px; }
+
+  /* Signature */
+  .sign-row {
+    margin-top: auto;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding: 26px 0 22px;
+  }
+  .verify { display: flex; align-items: center; gap: 12px; }
+  .qr {
+    width: 74px; height: 74px; padding: 6px;
+    border: 1px solid var(--slate-200); border-radius: 10px; background: #fff;
+  }
+  .verify-text { font-size: 11.5px; color: var(--slate-500); line-height: 1.5; max-width: 170px; }
+  .verify-text b { display: block; color: var(--navy-700); font-size: 12.5px; }
+
+  .sign-block { display: flex; align-items: flex-end; gap: 6px; }
+  .signature { text-align: center; }
+  .signature svg { width: 140px; height: 70px; display: block; margin: 0 auto -6px; }
+  .sig-line { width: 200px; height: 1px; background: var(--slate-200); margin: 0 auto 8px; }
+  .sig-name { font-size: 14.5px; font-weight: 700; }
+  .sig-role { font-size: 12.5px; color: var(--slate-500); margin-top: 2px; }
+  .stamp { width: 118px; height: 118px; transform: rotate(-8deg); opacity: .9; margin-bottom: 14px; }
+
+  /* Pied de page */
+  .footer {
+    background: var(--navy-900); color: rgba(255,255,255,.85);
+    padding: 16px 40px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12.5px;
+  }
+  .footer span { display: inline-flex; align-items: center; gap: 9px; }
+  .footer .ic {
+    width: 26px; height: 26px; border-radius: 8px;
+    background: rgba(255,255,255,.1); display: grid; place-items: center;
+  }
+  .footer svg { width: 13px; height: 13px; }
+
+  /* Boutons (non imprimés) */
+  .actions { position: fixed; right: 24px; bottom: 24px; display: flex; gap: 10px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font: inherit; font-size: 14px; font-weight: 600;
+    border: 0; cursor: pointer;
+    padding: 12px 18px; border-radius: 12px;
+    background: var(--blue-600); color: #fff;
+    box-shadow: 0 10px 24px -8px rgba(37,99,235,.6);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -8px rgba(37,99,235,.7); }
+  .btn svg { width: 16px; height: 16px; }
+
+  @media print {
+    @page { size: A4; margin: 0; }
+    body { background: none; padding: 0; }
+    .page { border-radius: 0; box-shadow: none; }
+    .actions { display: none; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<main class="page">
+
+  <!-- ===== En-tête ===== -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 40 40" fill="none">
+            <circle cx="20" cy="20" r="16" stroke="#fff" stroke-opacity=".55" stroke-width="1.6" stroke-dasharray="1 4" stroke-linecap="round"/>
+            <path d="M16.5 10h7v6.5H30v7h-6.5V30h-7v-6.5H10v-7h6.5z" fill="#fff"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-name">Medi<em>Vault</em></div>
+          <div class="brand-tag">Dossier médical sécurisé</div>
+        </div>
+      </div>
+
+      <div class="doctor">
+        <div class="doctor-name" id="doctor-name">Médecin prescripteur</div>
+        <div class="doctor-spec">MediVault</div>
+        <div class="doctor-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l7 4v6c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          Médecin ID : <span id="doctor-id">—</span>
+        </div>
+      </div>
+    </div>
+
+    <svg class="header-curve" viewBox="0 0 800 34" preserveAspectRatio="none">
+      <path d="M0 34 C200 0 600 0 800 34 Z" fill="#fff"/>
+    </svg>
+  </header>
+
+  <!-- ===== Corps ===== -->
+  <section class="body">
+
+    <svg class="watermark" viewBox="0 0 200 200" fill="none">
+      <circle cx="100" cy="100" r="92" stroke="#2563eb" stroke-width="8"/>
+      <circle cx="100" cy="100" r="72" stroke="#2563eb" stroke-width="7" stroke-dasharray="3 14" stroke-linecap="round"/>
+      <path d="M84 48h32v36h36v32h-36v36H84v-36H48V84h36z" fill="#2563eb"/>
+    </svg>
+
+    <div class="doc-head">
+      <div class="doc-title">
+        <h1>Ordonnance</h1>
+        <span class="doc-ref">Réf. <b id="ordonnance-code">—</b></span>
+      </div>
+      <div class="doc-date">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        <span id="ordonnance-date">—</span>
+      </div>
+    </div>
+
+    <!-- Patient -->
+    <div class="patient-card">
+      <div class="avatar" id="patient-initials">--</div>
+      <div class="field"><label>Patient</label><span id="patient-name">—</span></div>
+      <div class="field"><label>ID patient</label><span id="patient-id">—</span></div>
+      <div class="field"><label>E-mail</label><span id="patient-email">—</span></div>
+    </div>
+
+    <!-- Prescription -->
+    <div class="rp-head">
+      <span class="rp">Rp/</span>
+      <span class="rp-line"></span>
+      <span class="rp-count" id="prescription-count">0 prescriptions</span>
+    </div>
+
+    <ol class="meds" id="medications">
+      <li class="med">
+        <div class="med-num">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5a5 5 0 0 1-7-7l6-6a5 5 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></svg>
+        </div>
+        <div>
+          <div class="med-top"><span class="med-name">Paracétamol</span><span class="med-dose">1 g</span></div>
+          <p class="med-posology">1 comprimé toutes les 6 heures pendant 3 jours.</p>
+          <div class="chips">
+            <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Toutes les 6 h</span>
+            <span class="chip green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/></svg>3 jours</span>
+          </div>
+        </div>
+      </li>
+
+      <li class="med">
+        <div class="med-num">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5a5 5 0 0 1-7-7l6-6a5 5 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></svg>
+        </div>
+        <div>
+          <div class="med-top"><span class="med-name">Amoxicilline</span><span class="med-dose">1 g</span></div>
+          <p class="med-posology">1 comprimé matin et soir pendant 7 jours.</p>
+          <div class="chips">
+            <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2"/></svg>Matin &amp; soir</span>
+            <span class="chip green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/></svg>7 jours</span>
+            <span class="chip amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>Traitement complet</span>
+          </div>
+        </div>
+      </li>
+
+      <li class="med">
+        <div class="med-num">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7C9 7 6 10.3 6 14a6 6 0 0 0 12 0c0-3.7-3-7-6-11.3z"/></svg>
+        </div>
+        <div>
+          <div class="med-top"><span class="med-name">Lavage nasal</span><span class="med-dose">Sérum physiologique</span></div>
+          <p class="med-posology">3 à 4 fois par jour.</p>
+          <div class="chips">
+            <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>3 à 4 fois / jour</span>
+          </div>
+        </div>
+      </li>
+    </ol>
+
+    <!-- Conseils -->
+    <div class="advice">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
+        Conseils
+      </h3>
+      <ul>
+        <li>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7C9 7 6 10.3 6 14a6 6 0 0 0 12 0c0-3.7-3-7-6-11.3z"/></svg></span>
+          Boire beaucoup d’eau.
+        </li>
+        <li>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7a3 3 0 0 0 6 0V2M6 2v20M18 15V2a4 4 0 0 0-4 4v9h4zM18 15v7"/></svg></span>
+          Prendre les médicaments après les repas.
+        </li>
+        <li>
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+          Consulter en cas d’aggravation des symptômes.
+        </li>
+      </ul>
+    </div>
+
+    <!-- Signature -->
+    <div class="sign-row">
+      <div class="verify">
+        <svg class="qr" viewBox="0 0 29 29" shape-rendering="crispEdges">
+          <rect width="29" height="29" fill="#fff"/>
+          <g fill="#0a1f44">
+            <path d="M0 0h7v7H0zM1 1v5h5V1zM2 2h3v3H2z"/>
+            <path d="M22 0h7v7h-7zM23 1v5h5V1zM24 2h3v3h-3z"/>
+            <path d="M0 22h7v7H0zM1 23v5h5v-5zM2 24h3v3H2z"/>
+            <path d="M9 0h2v2H9zM12 1h2v3h-2zM15 0h3v2h-3zM19 2h2v2h-2zM9 4h3v2H9zM14 5h2v3h-2zM17 4h2v2h-2zM10 8h2v2h-2zM0 9h2v2H0zM3 8h3v2H3zM7 9h2v2H7zM13 9h3v2h-3zM18 8h3v2h-3zM23 9h2v2h-2zM26 8h3v2h-3zM1 12h3v2H1zM6 12h2v3H6zM9 11h3v2H9zM15 12h2v2h-2zM19 11h2v3h-2zM22 12h3v2h-3zM27 12h2v3h-2zM0 16h2v2H0zM3 15h2v3H3zM8 16h3v2H8zM12 14h2v3h-2zM16 15h2v2h-2zM21 15h3v2h-3zM25 16h2v2h-2zM9 19h2v3H9zM13 18h3v2h-3zM18 18h2v2h-2zM22 19h2v2h-2zM26 19h3v2h-3zM9 23h3v2H9zM14 21h2v3h-2zM17 22h3v2h-3zM22 23h2v3h-2zM25 22h2v2h-2zM10 26h2v3h-2zM13 25h3v2h-3zM18 26h3v3h-3zM25 25h4v2h-4zM27 27h2v2h-2z"/>
+          </g>
+        </svg>
+        <div class="verify-text">
+          <b>Ordonnance vérifiable</b>
+          Scannez le code pour vérifier l’authenticité sur MediVault.
+        </div>
+      </div>
+
+      <div class="sign-block">
+        <div class="signature">
+          <svg viewBox="0 0 140 70" fill="none" stroke="#16356f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 62C30 52 46 30 56 10c3-6-2-7-5 2-5 18-8 34-6 42 4-8 14-22 22-26-2 7-2 12 3 11"/>
+            <path d="M36 50c30-10 58-20 92-30"/>
+            <circle cx="96" cy="8" r="1.2" fill="#16356f"/>
+          </svg>
+          <div class="sig-line"></div>
+          <div class="sig-name" id="signature-name">Médecin prescripteur</div>
+          <div class="sig-role" id="signature-role">Signature électronique du médecin</div>
+        </div>
+
+        <svg class="stamp" viewBox="0 0 160 160" fill="none">
+          <defs><path id="arc" d="M28 86a52 52 0 0 0 104 0"/></defs>
+          <circle cx="80" cy="80" r="74" stroke="#2563eb" stroke-width="4"/>
+          <circle cx="80" cy="80" r="66" stroke="#2563eb" stroke-width="1.2"/>
+          <circle cx="80" cy="64" r="32" stroke="#2563eb" stroke-width="2.4" stroke-dasharray="1.5 6" stroke-linecap="round"/>
+          <path d="M72 46h16v11h11v16H88v11H72V73H61V57h11z" fill="#2563eb"/>
+          <text x="26" y="86" fill="#2563eb" font-size="10">★</text>
+          <text x="124" y="86" fill="#2563eb" font-size="10">★</text>
+          <text font-family="Playfair Display, Georgia, serif" font-style="italic" font-weight="700" font-size="22" fill="#2563eb">
+            <textPath href="#arc" startOffset="50%" text-anchor="middle">MediVault</textPath>
+          </text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Pied de page ===== -->
+  <footer class="footer">
+    <span><i class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></i>+216 71 123 456</span>
+    <span><i class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></i>12 Avenue de la Santé, Tunis</span>
+    <span><i class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm9 7.2L20 7H4z"/></svg></i>contact@medivault.tn</span>
+  </footer>
+</main>
+
+<div class="actions">
+  <button class="btn" onclick="window.print()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+    Imprimer / PDF
+  </button>
+</div>
+
+<script>
+  (() => {
+    const data = new URLSearchParams(location.search).get('data');
+    if (!data) return;
+
+    try {
+      const ordonnance = JSON.parse(data);
+      const patient = ordonnance.patient || {};
+      const setText = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value || '—';
+      };
+      const initials = (patient.name || 'Patient').split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
+      setText('doctor-name', `Médecin ID ${ordonnance.medecinId}`);
+      setText('doctor-id', ordonnance.medecinId);
+      setText('signature-name', 'Signature du médecin');
+      setText('signature-role', `Médecin prescripteur · ID ${ordonnance.medecinId}`);
+      setText('ordonnance-code', ordonnance.code);
+      setText('ordonnance-date', `Émise le ${ordonnance.dateEmission} · Expire le ${ordonnance.dateExpiration}`);
+      setText('patient-initials', initials);
+      setText('patient-name', patient.name);
+      setText('patient-id', ordonnance.patientId);
+      setText('patient-email', patient.email);
+      setText('prescription-count', `${ordonnance.lignes.length} prescription${ordonnance.lignes.length > 1 ? 's' : ''}`);
+
+      const medications = document.getElementById('medications');
+      if (!medications) return;
+      medications.innerHTML = '';
+      ordonnance.lignes.forEach((ligne, index) => {
+        const item = document.createElement('li');
+        item.className = 'med';
+        item.innerHTML = `
+          <div class="med-num">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5a5 5 0 0 1-7-7l6-6a5 5 0 0 1 7 7z"/><path d="M8.5 8.5l7 7"/></svg>
+          </div>
+          <div>
+            <div class="med-top"><span class="med-name"></span><span class="med-dose">ID ${ligne.medicamentId}</span></div>
+            <p class="med-posology"></p>
+            <div class="chips">
+              <span class="chip">Quantité : ${ligne.quantite}</span>
+              <span class="chip green">Durée : ${ligne.dureeJours} jours</span>
+            </div>
+          </div>`;
+        item.querySelector('.med-name').textContent = ligne.nomMedicament;
+        item.querySelector('.med-posology').textContent = ligne.posologie;
+        medications.appendChild(item);
+      });
+    } catch (error) {
+      console.error('Impossible de charger les données de l’ordonnance.', error);
+    }
+  })();
+</script>
+
+</body>
+</html>

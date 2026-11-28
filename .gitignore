@@ -19,3 +19,10 @@ Thumbs.db
 
 # Env
 .env
+# Secrets locaux (clé Brevo…) : ne jamais pousser
+secrets.properties
+
+# Base H2 fichier du service (donnees locales)
+data/
+*.mv.db
+*.trace.db

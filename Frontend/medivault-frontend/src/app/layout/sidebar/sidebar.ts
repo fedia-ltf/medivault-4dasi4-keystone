@@ -26,7 +26,7 @@ export class Sidebar {
 
   protected readonly navigation = [
     { lien: '/app/dashboard', icon: 'dashboard', label: 'Tableau de bord' },
-    { lien: '/app/medicaments', icon: 'pill', label: 'Médicaments' },
+    { lien: '/app/medicaments', icon: 'shield-check', label: 'Médicaments sensibles' },
     ...Object.entries(MODULES).map(([cle, m]) => ({ lien: `/app/${cle}`, icon: m.icon, label: m.titre }))
   ];
 

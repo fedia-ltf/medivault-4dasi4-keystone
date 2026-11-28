@@ -1,0 +1,146 @@
+@if (!choisi()) {
+  <!-- ================= Liste des médicaments sensibles ================= -->
+  <mv-hero eyebrow="medicament-service · consultation" titre="Médicaments sensibles"
+           phrase="Consultez les médicaments sous contrôle : ce qu'ils contiennent, ce qu'ils font et où les trouver." icone="shield-check">
+    <label class="relative block w-full max-w-sm">
+      <mv-icon name="search" [size]="17" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
+      <input class="field bg-white py-3 pl-11 shadow-[0_18px_40px_-24px_rgba(41,87,204,.5)]" placeholder="Nom ou DCI…" [value]="recherche()" (input)="recherche.set($any($event.target).value)" />
+    </label>
+  </mv-hero>
+
+  <section class="enter mt-5 flex flex-wrap items-center gap-2 [animation-delay:150ms]">
+    <button (click)="filtreCat.set(null)" class="rounded-full px-4 py-2 text-xs font-bold transition {{ !filtreCat() ? 'bg-[linear-gradient(120deg,#12306b,#2957cc_60%,#4f86f7)] text-white shadow-lg' : 'bg-white text-ink-500 hover:text-ink-900' }}">Toutes</button>
+    @for (c of categories; track c.cle) {
+      <button (click)="filtreCat.set(filtreCat() === c.cle ? null : c.cle)" class="flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition {{ filtreCat() === c.cle ? 'bg-[linear-gradient(120deg,#12306b,#2957cc_60%,#4f86f7)] text-white shadow-lg' : 'bg-white text-ink-500 hover:text-ink-900' }}">
+        <mv-icon [name]="c.icone" [size]="13" /> {{ c.pluriel }}
+      </button>
+    }
+    <span class="ml-auto text-sm text-ink-400">{{ liste().length }} médicament{{ liste().length > 1 ? 's' : '' }}</span>
+  </section>
+
+  <section class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    @for (m of liste(); track m.id; let i = $index) {
+      <button (click)="ouvrir(m)" class="card card-hover enter group relative overflow-hidden p-5 text-left" [style.animation-delay.ms]="(i % 9) * 55">
+        <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-aqua-200/50 blur-2xl transition-transform duration-700 group-hover:scale-150"></div>
+        <div class="relative flex items-start justify-between gap-3">
+          <mv-categorie [categorie]="m.categorie" />
+          <span class="grid h-14 w-14 place-items-center rounded-2xl bg-white shadow-[0_12px_24px_-14px_rgba(30,64,140,.7)] ring-1 ring-aqua-100 transition-transform duration-500 ease-out-expo group-hover:-rotate-12 group-hover:scale-110"><mv-pill-icon forme="GELULE" [variante]="variante(m)" [size]="46" /></span>
+        </div>
+        <h3 class="relative mt-4 font-display text-3xl leading-tight text-ink-900">{{ m.nomCommercial }}</h3>
+        <p class="relative text-sm text-ink-500">{{ m.dci }}</p>
+        <p class="relative mt-4 flex items-center gap-1.5 text-sm font-semibold text-aqua-600">Qu'y a-t-il dedans ? <mv-icon name="arrow-right" [size]="15" class="transition-transform duration-500 group-hover:translate-x-1.5" /></p>
+      </button>
+    } @empty {
+      <div class="card col-span-full grid place-items-center gap-2 p-14 text-center text-sm text-ink-400"><mv-pill-icon forme="GELULE" [variante]="0" [size]="64" /> Aucun médicament ne correspond à la recherche.</div>
+    }
+  </section>
+} @else {
+  @let m = choisi()!;
+  <!-- ================= « Qu'y a-t-il dans … ? » : histoire animée au défilement ================= -->
+  <button (click)="fermer()" class="btn btn-soft enter px-4 py-2.5 text-sm"><mv-icon name="chevron-left" [size]="16" /> Tous les médicaments</button>
+
+  <section #histoire class="mt-4 {{ reduit ? '' : 'h-[460vh]' }}">
+    <div #scene class="sticky top-20 h-[calc(100svh-6rem)] min-h-[32rem] overflow-hidden rounded-[2rem] border border-white bg-[#eef4ff] shadow-[0_40px_80px_-50px_rgba(41,87,204,.7)] lg:top-28 lg:h-[calc(100vh-8rem)]">
+      <!-- gélule et parcours de verre : pilotés par le défilement -->
+      <mv-adn-scene class="absolute inset-0" [teinte]="teinte()" [quota]="quota().ratio" />
+      <!-- voile derrière le texte (fond nuit) pour qu'il reste lisible -->
+      <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[55%] bg-[linear-gradient(270deg,rgba(2,9,22,.82),rgba(2,9,22,.45)_55%,transparent)] transition-opacity duration-700 lg:block {{ sombre() ? 'opacity-100' : 'opacity-0' }}"></div>
+      <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[45%] bg-[linear-gradient(270deg,rgba(244,248,255,.85),rgba(244,248,255,.4)_60%,transparent)] transition-opacity duration-700 lg:block {{ !sombre() && etape() > 0 ? 'opacity-100' : 'opacity-0' }}"></div>
+
+      @let q = quota();
+      @let cartes = [
+        { n: '01', t: 'Substance active', icone: 'flask', v: m.dci, texte: m.description },
+        { n: '02', t: 'Sur ordonnance', icone: 'clipboard', v: 'Ordonnance valide', texte: 'Vente seulement sur une ordonnance valide qui contient ce médicament, dans la limite de la quantité prescrite.' },
+        { n: '03', t: 'Quota des pharmacies', icone: 'layers', v: q.reste + ' / ' + q.attribue + ' boîtes', texte: q.pharmacies ? 'Il reste ' + (q.ratio * 100).toFixed(0) + ' % du quota de ce mois, dans ' + q.pharmacies + ' pharmacie' + (q.pharmacies > 1 ? 's' : '') + '. ' + (q.prevision || 'Une fois épuisé, plus de vente.') : 'Chaque pharmacie a un quota par mois : une fois épuisé, plus de vente.' },
+        { n: '04', t: 'Une vente tracée', icone: 'shield-check', v: categorieInfo(m.categorie).label, texte: categorieInfo(m.categorie).regle },
+        { n: '05', t: 'Précautions', icone: 'alert', v: '', texte: m.precautions }
+      ];
+
+      <!-- ouverture : le grand titre, au-dessus de la gélule -->
+      <div class="pointer-events-none absolute inset-x-0 top-8 z-10 px-6 lg:inset-y-0 lg:right-auto lg:left-14 lg:top-0 lg:flex lg:w-[42%] lg:items-center lg:px-0">
+        <div class="text-center transition-all duration-500 ease-out-expo lg:text-left {{ debut() ? 'opacity-100' : '-translate-y-6 opacity-0' }}">
+          <mv-categorie [categorie]="m.categorie" />
+          <h3 class="mt-3 font-display text-4xl leading-none text-ink-900 sm:text-6xl">Qu'y a-t-il dans <span class="italic text-gradient-dark">{{ m.nomCommercial }}</span> ?</h3>
+          <p class="mt-5 hidden max-w-sm text-[15px] leading-relaxed text-ink-500 lg:block">Faites défiler : la gélule s'ouvre, puis suivez le parcours d'une vente, de l'ordonnance jusqu'au quota.</p>
+        </div>
+      </div>
+
+      <!-- en-tête discret pendant l'histoire -->
+      <div class="absolute left-5 top-5 z-10 flex items-center gap-3 transition-all duration-700 ease-out-expo {{ etape() > 0 ? 'opacity-100' : 'pointer-events-none -translate-y-3 opacity-0' }}">
+        <span class="grid h-9 w-9 place-items-center rounded-full border backdrop-blur transition-colors duration-700 {{ sombre() ? 'border-white/15 bg-white/10 text-sky-200' : 'border-aqua-100 bg-white/70 text-aqua-600' }}"><mv-pill-icon forme="GELULE" [variante]="variante(m)" [size]="22" /></span>
+        <div class="leading-tight">
+          <p class="font-display text-xl transition-colors duration-700 {{ sombre() ? 'text-white' : 'text-ink-900' }}">{{ m.nomCommercial }}</p>
+          <p class="text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-700 {{ sombre() ? 'text-sky-200/70' : 'text-ink-400' }}">{{ m.dci }}</p>
+        </div>
+      </div>
+
+      <!-- les 4 chapitres : à droite sur grand écran, en bas sur téléphone -->
+      @for (c of cartes; track c.n; let i = $index) {
+        <div class="pointer-events-none absolute inset-x-4 bottom-5 z-10 lg:inset-x-auto lg:bottom-auto lg:right-[6%] lg:top-1/2 lg:w-[23rem] lg:-translate-y-1/2">
+          <div class="rounded-3xl p-5 transition-all duration-700 ease-out-expo lg:rounded-none lg:bg-transparent lg:p-0 lg:backdrop-blur-none {{ sombre() ? 'bg-[#061532]/55 backdrop-blur-md' : 'bg-white/75 backdrop-blur-md' }} {{ etape() === i + 1 ? 'translate-y-0 opacity-100 blur-0' : (etape() > i + 1 ? '-translate-y-8 opacity-0 blur-sm' : 'translate-y-8 opacity-0 blur-sm') }}">
+            <div class="flex items-center gap-3">
+              <span class="grid h-10 w-10 place-items-center rounded-full border transition-colors duration-700 {{ sombre() ? 'border-sky-300/30 bg-sky-400/10 text-sky-200 shadow-[0_0_24px_-4px_rgba(56,189,248,.6)]' : 'border-aqua-200 bg-white text-aqua-600' }}"><mv-icon [name]="c.icone" [size]="17" /></span>
+              <p class="font-mono text-[11px] tracking-[0.2em] transition-colors duration-700 {{ sombre() ? 'text-sky-300' : 'text-aqua-600' }}">{{ c.n }} <span class="opacity-50">/ 0{{ cartes.length }}</span></p>
+            </div>
+            <p class="mt-4 text-[11px] font-bold uppercase tracking-[0.3em] transition-colors duration-700 {{ sombre() ? 'text-sky-100/60' : 'text-ink-400' }}">{{ c.t }}</p>
+            @if (c.v) { <p class="mt-1 font-display text-4xl leading-tight transition-colors duration-700 lg:text-5xl {{ sombre() ? 'text-white' : 'text-ink-900' }}">{{ c.v }}</p> }
+            @if (c.texte) { <p class="mt-2 text-[15px] leading-relaxed transition-colors duration-700 {{ sombre() ? 'text-sky-50/80' : 'text-ink-700' }}">{{ c.texte }}</p> }
+          </div>
+        </div>
+      }
+
+      <!-- rail de progression (à gauche, grand écran) -->
+      <div class="absolute bottom-8 left-6 z-10 hidden flex-col gap-2.5 lg:flex">
+        @for (c of cartes; track c.n; let i = $index) {
+          <div class="flex items-center gap-3">
+            <span class="h-[2px] rounded-full transition-all duration-700 ease-out-expo {{ etape() === i + 1 ? 'w-10' : 'w-4' }} {{ sombre() ? (etape() > i ? 'bg-sky-300' : 'bg-white/20') : (etape() > i ? 'bg-aqua-500' : 'bg-ink-200') }}"></span>
+            <span class="text-[11px] font-semibold transition-all duration-700 {{ etape() === i + 1 ? 'opacity-100' : 'opacity-0' }} {{ sombre() ? 'text-sky-100/70' : 'text-ink-500' }}">{{ c.t }}</span>
+          </div>
+        }
+      </div>
+
+      @if (etape() < 1 && !reduit) {
+        <div class="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex flex-col items-center gap-2 text-ink-400">
+          <span class="text-[11px] font-bold uppercase tracking-[0.35em]">Faites défiler</span>
+          <span class="relative h-10 w-[1.5px] overflow-hidden rounded-full bg-ink-200"><span class="absolute inset-x-0 top-0 h-1/2 animate-[defile_1.8s_ease-in-out_infinite] bg-aqua-500"></span></span>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- sans animation (préférence du système) : les 4 chapitres en cartes -->
+  @if (reduit) {
+    <section class="mt-4 grid gap-3 sm:grid-cols-2">
+      <div class="card p-5"><p class="font-mono text-[10px] text-aqua-600">01</p><p class="text-[11px] font-bold uppercase tracking-widest text-ink-400">Substance active</p><p class="mt-2 font-display text-3xl text-ink-900">{{ m.dci }}</p></div>
+      <div class="card p-5"><p class="font-mono text-[10px] text-aqua-600">02</p><p class="text-[11px] font-bold uppercase tracking-widest text-ink-400">Ce qu'il fait</p><p class="mt-2 text-sm text-ink-700">{{ m.description }}</p></div>
+      <div class="card p-5"><p class="font-mono text-[10px] text-aqua-600">03</p><p class="text-[11px] font-bold uppercase tracking-widest text-ink-400">Pourquoi il est contrôlé</p><p class="mt-2 font-display text-2xl text-ink-900">{{ categorieInfo(m.categorie).label }}</p><p class="mt-1 text-sm text-ink-700">{{ categorieInfo(m.categorie).regle }}</p></div>
+      <div class="card p-5"><p class="font-mono text-[10px] text-aqua-600">04</p><p class="text-[11px] font-bold uppercase tracking-widest text-ink-400">Précautions</p><p class="mt-2 text-sm text-ink-700">{{ m.precautions }}</p></div>
+    </section>
+  }
+
+  <!-- règles de délivrance -->
+  <section class="card mt-4 p-6">
+    <h4 class="text-xs font-bold uppercase tracking-[0.25em] text-aqua-600">Comment il est délivré</h4>
+    <ul class="mt-3 grid gap-3 text-sm text-ink-700 md:grid-cols-3">
+      <li class="flex gap-3"><mv-icon name="clipboard" class="shrink-0 text-aqua-600" /> Vente seulement sur une ordonnance valide qui contient ce médicament.</li>
+      <li class="flex gap-3"><mv-icon name="layers" class="shrink-0 text-aqua-600" /> Chaque pharmacie a un quota par mois : une fois épuisé, plus de vente.</li>
+      <li class="flex gap-3"><mv-icon name="shield-check" class="shrink-0 text-aqua-600" /> Toute faute est un avertissement ; au deuxième, la pharmacie est suspendue.</li>
+    </ul>
+  </section>
+
+  <!-- où le trouver -->
+  <section class="card mt-4 p-6">
+    <div class="flex items-baseline justify-between"><h4 class="text-lg font-bold text-ink-900">Où le trouver</h4><span class="text-xs text-ink-400">Pharmacies qui ont encore du quota ce mois-ci</span></div>
+    <ul class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      @for (d of dispo(); track d.pharmacieId; let i = $index) {
+        <li class="enter flex items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-white/70 p-4" [style.animation-delay.ms]="i * 60">
+          <span class="flex min-w-0 items-center gap-3"><span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-aqua-50 text-aqua-600"><mv-icon name="cross" [size]="18" /></span>
+            <span class="min-w-0"><span class="block truncate font-bold text-ink-900">{{ d.nom }}</span><span class="text-xs text-ink-400">{{ d.ville }}</span></span></span>
+          <span class="chip {{ tonEtat(d.etat) }}">{{ libelleEtat(d.etat) }}</span>
+        </li>
+      } @empty {
+        <li class="col-span-full grid place-items-center gap-2 py-8 text-center text-sm text-ink-400"><mv-pill-icon forme="GELULE" [variante]="0" [size]="52" /> Aucune pharmacie n'a de quota pour ce médicament ce mois-ci.</li>
+      }
+    </ul>
+  </section>
+}

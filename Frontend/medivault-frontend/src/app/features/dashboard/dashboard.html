@@ -9,12 +9,18 @@
       Voici l'activité de la plateforme aujourd'hui : prescriptions, alertes et rendez-vous à venir.
     </p>
   </div>
-  <div class="flex flex-wrap gap-3">
-    <a routerLink="/app/ordonnances" class="btn btn-ink shine px-5 py-3 text-sm">
-      <mv-icon name="plus" [size]="17" /> Nouvelle ordonnance
-    </a>
-  </div>
+  @if (role() === 'MEDECIN') {
+    <div class="flex flex-wrap gap-3">
+      <a routerLink="/app/ordonnances" class="btn btn-ink shine px-5 py-3 text-sm">
+        <mv-icon name="plus" [size]="17" /> Nouvelle ordonnance
+      </a>
+    </div>
+  }
 </section>
+
+<!-- ================= Mon service : médicaments sensibles (selon le rôle) ================= -->
+@if (role() === 'ADMIN') { <section class="mt-6"><mv-dashboard-sensibles-admin /></section> }
+@if (role() === 'PHARMACIEN') { <section class="mt-6"><mv-dashboard-sensibles-pharmacien /></section> }
 
 <!-- ================= Indicateurs ================= -->
 <section class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

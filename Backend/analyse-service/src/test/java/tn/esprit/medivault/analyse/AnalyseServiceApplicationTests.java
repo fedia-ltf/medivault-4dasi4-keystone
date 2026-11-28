@@ -13,8 +13,8 @@ class AnalyseServiceApplicationTests {
     @Test
     void nouvelleAnalyseEstEnAttenteSansResultat() {
         Analyse analyse = Analyse.builder()
-                .patientId(1L)
-                .medecinId(2L)
+                .patientId("patient-ahmed")
+                .medecinId("medecin-karim")
                 .typeAnalyse("Bilan sanguin")
                 .statut(StatutAnalyse.EN_ATTENTE)
                 .build();

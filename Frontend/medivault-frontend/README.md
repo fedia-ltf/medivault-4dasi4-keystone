@@ -94,5 +94,8 @@ liste() { return this.http.get<Ordonnance[]>('/api/ordonnances'); }
 | `/` | Accueil animé |
 | `/login` | Connexion avec choix du rôle |
 | `/app/dashboard` | Tableau de bord |
-| `/app/medicaments` | Catalogue : recherche, ajout, modification, suppression |
+| `/app/medicaments` | Oriente chaque rôle vers son espace (ci-dessous) |
+| `/app/medicaments/gestion` | Admin : CRUD du catalogue |
+| `/app/medicaments/pharmacien` | Pharmacien : déclaration des ventes et suivi des quotas |
+| `/app/medicaments/catalogue` | Autres rôles : consultation des médicaments (lecture seule) |
 | `/app/dossiers`, `/app/ordonnances`, `/app/pharmacie`, `/app/analyses`, `/app/rendez-vous` | Modules en cours de développement |

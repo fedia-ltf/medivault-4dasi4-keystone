@@ -3,23 +3,25 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Icon } from '../../shared/icon';
 import { CountUp } from '../../shared/count-up';
+import { DashboardSensiblesAdmin, DashboardSensiblesPharmacien } from '../medicaments/components/dashboard-sensibles';
 import { AuthService } from '../../core/auth.service';
-import { MedicamentService } from '../medicaments/services/medicament.service';
+import { SensibleService } from '../medicaments/services/sensible.service';
 
 interface Serie { label: string; mois: string[]; prescrites: number[]; delivrees: number[]; }
 
 @Component({
   selector: 'mv-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, RouterLink, Icon, CountUp],
+  imports: [DatePipe, RouterLink, Icon, CountUp, DashboardSensiblesAdmin, DashboardSensiblesPharmacien],
   templateUrl: './dashboard.html'
 })
 export class DashboardPage {
   protected auth = inject(AuthService);
-  private medicaments = inject(MedicamentService);
+  private sensible = inject(SensibleService);
+  protected role = computed(() => this.auth.utilisateur()?.role);
 
   protected aujourdhui = new Date();
-  protected nbMedicaments = signal(31);
+  protected nbMedicaments = signal(7);
   protected apiEnLigne = signal<boolean | null>(null);
 
   protected salutation = computed(() => {
@@ -33,7 +35,7 @@ export class DashboardPage {
   protected kpis = computed(() => [
     { label: 'Patients suivis', valeur: 1284, delta: '+4,2 %', icon: 'users', ton: 'from-aqua-300 to-aqua-500', points: [8, 10, 9, 12, 11, 14, 16] },
     { label: 'Ordonnances ce mois', valeur: 342, delta: '+12 %', icon: 'clipboard', ton: 'from-sky-300 to-sky-500', points: [5, 7, 6, 9, 12, 11, 15] },
-    { label: 'Médicaments au catalogue', valeur: this.nbMedicaments(), delta: 'API', icon: 'pill', ton: 'from-iris-400 to-iris-500', points: [9, 9, 10, 10, 11, 11, 12] },
+    { label: 'Médicaments sensibles', valeur: this.nbMedicaments(), delta: 'API', icon: 'pill', ton: 'from-iris-400 to-iris-500', points: [9, 9, 10, 10, 11, 11, 12] },
     { label: 'Alertes d\'interaction', valeur: 12, delta: '−3', icon: 'alert', ton: 'from-amber-300 to-orange-400', points: [14, 12, 13, 10, 11, 9, 8] }
   ]);
 
@@ -122,9 +124,9 @@ export class DashboardPage {
   ]);
 
   constructor() {
-    this.medicaments.catalogue().subscribe(liste => {
-      this.nbMedicaments.set(liste.length);
-      this.apiEnLigne.set(this.medicaments.enLigne());
+    this.sensible.charger().subscribe(() => {
+      this.nbMedicaments.set(this.sensible.medicaments().length);
+      this.apiEnLigne.set(this.sensible.enLigne());
     });
   }
 }

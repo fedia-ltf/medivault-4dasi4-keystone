@@ -1,11 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { Icon } from '../../shared/icon';
 import { Logo } from '../../shared/logo';
 import { Hologram } from '../../shared/hologram';
-import { AuthService, ROLES, Role } from '../../core/auth.service';
+import { AuthService } from '../../core/auth.service';
 
+// Connexion réelle : le mot de passe est vérifié par Keycloak, le rôle vient du compte (plus de compte de démonstration ici)
 @Component({
   selector: 'mv-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -14,48 +16,56 @@ import { AuthService, ROLES, Role } from '../../core/auth.service';
 })
 export class LoginPage {
   private auth = inject(AuthService);
-  private router = inject(Router);
-
-  protected readonly roles = ROLES;
-  protected role = signal<Role>('MEDECIN');
-  protected roleIndex = computed(() => this.roles.findIndex(r => r.value === this.role()));
 
   protected email = '';
   protected motDePasse = '';
+  protected resterConnecte = true;
   protected voirMotDePasse = signal(false);
   protected chargement = signal(false);
   protected succes = signal(false);
   protected erreur = signal('');
   protected secoue = signal(false);
+  /** Le rôle lu dans le compte une fois connecté (affiché sur le bouton) */
+  protected roleDetecte = signal<string | null>(null);
 
   protected connexion() {
     this.erreur.set('');
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email);
-    if (!emailOk || this.motDePasse.length < 4) {
-      this.erreur.set(!emailOk ? 'Adresse e-mail invalide.' : 'Le mot de passe doit contenir au moins 4 caractères.');
-      this.secoue.set(true);
-      setTimeout(() => this.secoue.set(false), 650);
+    if (!emailOk || !this.motDePasse) {
+      this.refuser(!emailOk ? 'Adresse e-mail invalide.' : 'Entrez votre mot de passe.');
       return;
     }
     this.chargement.set(true);
-    // Simulation de l'appel à Keycloak
-    setTimeout(() => {
-      this.chargement.set(false);
-      this.succes.set(true);
-      this.auth.connexion(this.email, this.role());
-      setTimeout(() => this.router.navigateByUrl('/app/dashboard'), 900);
-    }, 1100);
+    this.auth.connexionReelle(this.email.trim(), this.motDePasse, this.resterConnecte).subscribe({
+      next: u => this.reussir(u.role),
+      error: (e: HttpErrorResponse) => this.echec(e)
+    });
   }
 
-  protected remplirDemo() {
-    const demo: Record<Role, string> = {
-      MEDECIN: 'karim.benali@medivault.tn',
-      PATIENT: 'ahmed.trabelsi@medivault.tn',
-      PHARMACIEN: 'aziz.pharma@medivault.tn',
-      LABORANTIN: 'taha.labo@medivault.tn',
-      ADMIN: 'admin@medivault.tn'
-    };
-    this.email = demo[this.role()];
-    this.motDePasse = 'medivault';
+  private reussir(role: string) {
+    this.chargement.set(false);
+    this.roleDetecte.set(role);
+    this.succes.set(true);
+    setTimeout(() => this.auth.redirectionApresConnexion(), 900);
+  }
+
+  private echec(e: HttpErrorResponse) {
+    this.chargement.set(false);
+    if (e.status === 401 || e.status === 403) {
+      this.refuser(e.error?.detail ?? 'Email ou mot de passe incorrect.');
+    } else if (e.status === 400) {
+      this.refuser(Object.values<string>(e.error?.erreurs ?? {})[0] ?? 'Données invalides.');
+    } else if (e.status === 0 || e.status === 404 || e.status === 502 || e.status === 503) {
+      this.refuser('Serveur de connexion injoignable (user-service ou Keycloak éteint).');
+    } else {
+      this.refuser('Connexion impossible pour le moment. Réessayez.');
+    }
+  }
+
+  private refuser(message: string) {
+    this.chargement.set(false);
+    this.erreur.set(message);
+    this.secoue.set(true);
+    setTimeout(() => this.secoue.set(false), 650);
   }
 }

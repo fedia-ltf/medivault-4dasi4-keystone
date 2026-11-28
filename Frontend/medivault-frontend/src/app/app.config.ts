@@ -1,6 +1,7 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter, withInMemoryScrolling, withViewTransitions } from '@angular/router';
-import { provideHttpClient, withFetch } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import { authInterceptor } from './core/auth.interceptor';
 
 import { routes } from './app.routes';
 
@@ -14,6 +15,7 @@ export const appConfig: ApplicationConfig = {
       withViewTransitions(),
       withInMemoryScrolling({ scrollPositionRestoration: 'top', anchorScrolling: 'enabled' })
     ),
-    provideHttpClient(withFetch())
+    // l'intercepteur ajoute le jeton Keycloak (Authorization: Bearer) et l'identité (X-User-Id, X-User-Role) aux appels de l'API
+    provideHttpClient(withFetch(), withInterceptors([authInterceptor]))
   ]
 };

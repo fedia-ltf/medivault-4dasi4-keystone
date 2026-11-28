@@ -1,16 +1,25 @@
 package tn.esprit.medivault.dossier.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.medivault.dossier.dto.*;
 import tn.esprit.medivault.dossier.entities.*;
 import tn.esprit.medivault.dossier.exceptions.AccesRefuseException;
 import tn.esprit.medivault.dossier.exceptions.DossierNotFoundException;
+import tn.esprit.medivault.dossier.exceptions.RequeteInvalideException;
+import tn.esprit.medivault.dossier.messaging.DossierEventPublisher;
+import tn.esprit.medivault.dossier.messaging.events.ConsultationAjouteeEvent;
 import tn.esprit.medivault.dossier.repositories.AccesDossierRepository;
 import tn.esprit.medivault.dossier.repositories.ConsultationRepository;
 import tn.esprit.medivault.dossier.repositories.DossierRepository;
+import tn.esprit.medivault.dossier.repositories.LienDossierRepository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +31,9 @@ public class DossierService {
     private final DossierRepository dossierRepository;
     private final ConsultationRepository consultationRepository;
     private final AccesDossierRepository accesDossierRepository;
+    private final LienDossierRepository lienDossierRepository;
     private final DossierMapper dossierMapper;
+    private final DossierEventPublisher eventPublisher;
 
     // ---- Lecture ----
 
@@ -62,6 +73,36 @@ public class DossierService {
         return new AccesJustificationResponse(patientId, professionnelId, autorise);
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<ConsultationResponse> listerConsultations(
+            Long dossierId, String medecinId, LocalDate du, LocalDate au, Pageable pageable) {
+
+        // Vérification dossier
+        dossierRepository.findById(dossierId)
+                .orElseThrow(() -> new DossierNotFoundException(
+                        "Aucun dossier trouvé avec l'id : " + dossierId));
+
+        // Validation des filtres de date
+        if (du != null && au != null && du.isAfter(au)) {
+            throw new RequeteInvalideException("La date de début 'du' (" + du + ") ne peut pas être postérieure à la date de fin 'au' (" + au + ").");
+        }
+
+        // Tri toujours par date décroissante
+        Pageable sorted = PageRequest.of(
+                pageable.getPageNumber(),
+                Math.min(pageable.getPageSize(), 100),
+                Sort.by(Sort.Direction.DESC, "date")
+        );
+
+        Page<Consultation> page = consultationRepository.findFiltered(dossierId, medecinId, du, au, sorted);
+
+        List<ConsultationResponse> content = page.getContent().stream()
+                .map(dossierMapper::toConsultationResponse)
+                .toList();
+
+        return new PageResponse<>(content, page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
+    }
+
     // ---- Écriture ----
 
     @Transactional
@@ -89,12 +130,24 @@ public class DossierService {
                 .build();
 
         Consultation saved = consultationRepository.save(consultation);
+
+        // Publication de l'événement APRÈS le save (même transaction) — solution simple sans @TransactionalEventListener.
+        // Si RabbitMQ est indisponible, le publisher absorbe l'erreur et la consultation reste enregistrée.
+        eventPublisher.publierConsultationAjoutee(new ConsultationAjouteeEvent(
+                saved.getId(),
+                dossier.getPatientId(),
+                saved.getMedecinId(),
+                saved.getAnalysesDemandees(),
+                saved.getDate()
+        ));
+
         return dossierMapper.toConsultationResponse(saved);
     }
 
     @Transactional
     public ConsultationResponse modifierConsultation(Long dossierId, Long consultationId, ConsultationUpdateRequest req) {
-        Dossier dossier = dossierRepository.findById(dossierId)
+        // Le dossier doit exister (sinon 404)
+        dossierRepository.findById(dossierId)
                 .orElseThrow(() -> new DossierNotFoundException(
                         "Aucun dossier trouvé avec l'id : " + dossierId));
 
@@ -120,6 +173,7 @@ public class DossierService {
         consultation.setObservations(req.observations());
 
         Consultation saved = consultationRepository.save(consultation);
+
         return dossierMapper.toConsultationResponse(saved);
     }
 
@@ -173,9 +227,7 @@ public class DossierService {
 
     @Transactional
     public void accorderAcces(String patientId, String professionnelId) {
-        Dossier dossier = dossierRepository.findByPatientId(patientId)
-                .orElseThrow(() -> new DossierNotFoundException(
-                        "Aucun dossier trouvé pour le patient : " + patientId));
+        Dossier dossier = creerDossierVide(patientId);
 
         AccesDossier acces = accesDossierRepository
                 .findByDossierIdAndProfessionnelId(dossier.getId(), professionnelId)
@@ -197,5 +249,38 @@ public class DossierService {
                     .build();
             accesDossierRepository.save(nouvelAcces);
         }
+    }
+
+    @Transactional
+    public void retirerAccesParPatient(String patientId, String professionnelId) {
+        dossierRepository.findByPatientId(patientId).ifPresent(dossier -> {
+            accesDossierRepository.findByDossierIdAndProfessionnelId(dossier.getId(), professionnelId)
+                    .ifPresent(acces -> {
+                        acces.setStatut(StatutAcces.RETIRE);
+                        acces.setDateRetrait(LocalDateTime.now());
+                        accesDossierRepository.save(acces);
+                    });
+        });
+    }
+
+    @Transactional
+    public void ajouterLien(String patientId, TypeLien type, String referenceId, LocalDateTime date, String auteurId, String libelle) {
+        Dossier dossier = creerDossierVide(patientId);
+
+        boolean exists = lienDossierRepository.existsByDossierIdAndTypeAndReferenceId(dossier.getId(), type, referenceId);
+        if (exists) {
+            return;
+        }
+
+        LienDossier lien = LienDossier.builder()
+                .type(type)
+                .referenceId(referenceId)
+                .date(date)
+                .auteurId(auteurId)
+                .libelle(libelle)
+                .dossier(dossier)
+                .build();
+
+        lienDossierRepository.save(lien);
     }
 }

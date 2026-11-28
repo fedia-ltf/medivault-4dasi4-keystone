@@ -10,5 +10,6 @@ public record DossierResponse(
         GroupeSanguin groupeSanguin,
         List<String> allergies,
         String antecedents,
-        List<ConsultationResponse> consultations
+        List<ConsultationResponse> consultations,
+        List<LienDossierResponse> liens
 ) {}

@@ -13,8 +13,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"consultations", "acces"})
-@EqualsAndHashCode(exclude = {"consultations", "acces"})
+@ToString(exclude = {"consultations", "acces", "liens"})
+@EqualsAndHashCode(exclude = {"consultations", "acces", "liens"})
 public class Dossier {
 
     @Id
@@ -45,11 +45,16 @@ public class Dossier {
     @Builder.Default
     private List<AccesDossier> acces = new ArrayList<>();
 
+    @OneToMany(mappedBy = "dossier", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<LienDossier> liens = new ArrayList<>();
+
     public Dossier(String patientId) {
         this.patientId = patientId;
         this.groupeSanguin = GroupeSanguin.INCONNU;
         this.allergies = new ArrayList<>();
         this.consultations = new ArrayList<>();
         this.acces = new ArrayList<>();
+        this.liens = new ArrayList<>();
     }
 }

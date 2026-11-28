@@ -36,6 +36,14 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(RequeteInvalideException.class)
+    public ProblemDetail handleRequeteInvalide(RequeteInvalideException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Requête invalide");
+        problem.setType(URI.create("about:blank"));
+        return problem;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         String details = ex.getBindingResult().getFieldErrors().stream()

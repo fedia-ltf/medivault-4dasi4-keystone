@@ -17,6 +17,7 @@ public class RendezVousResponse {
     private Long id;
     private String patientId;
     private String motif;
+    private String description;
     private StatutRdv statut;
     private Long analyseId;
     private Long creneauId;

@@ -1,6 +1,7 @@
 package tn.esprit.medivault.rendezvous.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,10 @@ public class RendezVousRequest {
 
     @NotBlank(message = "Le motif du rendez-vous est obligatoire")
     private String motif;
+
+    /** Précisions facultatives du patient (symptômes, consignes). */
+    @Size(max = 500, message = "La description ne doit pas dépasser 500 caractères")
+    private String description;
 
     /**
      * Renseigné uniquement pour un rendez-vous au laboratoire (id de l'analyse prescrite).

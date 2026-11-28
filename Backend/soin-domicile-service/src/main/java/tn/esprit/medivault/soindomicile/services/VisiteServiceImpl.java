@@ -7,6 +7,7 @@ import tn.esprit.medivault.soindomicile.dto.*;
 import tn.esprit.medivault.soindomicile.entities.*;
 import tn.esprit.medivault.soindomicile.exceptions.*;
 import tn.esprit.medivault.soindomicile.clients.MedicamentClient;
+import tn.esprit.medivault.soindomicile.clients.OrdonnanceClient;
 import tn.esprit.medivault.soindomicile.messaging.SoinEventPublisher;
 import tn.esprit.medivault.soindomicile.notifications.WhatsAppNotifier;
 import tn.esprit.medivault.soindomicile.repositories.InfirmierRepository;
@@ -28,6 +29,7 @@ public class VisiteServiceImpl implements IVisiteService {
     private final VisiteRepository repo;
     private final VerificationOrdonnance verificationOrdonnance;   // étape 8
     private final MedicamentClient medicamentClient;               // étape 8
+    private final OrdonnanceClient ordonnanceClient;               // code de l'ordonnance pour la vente
     private final SoinEventPublisher publisher;                    // étape 9
     private final InfirmierRepository infirmierRepo;
     private final WhatsAppNotifier whatsApp;
@@ -118,8 +120,10 @@ public class VisiteServiceImpl implements IVisiteService {
             throw new RegleMetierException(inf.getNomComplet() + " a déjà un soin à cette heure");
         }
         if (v.isMedicamentSensible()) {                                    // synchrone
+            // medicament-service identifie l'ordonnance par son code (ex. ORD-2026-0001)
+            String codeOrdonnance = ordonnanceClient.getById(v.getOrdonnanceId()).code();
             medicamentClient.enregistrerVente(
-                    new VenteRequest(v.getPharmacieId(), v.getMedicamentId(), v.getOrdonnanceId(), 1));
+                    new VenteRequest(v.getPharmacieId(), codeOrdonnance, v.getMedicamentId(), 1));
         }
         v.setPharmacienId(r.pharmacienId());
         v.setInfirmierNom(inf.getNomComplet());                // copié : l'historique reste juste même si l'infirmier est supprimé

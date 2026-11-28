@@ -1,18 +1,21 @@
 package tn.esprit.medivault.soindomicile.config;
 
-import org.springframework.amqp.core.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * soin-domicile publie SoinRealise (soin.realise -> dossier) et AlerteMesure (mesure.alerte -> notification).
+ * Il n'écoute plus medicament.retire : cet événement n'est plus publié (documentation finale v4).
+ */
 @Configuration
 public class RabbitMQConfig {
 
     @Value("${medivault.rabbitmq.exchange}") private String exchange;
-    @Value("${medivault.rabbitmq.queue.medicament-retire}") private String queue;
-    @Value("${medivault.rabbitmq.routing-key.medicament-retire}") private String cleRetrait;
 
     @Bean
     public TopicExchange medivaultExchange() {
@@ -20,17 +23,7 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Queue medicamentRetireQueue() {
-        return QueueBuilder.durable(queue).build();        // ma propre file durable
-    }
-
-    @Bean
-    public Binding medicamentRetireBinding() {
-        return BindingBuilder.bind(medicamentRetireQueue()).to(medivaultExchange()).with(cleRetrait);
-    }
-
-    @Bean
-    public MessageConverter jsonMessageConverter() {
-        return new Jackson2JsonMessageConverter();          // les messages circulent en JSON
+    public MessageConverter jsonMessageConverter(ObjectMapper objectMapper) {
+        return new Jackson2JsonMessageConverter(objectMapper);   // JSON, dates ISO (ObjectMapper de Spring)
     }
 }

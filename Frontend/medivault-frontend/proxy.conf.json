@@ -1,4 +1,10 @@
 {
+  "/api/dossiers": {
+    "target": "http://localhost:8085",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/api": "" }
+  },
   "/api": {
     "target": "http://localhost:8084",
     "secure": false,

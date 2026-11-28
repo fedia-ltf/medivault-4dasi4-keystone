@@ -1,4 +1,14 @@
 {
+  "/api/rendezvous": {
+    "target": "http://localhost:8087",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/creneaux": {
+    "target": "http://localhost:8087",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/auth": {
     "target": "http://localhost:8081",
     "secure": false,
@@ -14,8 +24,43 @@
     "secure": false,
     "changeOrigin": true
   },
-  "/api": {
+  "/api/medicaments-sensibles": {
     "target": "http://localhost:8084",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/attributions": {
+    "target": "http://localhost:8084",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/ventes": {
+    "target": "http://localhost:8084",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/disponibilites": {
+    "target": "http://localhost:8084",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/previsions": {
+    "target": "http://localhost:8084",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/risques": {
+    "target": "http://localhost:8084",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/tentatives-refusees": {
+    "target": "http://localhost:8084",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api": {
+    "target": "http://localhost:8080",
     "secure": false,
     "changeOrigin": true
   }

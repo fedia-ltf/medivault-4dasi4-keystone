@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { Icon } from '../../shared/icon';
 import { Logo } from '../../shared/logo';
 import { Hologram } from '../../shared/hologram';
@@ -16,7 +16,6 @@ import { AuthService } from '../../core/auth.service';
 })
 export class LoginPage {
   private auth = inject(AuthService);
-  private router = inject(Router);
 
   protected email = '';
   protected motDePasse = '';
@@ -26,6 +25,8 @@ export class LoginPage {
   protected succes = signal(false);
   protected erreur = signal('');
   protected secoue = signal(false);
+  /** Le rôle lu dans le compte une fois connecté (affiché sur le bouton) */
+  protected roleDetecte = signal<string | null>(null);
 
   protected connexion() {
     this.erreur.set('');
@@ -36,15 +37,16 @@ export class LoginPage {
     }
     this.chargement.set(true);
     this.auth.connexionReelle(this.email.trim(), this.motDePasse, this.resterConnecte).subscribe({
-      next: () => this.reussir(),
+      next: u => this.reussir(u.role),
       error: (e: HttpErrorResponse) => this.echec(e)
     });
   }
 
-  private reussir() {
+  private reussir(role: string) {
     this.chargement.set(false);
+    this.roleDetecte.set(role);
     this.succes.set(true);
-    setTimeout(() => this.router.navigateByUrl('/app/dashboard'), 900);
+    setTimeout(() => this.auth.redirectionApresConnexion(), 900);
   }
 
   private echec(e: HttpErrorResponse) {

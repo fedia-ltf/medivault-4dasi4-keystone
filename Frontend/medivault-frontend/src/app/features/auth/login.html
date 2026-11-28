@@ -107,7 +107,7 @@
             <span class="grid h-6 w-6 place-items-center rounded-full bg-aqua-400 text-ink-950 enter">
               <mv-icon name="check" [size]="15" [stroke]="3" />
             </span>
-            Accès autorisé
+            Rôle reconnu : {{ roleDetecte() }} · Accès au tableau de bord…
           } @else if (chargement()) {
             <span class="h-5 w-5 animate-spin rounded-full border-2 border-white/25 border-t-aqua-300"></span>
             Vérification de l'identité…

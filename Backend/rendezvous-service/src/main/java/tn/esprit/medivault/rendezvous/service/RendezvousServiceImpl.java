@@ -211,6 +211,38 @@ public class RendezvousServiceImpl implements IRendezvousService {
 
     @Override
     @Transactional
+    public CreneauResponse creerCreneau(CreneauRequest request) {
+        if (request.getDateFin().isBefore(request.getDateDebut())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La date de fin doit être postérieure à la date de début");
+        }
+        Creneau c = Creneau.builder()
+                .professionnelId(request.getProfessionnelId())
+                .typeProfessionnel(request.getTypeProfessionnel() != null ? request.getTypeProfessionnel() : TypeProfessionnel.MEDECIN)
+                .dateDebut(request.getDateDebut())
+                .dateFin(request.getDateFin())
+                .build();
+        Creneau saved = creneauRepository.save(c);
+        log.info("Créneau {} créé manuellement pour le professionnel {}", saved.getId(), saved.getProfessionnelId());
+        return mapToCreneauResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public CreneauResponse modifierCreneau(Long id, CreneauRequest request) {
+        Creneau c = creneauRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Créneau introuvable"));
+        if (!c.estLibre()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Impossible de modifier un créneau déjà réservé");
+        }
+        if (request.getDateDebut() != null) c.setDateDebut(request.getDateDebut());
+        if (request.getDateFin() != null) c.setDateFin(request.getDateFin());
+        Creneau updated = creneauRepository.save(c);
+        log.info("Créneau {} modifié avec succès", id);
+        return mapToCreneauResponse(updated);
+    }
+
+    @Override
+    @Transactional
     public void supprimerCreneau(Long id) {
         Creneau creneau = creneauRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Créneau introuvable"));

@@ -22,7 +22,12 @@ export const routes: Routes = [
       { path: 'ordonnances', loadChildren: () => import('./features/ordonnances/ordonnances.routes').then(m => m.ORDONNANCES_ROUTES) },
       { path: 'pharmacie', loadChildren: () => import('./features/pharmacie/pharmacie.routes').then(m => m.PHARMACIE_ROUTES) },
       { path: 'analyses', loadChildren: () => import('./features/analyses/analyses.routes').then(m => m.ANALYSES_ROUTES) },
-      { path: 'rendez-vous', loadChildren: () => import('./features/rendez-vous/rendez-vous.routes').then(m => m.RENDEZ_VOUS_ROUTES) }
+      { path: 'rendez-vous', loadChildren: () => import('./features/rendez-vous/rendez-vous.routes').then(m => m.RENDEZ_VOUS_ROUTES) },
+      {
+        path: 'acces-refuse',
+        data: { title: 'Accès refusé' },
+        loadComponent: () => import('./features/auth/acces-refuse').then(m => m.AccesRefusePage)
+      }
     ]
   },
   { path: '**', redirectTo: '' }

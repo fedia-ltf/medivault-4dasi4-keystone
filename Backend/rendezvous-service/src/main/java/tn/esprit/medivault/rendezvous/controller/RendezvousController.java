@@ -11,6 +11,8 @@ import tn.esprit.medivault.rendezvous.dto.RendezVousRequest;
 import tn.esprit.medivault.rendezvous.dto.RendezVousResponse;
 import tn.esprit.medivault.rendezvous.service.IRendezvousService;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/rendezvous")
 @RequiredArgsConstructor
@@ -21,7 +23,16 @@ public class RendezvousController {
 
     @PostMapping
     @Operation(summary = "Prendre un rendez-vous (analyseId requis si au laboratoire)")
-    public ResponseEntity<RendezVousResponse> prendreRendezVous(@Valid @RequestBody RendezVousRequest request) {
+    public ResponseEntity<RendezVousResponse> prendreRendezVous(
+            @Valid @RequestBody RendezVousRequest request,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole,
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+
+        if (userId != null && "PATIENT".equalsIgnoreCase(userRole) && !userId.equalsIgnoreCase(request.getPatientId())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Accès refusé : un patient ne peut réserver que pour son propre compte");
+        }
+
         RendezVousResponse response = rendezvousService.prendreRendezVous(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

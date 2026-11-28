@@ -1,0 +1,405 @@
+<!-- ================= Bannière ================= -->
+<section class="enter relative overflow-hidden rounded-[2rem] aurora-dark grain p-8 text-white sm:p-12">
+  <div class="absolute inset-0 grid-lines"></div>
+  <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[48%] md:block">
+    <mv-soin-domicile-scene class="h-full w-full" />
+  </div>
+  <div class="relative max-w-xl">
+    <p class="font-mono text-xs text-aqua-300">soin-domicile-service · espace administrateur</p>
+    <h2 class="mt-2 font-display text-5xl leading-none">Gestion du soin à domicile</h2>
+    <p class="mt-4 text-lg text-white/60">Toutes les pharmacies en un coup d'œil : demandes des patients, infirmiers, plans de suivi et statistiques.</p>
+    <div class="mt-6 flex flex-wrap gap-3">
+      <button (click)="ouvrirAjout()" class="btn btn-primary shine px-6 py-3 text-sm"><mv-icon name="plus" [size]="17" /> Ajouter un infirmier</button>
+      <button (click)="toutCharger()" class="btn btn-ghost-dark px-5 py-3 text-sm"><mv-icon name="refresh" [size]="17" /> Actualiser</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= Chiffres-clés + pharmacies ================= -->
+@if (stats(); as s) {
+<section class="card enter mt-5 flex flex-col overflow-hidden 2xl:flex-row 2xl:items-stretch [animation-delay:80ms]">
+  <div class="grid flex-1 grid-cols-2 sm:grid-cols-5 sm:divide-x sm:divide-ink-100/80">
+    <div class="px-4 py-4">
+      <p class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.08em] whitespace-nowrap text-ink-400"><span class="h-1.5 w-1.5 rounded-full bg-aqua-500"></span>Demandes</p>
+      <p class="mt-1 font-display text-4xl leading-none text-ink-900" [mvCountUp]="s.totalDemandes"></p>
+    </div>
+    <div class="px-4 py-4">
+      <p class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.08em] whitespace-nowrap text-ink-400"><span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>En attente</p>
+      <p class="mt-1 font-display text-4xl leading-none text-ink-900" [mvCountUp]="s.enAttente"></p>
+    </div>
+    <div class="px-4 py-4">
+      <p class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.08em] whitespace-nowrap text-ink-400"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>Réalisés</p>
+      <p class="mt-1 whitespace-nowrap font-display text-4xl leading-none text-ink-900"><span [mvCountUp]="s.realisees"></span><span class="text-base text-ink-300"> · {{ s.tauxRealisation }} %</span></p>
+      <div class="mt-2 h-[3px] overflow-hidden rounded-full bg-ink-100"><div class="h-full rounded-full bg-[linear-gradient(90deg,#2957cc,#2cc5b5)]" [style.width.%]="s.tauxRealisation"></div></div>
+    </div>
+    <div class="px-4 py-4">
+      <p class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.08em] whitespace-nowrap text-ink-400"><span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>Infirmiers</p>
+      <p class="mt-1 font-display text-4xl leading-none text-ink-900" [mvCountUp]="s.totalInfirmiers"></p>
+    </div>
+    <div class="px-4 py-4">
+      <p class="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.08em] whitespace-nowrap text-ink-400"><span class="h-1.5 w-1.5 rounded-full bg-teal-500"></span>Plans en cours</p>
+      <p class="mt-1 whitespace-nowrap font-display text-4xl leading-none text-ink-900"><span [mvCountUp]="s.plansEnCours"></span><span class="text-base text-ink-300"> / {{ s.totalPlans }}</span></p>
+    </div>
+  </div>
+  <!-- les pharmacies : filtres des demandes -->
+  <div class="flex flex-wrap items-center gap-2 border-t border-ink-100/80 bg-[linear-gradient(120deg,#f4f8ff,#eef9f6)] px-4 py-3 2xl:border-l 2xl:border-t-0">
+    @for (l of lignesPharmacies(); track l.p.id) {
+      <button (click)="filtrerPharmacie(l.p.id)" [attr.aria-pressed]="filtre.pharmacieId === l.p.id"
+              class="group flex items-center gap-2.5 rounded-full bg-white py-1.5 pl-1.5 pr-3.5 text-left shadow-[0_8px_18px_-14px_rgba(30,64,140,.7)] transition duration-300 hover:-translate-y-0.5 {{ filtre.pharmacieId === l.p.id ? 'ring-2 ring-aqua-400' : 'ring-1 ring-ink-100' }}">
+        <span class="grid h-8 w-8 place-items-center rounded-full bg-aqua-50 text-aqua-700 ring-1 ring-aqua-100 transition-transform duration-500 group-hover:rotate-12"><mv-icon name="cross" [size]="15" /></span>
+        <span class="font-display text-2xl leading-none text-ink-900">{{ l.demandes }}</span>
+        <span class="text-xs font-bold text-ink-600">{{ l.p.nom }}<span class="block font-normal text-ink-400">{{ l.infirmiers }} infirmier(s)</span></span>
+      </button>
+    }
+  </div>
+</section>
+
+<!-- ================= Statistiques ================= -->
+<section class="mt-5 grid gap-4 lg:grid-cols-3">
+  <div class="card enter p-5 [animation-delay:120ms]">
+    <h3 class="font-semibold text-ink-900">Demandes par statut</h3>
+    <p class="text-xs text-ink-400">Cliquez sur un statut pour filtrer la liste.</p>
+    <ul class="mt-4 space-y-3">
+      @for (b of barresStatut(); track b.cle) {
+        <li>
+          <button (click)="filtrerStatut(b.cle)" class="w-full text-left" [attr.aria-pressed]="filtre.statut === b.cle">
+            <span class="flex justify-between text-sm"><span class="chip px-2 py-0.5 text-xs {{ tonStatut(b.cle) }}">{{ b.libelle }}</span><b class="text-ink-800">{{ b.nb }}</b></span>
+            <span class="mt-1.5 block h-2 overflow-hidden rounded-full bg-ink-100"><span class="block h-full rounded-full bg-[linear-gradient(90deg,#2957cc,#2cc5b5)] transition-all duration-700" [style.width.%]="b.pct"></span></span>
+          </button>
+        </li>
+      } @empty { <li class="text-sm text-ink-400">Aucune demande pour l'instant.</li> }
+    </ul>
+  </div>
+  <div class="card enter p-5 [animation-delay:160ms]">
+    <h3 class="font-semibold text-ink-900">Demandes par type de soin</h3>
+    <p class="text-xs text-ink-400">Toutes pharmacies confondues.</p>
+    <ul class="mt-4 space-y-3">
+      @for (b of barresType(); track b.cle) {
+        <li>
+          <span class="flex justify-between text-sm text-ink-700"><span>{{ b.libelle }}</span><b class="text-ink-800">{{ b.nb }}</b></span>
+          <span class="mt-1.5 block h-2 overflow-hidden rounded-full bg-ink-100"><span class="block h-full rounded-full bg-[linear-gradient(90deg,#4f86f7,#7dd3c0)] transition-all duration-700" [style.width.%]="b.pct"></span></span>
+        </li>
+      } @empty { <li class="text-sm text-ink-400">Aucune demande pour l'instant.</li> }
+    </ul>
+  </div>
+  <div class="card enter p-5 [animation-delay:200ms]">
+    <h3 class="font-semibold text-ink-900">Infirmiers les plus actifs</h3>
+    <p class="text-xs text-ink-400">Nombre de soins réalisés (top 5).</p>
+    <ul class="mt-4 space-y-3">
+      @for (b of topInfirmiers(); track b.cle; let i = $index) {
+        <li>
+          <span class="flex justify-between text-sm text-ink-700"><span><b class="text-aqua-600">#{{ i + 1 }}</b> {{ b.libelle }}</span><b class="text-ink-800">{{ b.nb }}</b></span>
+          <span class="mt-1.5 block h-2 overflow-hidden rounded-full bg-ink-100"><span class="block h-full rounded-full bg-[linear-gradient(90deg,#12306b,#2957cc)] transition-all duration-700" [style.width.%]="b.pct"></span></span>
+        </li>
+      } @empty { <li class="text-sm text-ink-400">Aucun soin réalisé pour l'instant.</li> }
+    </ul>
+  </div>
+</section>
+}
+
+<!-- ================= Onglets ================= -->
+<section class="mt-6 flex flex-wrap items-center justify-between gap-3">
+  <div class="relative grid grid-cols-3 rounded-full bg-white p-1 text-sm font-bold shadow-[0_10px_24px_-18px_rgba(30,64,140,.6)]">
+    @for (o of [['demandes', 'Demandes'], ['infirmiers', 'Infirmiers'], ['plans', 'Plans de suivi']]; track o[0]) {
+      <button (click)="onglet.set($any(o[0]))" class="relative z-10 rounded-full px-4 py-2 transition-all duration-300 {{ onglet() === o[0] ? 'bg-[linear-gradient(120deg,#12306b,#2957cc_60%,#4f86f7)] text-white shadow' : 'text-ink-500 hover:text-ink-900' }}">{{ o[1] }}</button>
+    }
+  </div>
+</section>
+
+<!-- ================= a) Demandes ================= -->
+@if (onglet() === 'demandes') {
+  <section class="card enter mt-4 overflow-hidden">
+    <div class="flex flex-wrap items-end gap-3 border-b border-ink-100 px-5 py-4">
+      <label class="relative min-w-60 flex-1">
+        <span class="sr-only">Rechercher une demande</span>
+        <mv-icon name="search" [size]="17" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
+        <input class="field py-2.5 pl-11" type="search" name="q" placeholder="Patient, adresse ou infirmier…" [(ngModel)]="filtre.q" (ngModelChange)="rechercherDemandes()">
+      </label>
+      <label class="text-sm text-ink-500">Pharmacie
+        <select class="field mt-1" name="pharmacie" [(ngModel)]="filtre.pharmacieId" (ngModelChange)="rechercherDemandes()">
+          <option value="">Toutes</option>
+          @for (p of pharmacies; track p.id) { <option [value]="p.id">{{ p.nom }}</option> }
+        </select>
+      </label>
+      <label class="text-sm text-ink-500">Statut
+        <select class="field mt-1" name="statut" [(ngModel)]="filtre.statut" (ngModelChange)="rechercherDemandes()">
+          <option value="">Tous</option>
+          @for (s of listeStatuts; track s.valeur) { <option [value]="s.valeur">{{ s.libelle }}</option> }
+        </select>
+      </label>
+      <label class="text-sm text-ink-500">Type de soin
+        <select class="field mt-1" name="type" [(ngModel)]="filtre.typeSoin" (ngModelChange)="rechercherDemandes()">
+          <option value="">Tous</option>
+          @for (t of typesSoin; track t.valeur) { <option [value]="t.valeur">{{ t.libelle }}</option> }
+        </select>
+      </label>
+      <label class="text-sm text-ink-500">Du <input class="field mt-1" type="date" name="du" [(ngModel)]="filtre.du" (ngModelChange)="rechercherDemandes()"></label>
+      <label class="text-sm text-ink-500">Au <input class="field mt-1" type="date" name="au" [(ngModel)]="filtre.au" (ngModelChange)="rechercherDemandes()"></label>
+      @if (filtresActifs()) {
+        <button class="btn btn-soft px-4 py-2.5 text-sm" type="button" (click)="effacerFiltres()"><mv-icon name="x" [size]="15" /> Effacer</button>
+      }
+    </div>
+    <p class="px-5 pt-3 text-xs text-ink-400">{{ demandes().length }} demande(s)</p>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[860px] text-sm">
+        <thead>
+          <tr class="bg-ink-50/70 text-left text-[11px] uppercase tracking-wider text-ink-400">
+            <th class="py-3.5 pl-6 font-bold">Patient</th><th class="py-3.5 font-bold">Soin</th><th class="py-3.5 font-bold">Date</th>
+            <th class="py-3.5 font-bold">Pharmacie</th><th class="py-3.5 font-bold">Infirmier</th><th class="py-3.5 font-bold">Statut</th>
+            <th class="py-3.5 pr-6 text-right font-bold">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (v of demandes(); track v.id) {
+            <tr (click)="detail.set(v)" class="cursor-pointer border-t border-ink-100/80 transition-colors hover:bg-aqua-50/50">
+              <td class="py-4 pl-6"><p class="font-bold text-ink-900">{{ v.patientId }}</p><p class="text-xs text-ink-400">{{ v.adresse }}</p></td>
+              <td class="py-4 text-ink-700">{{ libelleSoin(v.typeSoin) }}</td>
+              <td class="py-4 text-ink-700">{{ v.date | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td class="py-4 text-ink-700">{{ nomPharmacie(v.pharmacieId) }}</td>
+              <td class="py-4 text-ink-700">{{ v.infirmierNom ?? '—' }}</td>
+              <td class="py-4"><span class="chip px-2.5 py-1 text-xs {{ statuts[v.statut].ton }}">{{ statuts[v.statut].libelle }}</span></td>
+              <td class="py-4 pr-6">
+                <div class="flex justify-end gap-2">
+                  @if (v.statut === 'ACCEPTEE') {
+                    <button (click)="$event.stopPropagation(); annuler(v)" title="Annuler" aria-label="Annuler la demande" class="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#fff7ed,#ffedd5)] text-amber-700 ring-1 ring-amber-200 transition duration-300 hover:-translate-y-0.5"><mv-icon name="x" [size]="16" /></button>
+                  }
+                  @if (v.statut === 'DEMANDEE') {
+                    <button (click)="$event.stopPropagation(); demanderSuppression('demande', v.id, 'Demande n° ' + v.id)" title="Supprimer" aria-label="Supprimer la demande" class="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#fff1f2,#ffe4e6)] text-rose-600 ring-1 ring-rose-200 transition duration-300 hover:-translate-y-0.5 hover:bg-[linear-gradient(135deg,#f43f5e,#fb7185)] hover:text-white"><mv-icon name="trash" [size]="16" /></button>
+                  }
+                  <button (click)="$event.stopPropagation(); detail.set(v)" title="Détails" aria-label="Voir les détails" class="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#e0ecff,#d4f3ee)] text-aqua-700 ring-1 ring-aqua-200/80 transition duration-300 hover:-translate-y-0.5"><mv-icon name="eye" [size]="16" /></button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="px-6 py-8 text-center text-sm text-ink-400">Aucune demande ne correspond aux filtres.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
+
+<!-- ================= b) Infirmiers ================= -->
+@if (onglet() === 'infirmiers') {
+  <section class="card enter mt-4 overflow-hidden">
+    <div class="flex flex-wrap items-end gap-3 border-b border-ink-100 px-5 py-4">
+      <label class="relative min-w-60 flex-1">
+        <span class="sr-only">Rechercher un infirmier</span>
+        <mv-icon name="search" [size]="17" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
+        <input class="field py-2.5 pl-11" type="search" name="rechercheInf" placeholder="Prénom, nom ou téléphone…" [(ngModel)]="rechercheInf" (ngModelChange)="rechercherInfirmiers()">
+      </label>
+      <label class="text-sm text-ink-500">Pharmacie
+        <select class="field mt-1" name="pharmacieInf" [(ngModel)]="pharmacieInf" (ngModelChange)="rechercherInfirmiers()">
+          <option value="">Toutes</option>
+          @for (p of pharmacies; track p.id) { <option [value]="p.id">{{ p.nom }}</option> }
+        </select>
+      </label>
+      <button (click)="ouvrirAjout()" class="btn btn-primary px-4 py-2.5 text-sm"><mv-icon name="plus" [size]="15" /> Ajouter</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[720px] text-sm">
+        <thead>
+          <tr class="bg-ink-50/70 text-left text-[11px] uppercase tracking-wider text-ink-400">
+            <th class="py-3.5 pl-6 font-bold">Infirmier</th><th class="py-3.5 font-bold">Téléphone</th><th class="py-3.5 font-bold">Disponibilité</th>
+            <th class="py-3.5 font-bold">Pharmacie</th><th class="py-3.5 pr-6 text-right font-bold">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (i of infirmiers(); track i.id) {
+            <tr class="border-t border-ink-100/80 transition-colors hover:bg-aqua-50/50">
+              <td class="py-4 pl-6 font-bold text-ink-900">{{ i.nomComplet }}</td>
+              <td class="py-4 text-ink-700">{{ i.telephone || '—' }}</td>
+              <td class="py-4 text-ink-700"><mv-icon name="clock" [size]="13" class="text-aqua-600" /> {{ i.heureDebut.slice(0, 5) }} – {{ i.heureFin.slice(0, 5) }}</td>
+              <td class="py-4 text-ink-700">{{ nomPharmacie(i.pharmacieId) }}</td>
+              <td class="py-4 pr-6">
+                <div class="flex justify-end gap-2">
+                  <button (click)="ouvrirEdition(i)" title="Modifier" aria-label="Modifier" class="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#e0ecff,#d4f3ee)] text-aqua-700 shadow-[0_8px_16px_-10px_rgba(41,87,204,.8)] ring-1 ring-aqua-200/80 transition duration-300 hover:-translate-y-0.5 hover:bg-[linear-gradient(135deg,#2957cc,#2cc5b5)] hover:text-white"><mv-icon name="edit" [size]="16" /></button>
+                  <button (click)="demanderSuppression('infirmier', i.id, i.nomComplet)" title="Supprimer" aria-label="Supprimer" class="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#fff1f2,#ffe4e6)] text-rose-600 shadow-[0_8px_16px_-10px_rgba(244,63,94,.8)] ring-1 ring-rose-200 transition duration-300 hover:-translate-y-0.5 hover:bg-[linear-gradient(135deg,#f43f5e,#fb7185)] hover:text-white"><mv-icon name="trash" [size]="16" /></button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="px-6 py-8 text-center text-sm text-ink-400">Aucun infirmier trouvé.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
+
+<!-- ================= c) Plans de suivi ================= -->
+@if (onglet() === 'plans') {
+  <section class="card enter mt-4 overflow-hidden">
+    <div class="flex flex-wrap items-end gap-3 border-b border-ink-100 px-5 py-4">
+      <label class="relative min-w-60 flex-1">
+        <span class="sr-only">Rechercher un plan</span>
+        <mv-icon name="search" [size]="17" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
+        <input class="field py-2.5 pl-11" type="search" name="qPlans" placeholder="Patient ou adresse…" [(ngModel)]="filtrePlans.q" (ngModelChange)="rechercherPlans()">
+      </label>
+      <label class="text-sm text-ink-500">Type de soin
+        <select class="field mt-1" name="typePlans" [(ngModel)]="filtrePlans.typeSoin" (ngModelChange)="rechercherPlans()">
+          <option value="">Tous</option>
+          @for (t of typesSoin; track t.valeur) { <option [value]="t.valeur">{{ t.libelle }}</option> }
+        </select>
+      </label>
+      <label class="text-sm text-ink-500">État
+        <select class="field mt-1" name="enCours" [(ngModel)]="filtrePlans.enCours" (ngModelChange)="rechercherPlans()">
+          <option value="">Tous</option><option value="true">En cours</option><option value="false">Terminés</option>
+        </select>
+      </label>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[860px] text-sm">
+        <thead>
+          <tr class="bg-ink-50/70 text-left text-[11px] uppercase tracking-wider text-ink-400">
+            <th class="py-3.5 pl-6 font-bold">Patient</th><th class="py-3.5 font-bold">Médecin</th><th class="py-3.5 font-bold">Soin</th>
+            <th class="py-3.5 font-bold">Période</th><th class="py-3.5 font-bold">Pharmacie</th><th class="py-3.5 font-bold">État</th>
+            <th class="py-3.5 pr-6 text-right font-bold">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of plans(); track p.id) {
+            <tr class="border-t border-ink-100/80 transition-colors hover:bg-aqua-50/50">
+              <td class="py-4 pl-6"><p class="font-bold text-ink-900">{{ p.patientId }}</p><p class="text-xs text-ink-400">{{ p.adresse }}</p></td>
+              <td class="py-4 text-ink-700">{{ p.medecinId }}</td>
+              <td class="py-4 text-ink-700">{{ libelleSoin(p.typeSoin) }}</td>
+              <td class="py-4 text-ink-700">{{ p.dateDebut | date: 'dd/MM/yyyy' }} → {{ p.dateFin | date: 'dd/MM/yyyy' }}</td>
+              <td class="py-4 text-ink-700">{{ nomPharmacie(p.pharmacieId) }}</td>
+              <td class="py-4">
+                @if (enCours(p)) { <span class="chip bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700">En cours</span> }
+                @else { <span class="chip bg-ink-100 px-2.5 py-1 text-xs text-ink-500">Terminé</span> }
+              </td>
+              <td class="py-4 pr-6">
+                <div class="flex justify-end">
+                  @if (enCours(p)) {
+                    <button (click)="demanderSuppression('plan', p.id, p.patientId)" title="Arrêter le plan" aria-label="Arrêter le plan" class="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#fff1f2,#ffe4e6)] text-rose-600 ring-1 ring-rose-200 transition duration-300 hover:-translate-y-0.5 hover:bg-[linear-gradient(135deg,#f43f5e,#fb7185)] hover:text-white"><mv-icon name="octagon" [size]="16" /></button>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="7" class="px-6 py-8 text-center text-sm text-ink-400">Aucun plan de suivi trouvé.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
+
+<!-- ================= Panneau : détail d'une demande ================= -->
+@if (detail(); as v) {
+  <mv-panneau-lateral [titre]="'Demande n° ' + v.id" surtitre="détail de la demande" (fermer)="detail.set(null)">
+    <span class="chip px-2.5 py-1 text-xs {{ statuts[v.statut].ton }}">{{ statuts[v.statut].libelle }}</span>
+    <dl class="mt-5 grid grid-cols-[8rem_1fr] gap-x-4 gap-y-3 text-sm">
+      <dt class="text-ink-400">Patient</dt><dd class="font-semibold text-ink-900">{{ v.patientId }}</dd>
+      <dt class="text-ink-400">Soin</dt><dd class="text-ink-800">{{ libelleSoin(v.typeSoin) }}@if (v.dose) { · {{ v.dose }} }</dd>
+      <dt class="text-ink-400">Date</dt><dd class="text-ink-800">{{ v.date | date: 'dd/MM/yyyy à HH:mm' }}</dd>
+      <dt class="text-ink-400">Adresse</dt>
+      <dd class="text-ink-800">{{ v.adresse }}
+        @if (lienCarte(v); as lien) { · <a class="text-aqua-700 underline" [href]="lien" target="_blank" rel="noopener">Voir sur la carte</a> }
+      </dd>
+      <dt class="text-ink-400">Pharmacie</dt><dd class="text-ink-800">{{ nomPharmacie(v.pharmacieId) }}</dd>
+      @if (v.ordonnanceId) { <dt class="text-ink-400">Ordonnance</dt><dd class="text-ink-800">n° {{ v.ordonnanceId }}</dd> }
+      <dt class="text-ink-400">Infirmier</dt><dd class="text-ink-800">{{ v.infirmierNom ?? 'pas encore affecté' }}@if (v.infirmierTelephone) { · {{ v.infirmierTelephone }} }</dd>
+      @if (v.pharmacienId) { <dt class="text-ink-400">Pharmacien</dt><dd class="text-ink-800">{{ v.pharmacienId }}</dd> }
+    </dl>
+    @if (v.statut === 'REALISEE') {
+      <div class="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">
+        <p class="font-semibold">Rapport du {{ v.dateRapport | date: 'dd/MM/yyyy HH:mm' }}</p>
+        @if (v.tension) { <p>Tension : {{ v.tension }}</p> }
+        @if (v.glycemie) { <p>Glycémie : {{ v.glycemie }} g/L</p> }
+        @if (v.injectionFaite) { <p>Injection réalisée</p> }
+        @if (v.observations) { <p class="mt-1 italic">« {{ v.observations }} »</p> }
+      </div>
+    }
+    <div pied class="flex gap-3">
+      @if (v.statut === 'ACCEPTEE') {
+        <button (click)="annuler(v)" class="btn btn-soft flex-1 py-3 text-sm"><mv-icon name="x" [size]="16" /> Annuler la demande</button>
+      }
+      @if (v.statut === 'DEMANDEE') {
+        <button (click)="demanderSuppression('demande', v.id, 'Demande n° ' + v.id)" class="btn flex-1 bg-rose-600 py-3 text-sm text-white hover:bg-rose-700"><mv-icon name="trash" [size]="16" /> Supprimer</button>
+      }
+      <button (click)="detail.set(null)" class="btn btn-soft flex-1 py-3 text-sm">Fermer</button>
+    </div>
+  </mv-panneau-lateral>
+}
+
+<!-- ================= Panneau : formulaire infirmier (Reactive Form) ================= -->
+@if (panneauInf()) {
+  <mv-panneau-lateral [titre]="enEdition() === null ? 'Nouvel infirmier' : 'Modifier l\'infirmier'" surtitre="infirmiers · toutes pharmacies" (fermer)="panneauInf.set(false)">
+    <form id="form-infirmier" class="grid gap-4" [formGroup]="formInf" (ngSubmit)="enregistrerInfirmier()">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="text-sm text-ink-500">Prénom
+          <input class="field mt-1" formControlName="prenom" autocomplete="off" [attr.aria-invalid]="invalide('prenom')">
+          @if (invalide('prenom')) { <span class="mt-1 block text-xs text-rose-600">Le prénom est obligatoire.</span> }
+        </label>
+        <label class="text-sm text-ink-500">Nom
+          <input class="field mt-1" formControlName="nom" autocomplete="off" [attr.aria-invalid]="invalide('nom')">
+          @if (invalide('nom')) { <span class="mt-1 block text-xs text-rose-600">Le nom est obligatoire.</span> }
+        </label>
+      </div>
+      <label class="text-sm text-ink-500">Téléphone
+        <input class="field mt-1" formControlName="telephone" placeholder="+216 22 145 870" [attr.aria-invalid]="invalide('telephone')">
+        @if (invalide('telephone')) { <span class="mt-1 block text-xs text-rose-600">8 à 20 chiffres (espaces et + autorisés).</span> }
+      </label>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="text-sm text-ink-500">Disponible de
+          <input class="field mt-1" type="time" formControlName="heureDebut">
+        </label>
+        <label class="text-sm text-ink-500">à
+          <input class="field mt-1" type="time" formControlName="heureFin">
+        </label>
+      </div>
+      @if (formInf.hasError('horaires') && (formInf.touched || formInf.dirty)) {
+        <p class="text-xs text-rose-600">L'heure de fin doit être après l'heure de début.</p>
+      }
+      <label class="text-sm text-ink-500">Pharmacie
+        <select class="field mt-1" formControlName="pharmacieId" [attr.aria-invalid]="invalide('pharmacieId')">
+          <option value="" disabled>Choisir une pharmacie</option>
+          @for (p of pharmacies; track p.id) { <option [value]="p.id">{{ p.nom }}</option> }
+        </select>
+        @if (invalide('pharmacieId')) { <span class="mt-1 block text-xs text-rose-600">Choisissez la pharmacie de l'infirmier.</span> }
+      </label>
+      @if (erreurForm()) { <p class="rounded-xl bg-rose-50 p-3 text-sm text-rose-700" role="alert">{{ erreurForm() }}</p> }
+    </form>
+    <div pied class="flex gap-3">
+      <button (click)="panneauInf.set(false)" class="btn btn-soft flex-1 py-3 text-sm" type="button">Annuler</button>
+      <button form="form-infirmier" type="submit" class="btn btn-primary flex-1 py-3 text-sm" [disabled]="envoi()">
+        <mv-icon name="check" [size]="16" /> {{ enEdition() === null ? 'Ajouter' : 'Enregistrer' }}
+      </button>
+    </div>
+  </mv-panneau-lateral>
+}
+
+<!-- ================= Confirmation de suppression / arrêt ================= -->
+@if (aSupprimer(); as x) {
+  <div class="fixed inset-0 z-[70] grid place-items-center bg-[#0b2545]/35 p-4 backdrop-blur-sm" (click)="aSupprimer.set(null)">
+    <div class="enter w-full max-w-md rounded-[1.75rem] bg-white p-7 shadow-2xl" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="grid h-12 w-12 place-items-center rounded-2xl bg-rose-50 text-rose-600"><mv-icon [name]="x.type === 'plan' ? 'octagon' : 'trash'" [size]="22" /></div>
+      <h3 class="mt-5 font-display text-4xl leading-tight text-ink-900">
+        @if (x.type === 'plan') { Arrêter le suivi de {{ x.libelle }} ? } @else { Supprimer « {{ x.libelle }} » ? }
+      </h3>
+      <p class="mt-2 text-sm text-ink-500">
+        @switch (x.type) {
+          @case ('plan') { Les visites à venir de ce plan seront annulées ; l'historique est conservé. }
+          @case ('infirmier') { Impossible s'il a encore des soins confirmés à venir. Cette action est définitive. }
+          @default { Seule une demande en attente peut être supprimée. Cette action est définitive. }
+        }
+      </p>
+      <div class="mt-6 flex gap-3">
+        <button (click)="aSupprimer.set(null)" class="btn btn-soft flex-1 py-3 text-sm">Annuler</button>
+        <button (click)="confirmerSuppression()" class="btn flex-1 bg-rose-600 py-3 text-sm text-white hover:bg-rose-700">
+          <mv-icon [name]="x.type === 'plan' ? 'octagon' : 'trash'" [size]="16" /> {{ x.type === 'plan' ? 'Arrêter' : 'Supprimer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (toast(); as t) {
+  <div class="pointer-events-none fixed inset-x-0 bottom-6 z-[80] flex justify-center px-4" role="status">
+    <div class="enter flex items-center gap-3 rounded-full bg-[#0b2545] px-5 py-3 text-sm text-white shadow-2xl">
+      <span class="grid h-6 w-6 place-items-center rounded-full {{ t.ok ? 'bg-aqua-400' : 'bg-rose-500' }} text-white"><mv-icon [name]="t.ok ? 'check' : 'x'" [size]="14" /></span> {{ t.texte }}
+    </div>
+  </div>
+}

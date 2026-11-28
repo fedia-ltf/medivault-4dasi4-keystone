@@ -1,0 +1,26 @@
+<section class="enter relative overflow-hidden rounded-[2rem] aurora-dark grain p-8 text-white sm:p-12">
+  <div class="absolute inset-0 grid-lines"></div>
+  <div class="pointer-events-none absolute inset-y-0 right-0 hidden w-[52%] md:block">
+    <mv-soin-domicile-scene class="h-full w-full" />
+  </div>
+  <div class="relative max-w-xl">
+    <p class="font-mono text-xs text-aqua-300">soin-domicile-service</p>
+    <h2 class="mt-2 font-display text-5xl leading-none">Soin à domicile</h2>
+    <p class="mt-4 text-lg text-white/60">{{ intro() }}</p>
+    @if (espace()) {
+      <span class="chip mt-6 bg-aqua-400/15 px-3 py-1.5 text-aqua-300"><mv-icon name="user" [size]="14" /> {{ espace() }}</span>
+    }
+  </div>
+</section>
+
+@switch (role()) {
+  @case ('PATIENT') { <mv-espace-patient /> }
+  @case ('PHARMACIEN') { <mv-espace-pharmacien /> }
+  @case ('MEDECIN') { <mv-espace-medecin /> }
+  @default {
+    <p class="card mt-4 p-6 text-sm text-ink-500">
+      Connectez-vous en tant que <b>patient</b>, <b>pharmacien</b> ou <b>médecin</b> pour utiliser le soin à domicile.
+      @if (role() === 'ADMIN') { <a routerLink="/app/soin-domicile/gestion" class="ml-1 font-semibold text-aqua-700 underline">Ouvrir le back-office</a> }
+    </p>
+  }
+}

@@ -39,6 +39,8 @@ export interface VenteSensible {
   /** Renvoyés par GET /ventes pour pouvoir filtrer et afficher les lignes */
   pharmacieId: number;
   medicamentId: number;
+  /** Code de l'ordonnance, renvoyé par le back */
+  ordonnanceCode?: string;
 }
 
 /** Les pharmacies appartiennent au pharmacie-service : ici seulement de quoi les afficher */

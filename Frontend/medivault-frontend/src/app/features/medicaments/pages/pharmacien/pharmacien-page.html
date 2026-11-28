@@ -1,3 +1,6 @@
+@if (s.enLigne() === false) {
+  <div class="mb-4 rounded-2xl bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-200" role="alert">Le service médicaments ne répond pas : aucune donnée à afficher. Vérifiez qu'il est lancé, puis rechargez la page.</div>
+}
 <!-- ================= Bannière ================= -->
 <mv-hero eyebrow="medicament-service · espace pharmacien" titre="Ma pharmacie"
          phrase="Déclarez vos ventes de médicaments sensibles et suivez vos quotas du mois." icone="cross" [chips]="false">
@@ -118,11 +121,11 @@
     <h3 class="text-lg font-bold text-ink-900">Ventes de la semaine</h3>
     <p class="text-xs text-ink-400">Boîtes de médicaments sensibles</p>
     <div class="mt-5 flex h-44 items-end gap-3">
-      @for (j of jours; track j.j; let i = $index) {
+      @for (j of jours(); track j.j; let i = $index) {
         <div class="flex flex-1 flex-col items-center gap-2">
           <span class="text-[11px] font-semibold text-ink-500">{{ j.v }}</span>
           <div class="flex h-32 w-full items-end overflow-hidden rounded-xl bg-ink-50">
-            <div class="w-full rounded-xl bg-gradient-to-t from-aqua-600 to-aqua-300 transition-[height] duration-1000 ease-out-expo" [style.height.%]="pret() ? (j.v / maxJour) * 100 : 0" [style.transition-delay.ms]="i * 80"></div>
+            <div class="w-full rounded-xl bg-gradient-to-t from-aqua-600 to-aqua-300 transition-[height] duration-1000 ease-out-expo" [style.height.%]="pret() ? (j.v / maxJour()) * 100 : 0" [style.transition-delay.ms]="i * 80"></div>
           </div>
           <span class="text-xs text-ink-400">{{ j.j }}</span>
         </div>

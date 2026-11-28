@@ -28,7 +28,7 @@ const COULEURS = { STUPEFIANT: '#2957cc', PSYCHOTROPE: '#12a594', ABORTIF: '#38a
         <p class="mt-1.5 font-mono text-[11px] text-aqua-600">medicament-service <span class="text-ink-300">·</span> <span class="text-ink-400">quotas et ventes du mois</span></p>
       </div>
       <div class="flex items-center gap-2">
-        <span class="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 font-mono text-[10px] font-semibold tracking-widest text-aqua-700 ring-1 ring-aqua-200"><span class="h-1.5 w-1.5 animate-pulse rounded-full bg-iris-400"></span>{{ s.enLigne() ? 'EN DIRECT' : 'DÉMO' }}</span>
+        <span class="flex items-center gap-1.5 rounded-full bg-white px-3 py-1 font-mono text-[10px] font-semibold tracking-widest text-aqua-700 ring-1 ring-aqua-200"><span class="h-1.5 w-1.5 animate-pulse rounded-full bg-iris-400"></span>{{ s.enLigne() ? 'EN DIRECT' : 'HORS LIGNE' }}</span>
         <a routerLink="/app/medicaments" class="flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-600 ring-1 ring-ink-100 transition hover:text-aqua-600">Gérer <mv-icon name="arrow-right" [size]="13" /></a>
       </div>
     </div>
@@ -166,11 +166,16 @@ export class DashboardSensiblesAdmin {
     { nom: 'suspensions', valeur: this.s.pharmaciesSuspendues(), icone: 'octagon', couleur: '#12306b', fond: '#e9edf7' },
     { nom: 'pharmacies concernées', valeur: this.concernees(), icone: 'users', couleur: '#12a594', fond: '#e8f8f5' }
   ]);
-  // Les 5 semaines passées sont des données de démonstration ; la dernière vient des ventes du mois
+  // 6 tranches de 7 jours glissants, la dernière finit aujourd'hui : somme des quantités des vraies ventes (GET /api/ventes)
   protected semaines = computed(() => {
-    const jour = Math.max(1, new Date().getDate());
-    const base = Math.max(10, Math.round(this.s.totalVendu() / Math.max(1, Math.ceil(jour / 7))));
-    return [0.62, 0.78, 0.7, 0.92, 0.84, 1].map((k, i) => ({ s: i === 5 ? 'Auj.' : `S-${5 - i}`, v: Math.round(base * k) }));
+    const ventes = this.s.ventes();
+    const auj = new Date(); auj.setHours(0, 0, 0, 0);
+    return [5, 4, 3, 2, 1, 0].map(k => {
+      const fin = new Date(auj); fin.setDate(auj.getDate() - 7 * k);
+      const debut = new Date(fin); debut.setDate(fin.getDate() - 6);
+      const v = ventes.filter(x => { const d = new Date(`${x.date.slice(0, 10)}T00:00:00`); return d >= debut && d <= fin; }).reduce((t, x) => t + x.quantite, 0);
+      return { s: k === 0 ? 'Auj.' : `S-${k}`, v };
+    });
   });
   protected maxSemaine = computed(() => Math.max(1, ...this.semaines().map(x => x.v)));
   protected categories = computed(() =>

@@ -1,3 +1,6 @@
+@if (s.enLigne() === false) {
+  <div class="mb-4 rounded-2xl bg-rose-50 p-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-200" role="alert">Le service médicaments ne répond pas : aucune donnée à afficher. Vérifiez qu'il est lancé, puis rechargez la page.</div>
+}
 <!-- ================= Bannière ================= -->
 <mv-hero eyebrow="medicament-service · espace administrateur" titre="Médicaments sensibles"
          phrase="Les médicaments sous contrôle : catégories, quotas des pharmacies et suivi des ventes." icone="shield-check">
@@ -312,10 +315,9 @@
     <h4 class="mt-5 text-xs font-bold uppercase tracking-widest text-ink-400">Ordonnance</h4>
     <div class="mt-2 rounded-2xl border border-ink-100 p-4 text-sm">
       <p class="font-mono font-bold text-ink-900">{{ s.codeOrdonnance(v.ordonnanceId) }}</p>
-      @if (infoOrdonnance(v); as o) { <p class="mt-1 text-ink-500">Prescrite par {{ o.medecin }}</p> }
     </div>
     <h4 class="mt-5 text-xs font-bold uppercase tracking-widest text-ink-400">Patient</h4>
-    <div class="mt-2 rounded-2xl border border-ink-100 p-4 text-sm"><p class="font-bold text-ink-900">{{ infoOrdonnance(v)?.patient ?? 'Patient n° ' + v.patientId }}</p><p class="font-mono text-xs text-ink-400">patientId {{ v.patientId }}</p></div>
+    <div class="mt-2 rounded-2xl border border-ink-100 p-4 text-sm"><p class="font-bold text-ink-900">{{ 'Patient n° ' + v.patientId }}</p><p class="font-mono text-xs text-ink-400">patientId {{ v.patientId }}</p></div>
   </mv-side-panel>
 }
 

@@ -28,7 +28,7 @@ export class PharmacienPage {
   protected etapes = signal<EtapeVente[]>([]);
 
   protected form = this.fb.group({
-    ordonnanceCode: ['', [Validators.required, Validators.pattern(/^ORD-[A-Za-z0-9]{3,}$/i)]],
+    ordonnanceCode: ['', [Validators.required, Validators.pattern(/^ORD-[A-Za-z0-9-]{3,}$/i)]],
     medicamentId: [null as number | null, Validators.required],
     quantite: [1, [Validators.required, Validators.min(1)]]
   });
@@ -51,9 +51,18 @@ export class PharmacienPage {
   protected aSurveiller = computed(() => [...this.mesQuotas()].sort((a, b) => b.taux - a.taux).slice(0, 4));
   protected proches = computed(() => this.mesQuotas().filter(q => q.taux > 90));
 
-  // Ventes de la semaine, en boîtes de médicaments sensibles (les jours passés sont des données de démonstration)
-  protected readonly jours = [{ j: 'Lun', v: 9 }, { j: 'Mar', v: 6 }, { j: 'Mer', v: 11 }, { j: 'Jeu', v: 9 }, { j: 'Ven', v: 14 }, { j: 'Sam', v: 17 }, { j: 'Dim', v: 4 }];
-  protected readonly maxJour = Math.max(...this.jours.map(j => j.v));
+  // Ventes de la semaine en cours (lundi → dimanche), en boîtes de médicaments sensibles : calculées sur les vraies ventes de la pharmacie
+  protected jours = computed(() => {
+    const auj = new Date();
+    const lundi = new Date(auj.getFullYear(), auj.getMonth(), auj.getDate() - ((auj.getDay() + 6) % 7));
+    const mesVentes = this.s.ventes().filter(x => x.pharmacieId === this.s.pharmacieId());
+    return ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((j, i) => {
+      const d = new Date(lundi.getFullYear(), lundi.getMonth(), lundi.getDate() + i);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return { j, v: mesVentes.filter(x => x.date.startsWith(iso)).reduce((t, x) => t + x.quantite, 0) };
+    });
+  });
+  protected maxJour = computed(() => Math.max(1, ...this.jours().map(j => j.v)));
 
   constructor() {
     this.s.charger().subscribe();

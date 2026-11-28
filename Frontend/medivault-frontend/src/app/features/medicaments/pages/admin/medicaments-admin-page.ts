@@ -160,7 +160,6 @@ export class MedicamentsAdminPage {
   }
   protected nbJours(date: string) { return new Date(date); }
   protected tauxVente(a: Attribution) { return a.quantiteAttribuee ? Math.round((a.quantiteVendue / a.quantiteAttribuee) * 100) : 0; }
-  protected infoOrdonnance(v: VenteSensible) { return this.s.ordonnance(v.ordonnanceId); }
 
   private notifier(texte: string, ok = true) {
     this.toast.set({ texte, ok });
